@@ -1,22 +1,23 @@
-from abc import ABC
 from inspect import signature
-from typing import Callable, Dict, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, Tuple
 
 from torch import Tensor
 from torch.nn import init
 
-from ..base import VIModule
 from ..utils import ForceRequiredAttributeDefinitionMeta
 
+if TYPE_CHECKING:
+    from ..base import VIModule
 
-class VariationalDistribution(ABC, metaclass=ForceRequiredAttributeDefinitionMeta):
+
+class VariationalDistribution(metaclass=ForceRequiredAttributeDefinitionMeta):
     """Base class for variational distributions."""
 
     variational_parameters: Tuple[str, ...]
     _default_variational_parameters: Tuple[float, ...]
     sample: Callable[..., Tensor]
 
-    def reset_parameters(self, module: VIModule) -> None:
+    def reset_parameters(self, module: "VIModule") -> None:
         """
         Reset the variational parameters of module.
 
