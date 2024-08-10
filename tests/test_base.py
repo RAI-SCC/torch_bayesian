@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import torch
 from torch import Tensor
 
@@ -42,20 +44,20 @@ def test_sampled_forward() -> None:
             super().__init__()
             self.ref = ref
 
-        def forward(self, x: Tensor) -> Tensor:
+        def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
             assert x.shape == self.ref.shape
-            return x - self.ref
+            return x - self.ref, torch.tensor(False)
 
     shape1 = (3, 4)
     sample1 = torch.randn(shape1)
     test1 = Test(ref=sample1)
     assert (
-        test1.sampled_forward(sample1, samples=5) == torch.zeros((5,) + shape1)
+        test1.sampled_forward(sample1, samples=5)[0] == torch.zeros((5,) + shape1)
     ).all()
 
     shape2 = (5,)
     sample2 = torch.randn(shape2)
     test2 = Test(ref=sample2)
     assert (
-        test2.sampled_forward(sample2, samples=1) == torch.zeros((1,) + shape2)
+        test2.sampled_forward(sample2, samples=1)[0] == torch.zeros((1,) + shape2)
     ).all()
