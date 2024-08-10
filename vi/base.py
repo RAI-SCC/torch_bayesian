@@ -90,7 +90,7 @@ class VIBaseModule(VIModule):
             for (
                 variational_parameter
             ) in self.variational_distribution.variational_parameters:
-                parameter_name = self._variational_parameter_name(
+                parameter_name = self.variational_parameter_name(
                     variable, variational_parameter
                 )
                 setattr(
@@ -111,8 +111,12 @@ class VIBaseModule(VIModule):
         for variable in self.random_variables:
             parameter_name = self.variational_parameter_name(variable, "mean")
             if variable == "bias" and hasattr(self, parameter_name):
+                weight_mean = self.variational_parameter_name("weight", "mean")
+                assert hasattr(
+                    self, weight_mean
+                ), "Standard initialization of bias requires weight"
                 fan_in, _ = init._calculate_fan_in_and_fan_out(
-                    getattr(self, parameter_name)
+                    getattr(self, weight_mean)
                 )
                 bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
                 init.uniform_(getattr(self, parameter_name), -bound, bound)

@@ -3,7 +3,8 @@ from typing import Tuple
 import torch
 from torch import Tensor
 
-from vi import VIModule
+from vi import VIBaseModule, VIModule
+from vi.variational_distributions import VariationalDistribution
 
 
 def test_normal_sample() -> None:
@@ -61,3 +62,46 @@ def test_sampled_forward() -> None:
     assert (
         test2.sampled_forward(sample2, samples=1)[0] == torch.zeros((1,) + shape2)
     ).all()
+
+
+def test_name_maker() -> None:
+    """Test VIBaseModule.variational_parameter_name."""
+    assert VIBaseModule.variational_parameter_name("a", "b") == "_a_b"
+    assert VIBaseModule.variational_parameter_name("vw", "xz") == "_vw_xz"
+
+
+def test_vibasemodule() -> None:
+    """Test VIBaseModule."""
+    var_dict1 = dict(
+        weight=(2, 3),
+        bias=(3,),
+    )
+    var_params = ("mean", "std")
+    default_params = (0.0, 0.3)
+
+    class TestDistribution(VariationalDistribution):
+        variational_parameters = var_params
+        _default_variational_parameters = default_params
+
+        def sample(self, mean: Tensor, std: Tensor) -> Tensor:
+            return mean + std
+
+    module = VIBaseModule(var_dict1, TestDistribution())
+
+    for var in var_dict1:
+        for param in var_params:
+            param_name = module.variational_parameter_name(var, param)
+            assert hasattr(module, param_name)
+            if param != "mean":
+                index = var_params.index(param)
+                default = default_params[index]
+                assert (getattr(module, param_name) == default).all()
+
+    # Check that reset_mean randomizes the means
+    weight_mean = module._weight_mean.clone()
+    bias_mean = module._bias_mean.clone()
+
+    module.reset_parameters()
+
+    assert not (module._weight_mean == weight_mean).all()
+    assert not (module._bias_mean == bias_mean).all()
