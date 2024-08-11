@@ -33,7 +33,6 @@ class VILinear(VIBaseModule):
         factory_kwargs = {"device": device, "dtype": dtype}
         self.in_features = in_features
         self.out_features = out_features
-        self.bias = bias
 
         if not bias:
             self.random_variables = ("weight",)
@@ -41,7 +40,7 @@ class VILinear(VIBaseModule):
             self.random_variables = ("weight", "bias")
 
         variable_shapes = dict(
-            weight=(in_features, out_features),
+            weight=(out_features, in_features),
             bias=(out_features,),
         )
 

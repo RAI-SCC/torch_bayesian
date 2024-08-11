@@ -39,7 +39,7 @@ class VIModule(Module):
 
     def sampled_forward(
         self, *input_: Optional[Tensor], samples: int = 10
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> Union[Tensor, Tuple[Tensor, ...]]:
         """
         Forward pass of the module evaluating multiple weight samples.
 
@@ -52,10 +52,8 @@ class VIModule(Module):
 
         Returns
         -------
-        Tensor
-            All model outputs as Tensor with the sample dimension first
-        Tensor
-            Tensor containing the sampled weights and associated variational parameters (need for some losses)
+        Union[Tensor, Tuple[Tensor, ...]]
+            One or multiple Tensors
         """
         expanded = [self._expand_to_samples(x, samples=samples) for x in input_]
         return torch.vmap(self.forward, randomness="different")(*expanded)
