@@ -130,7 +130,7 @@ def test_match_parameters() -> None:
     assert shared == {"mean": 0}
     assert diff == {"std": 1}
 
-    ref2 = ("mean", "std", "skew")
+    ref2 = ("std", "mean", "skew")
     shared, diff = test.match_parameters(ref2)
     assert shared == {"mean": 0, "std": 1}
     assert diff == {}

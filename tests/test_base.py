@@ -1,9 +1,11 @@
 from typing import Tuple
+from warnings import filterwarnings
 
 import torch
 from torch import Tensor
 
 from vi import VIBaseModule, VIModule
+from vi.priors import Prior
 from vi.variational_distributions import VariationalDistribution
 
 
@@ -102,7 +104,13 @@ def test_vibasemodule() -> None:
         def log_prob(self, sample: Tensor, mean: Tensor, std: Tensor) -> Tensor:
             pass
 
-    module = VIBaseModule(var_dict1, TestDistribution())
+    class TestPrior(Prior):
+        distribution_parameters = ("mean", "log_std")
+
+        def log_prob(self, x: Tensor) -> Tensor:
+            pass
+
+    module = VIBaseModule(var_dict1, TestDistribution(), TestPrior())
 
     for var in var_dict1:
         for param in var_params:
@@ -121,6 +129,18 @@ def test_vibasemodule() -> None:
 
     assert not (module._weight_mean == weight_mean).all()
     assert not (module._bias_mean == bias_mean).all()
+
+    # Test prior based initialization
+    filterwarnings("error")
+    try:
+        module = VIBaseModule(
+            var_dict1, TestDistribution(), TestPrior(), prior_initialization=True
+        )
+    except UserWarning as e:
+        assert (
+            str(e)
+            == 'Module [TestPrior] is missing the "reset_parameters" function and does not perform prior initialization'
+        )
 
 
 def test_get_variational_parameters() -> None:
@@ -142,7 +162,13 @@ def test_get_variational_parameters() -> None:
         def log_prob(self, sample: Tensor, mean: Tensor, std: Tensor) -> Tensor:
             pass
 
-    module = VIBaseModule(var_dict1, TestDistribution())
+    class TestPrior(Prior):
+        distribution_parameters = ("mean", "log_std")
+
+        def log_prob(self, x: Tensor) -> Tensor:
+            pass
+
+    module = VIBaseModule(var_dict1, TestDistribution(), TestPrior())
 
     for variable in ("weight", "bias"):
         params_list = module.get_variational_parameters(variable)

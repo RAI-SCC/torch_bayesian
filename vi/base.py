@@ -5,6 +5,7 @@ import torch
 from torch import Tensor
 from torch.nn import Module, Parameter, init
 
+from .priors import Prior
 from .variational_distributions import VariationalDistribution
 
 
@@ -77,12 +78,16 @@ class VIBaseModule(VIModule):
         self,
         variable_shapes: Dict[str, Tuple[int, ...]],
         variational_distribution: VariationalDistribution,
+        prior: Prior,
+        prior_initialization: bool = False,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
         super().__init__()
         self.variational_distribution = variational_distribution
+        self.prior = prior
+        self._prior_init = prior_initialization
 
         for variable in self.random_variables:
             assert variable in variable_shapes, f"shape of {variable} is missing"
@@ -105,6 +110,8 @@ class VIBaseModule(VIModule):
         """Reset or initialize the parameters of the Module."""
         self.reset_mean()
         self.variational_distribution.reset_parameters(self)
+        if self._prior_init:
+            self.prior.reset_parameters(self)
 
     def reset_mean(self) -> None:
         """Reset the means of random variables similar to non-Bayesian Networks."""
