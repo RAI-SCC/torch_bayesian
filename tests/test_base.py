@@ -9,19 +9,6 @@ from vi.priors import Prior
 from vi.variational_distributions import VariationalDistribution
 
 
-def test_normal_sample() -> None:
-    """Test _normal_sample."""
-    mean = torch.randn((3, 4))
-    std = torch.zeros_like(mean)
-    sample = VIModule._normal_sample(mean, std)
-    assert sample.shape == mean.shape
-    assert (sample == mean).all()
-
-    std = torch.ones_like(mean)
-    sample = VIModule._normal_sample(mean, std)
-    assert not (sample == mean).all()
-
-
 def test_expand_to_samples() -> None:
     """Test _expand_to_samples."""
     shape1 = (3, 4)

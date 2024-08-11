@@ -62,12 +62,6 @@ class VIModule(Module):
         expanded = [self._expand_to_samples(x, samples=samples) for x in input_]
         return torch.vmap(self.forward)(*expanded)
 
-    @staticmethod
-    def _normal_sample(mean: Tensor, std: Tensor) -> Tensor:
-        base_sample = torch.normal(torch.zeros_like(mean), torch.ones_like(mean))
-        sample = std * base_sample + mean
-        return sample
-
 
 class VIBaseModule(VIModule):
     """Base class for VIModules that draw weights from a variational distribution."""
