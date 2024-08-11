@@ -7,7 +7,7 @@ from torch.nn import init
 from ..utils import ForceRequiredAttributeDefinitionMeta
 
 if TYPE_CHECKING:
-    from ..base import VIModule  # pragma: no cover
+    from ..base import VIBaseModule  # pragma: no cover
 
 
 class VariationalDistribution(metaclass=ForceRequiredAttributeDefinitionMeta):
@@ -18,7 +18,7 @@ class VariationalDistribution(metaclass=ForceRequiredAttributeDefinitionMeta):
     sample: Callable[..., Tensor]
     log_prob: Callable[..., Tensor]
 
-    def reset_parameters(self, module: "VIModule") -> None:
+    def reset_parameters(self, module: "VIBaseModule") -> None:
         """
         Reset the variational parameters of module.
 

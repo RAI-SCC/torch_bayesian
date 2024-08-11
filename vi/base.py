@@ -72,6 +72,7 @@ class VIBaseModule(VIModule):
         variational_distribution: VariationalDistribution,
         prior: Prior,
         prior_initialization: bool = False,
+        return_log_prob: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -80,6 +81,7 @@ class VIBaseModule(VIModule):
         self.variational_distribution = variational_distribution
         self.prior = prior
         self._prior_init = prior_initialization
+        self.return_log_prob = return_log_prob
 
         for variable in self.random_variables:
             assert variable in variable_shapes, f"shape of {variable} is missing"

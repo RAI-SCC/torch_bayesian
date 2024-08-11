@@ -10,6 +10,7 @@ class MeanFieldNormalVarDist(VariationalDistribution):
     """Variational distribution with uncorrelated, normal distributions."""
 
     def __init__(self, initial_std: float = 0.05) -> None:
+        super().__init__()
         self.variational_parameters = ("mean", "log_std")
         self._default_variational_parameters = (0.0, log(initial_std))
 
@@ -19,7 +20,7 @@ class MeanFieldNormalVarDist(VariationalDistribution):
         return self._normal_sample(mean, std)
 
     def log_prob(self, sample: Tensor, mean: Tensor, log_std: Tensor) -> Tensor:
-        """Compute the log probability of sample based on a Gaussian distribution."""
+        """Compute the log probability of sample based on a normal distribution."""
         variance = torch.exp(log_std) ** 2
         data_fitting = (sample - mean) ** 2 / variance
         normalization = 2 * log_std + log(2 * torch.pi)
