@@ -49,14 +49,16 @@ def test_sampled_forward() -> None:
 
         def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
             assert x.shape == self.ref.shape
-            return x - self.ref, torch.tensor(False)
+            rand = torch.randn(x.shape)
+            return x - self.ref, rand
 
     shape1 = (3, 4)
     sample1 = torch.randn(shape1)
     test1 = Test(ref=sample1)
-    assert (
-        test1.sampled_forward(sample1, samples=5)[0] == torch.zeros((5,) + shape1)
-    ).all()
+    cons, rand = test1.sampled_forward(sample1, samples=10)
+    assert (cons == torch.zeros((10,) + shape1)).all()
+    for r in rand[1:]:
+        assert not (rand[0] == r).all()
 
     shape2 = (5,)
     sample2 = torch.randn(shape2)

@@ -9,9 +9,7 @@ from .priors import Prior
 from .variational_distributions import VariationalDistribution
 
 
-def _forward_unimplemented(
-    self: Module, *input_: Optional[Tensor]
-) -> Tuple[Tensor, Tensor]:
+def _forward_unimplemented(self: Module, *input_: Optional[Tensor]) -> Tuple[Tensor]:
     r"""Define the computation performed at every call.
 
     Should be overridden by all subclasses.
@@ -60,7 +58,7 @@ class VIModule(Module):
             Tensor containing the sampled weights and associated variational parameters (need for some losses)
         """
         expanded = [self._expand_to_samples(x, samples=samples) for x in input_]
-        return torch.vmap(self.forward)(*expanded)
+        return torch.vmap(self.forward, randomness="different")(*expanded)
 
 
 class VIBaseModule(VIModule):
