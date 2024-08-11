@@ -7,7 +7,7 @@ from torch.nn import init
 from ..utils import ForceRequiredAttributeDefinitionMeta
 
 if TYPE_CHECKING:
-    from ..base import VIModule
+    from ..base import VIModule  # pragma: no cover
 
 
 class VariationalDistribution(metaclass=ForceRequiredAttributeDefinitionMeta):
@@ -16,6 +16,7 @@ class VariationalDistribution(metaclass=ForceRequiredAttributeDefinitionMeta):
     variational_parameters: Tuple[str, ...]
     _default_variational_parameters: Tuple[float, ...]
     sample: Callable[..., Tensor]
+    log_prob: Callable[..., Tensor]
 
     def reset_parameters(self, module: "VIModule") -> None:
         """
@@ -56,6 +57,12 @@ class VariationalDistribution(metaclass=ForceRequiredAttributeDefinitionMeta):
         assert len(self.variational_parameters) == len(
             signature(self.sample).parameters
         ), "Sample must accept exactly one Tensor for each variational parameter"
+        if not hasattr(self, "log_prob"):
+            raise NotImplementedError("Subclasses must define log_prob")
+        assert (
+            len(self.variational_parameters)
+            == (len(signature(self.log_prob).parameters) - 1)
+        ), "log_prob must accept an argument for each variational parameter plus the sample"
 
     def match_parameters(
         self, distribution_parameters: Tuple[str, ...]

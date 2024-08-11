@@ -29,6 +29,7 @@ dev = [
     "ruff",
     "mypy",
     "pytest",
+    "coverage",
 ]
 
 [tool.mypy]

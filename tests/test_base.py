@@ -36,6 +36,19 @@ def test_expand_to_samples() -> None:
     for s in out2:
         assert (s == sample2).all()
 
+    out3 = VIModule._expand_to_samples(None, samples=2)
+    assert (out3 == torch.tensor([False, False])).all()
+
+
+def test_no_forward_error() -> None:
+    """Test that forward throws error if not implemented."""
+    module = VIModule()
+    try:
+        module.forward(torch.randn((3, 4)))
+        raise AssertionError
+    except NotImplementedError as e:
+        assert str(e) == 'Module [VIModule] is missing the required "forward" function'
+
 
 def test_sampled_forward() -> None:
     """Test _sampled_forward."""
@@ -84,7 +97,10 @@ def test_vibasemodule() -> None:
         _default_variational_parameters = default_params
 
         def sample(self, mean: Tensor, std: Tensor) -> Tensor:
-            return mean + std
+            pass
+
+        def log_prob(self, sample: Tensor, mean: Tensor, std: Tensor) -> Tensor:
+            pass
 
     module = VIBaseModule(var_dict1, TestDistribution())
 
@@ -105,3 +121,36 @@ def test_vibasemodule() -> None:
 
     assert not (module._weight_mean == weight_mean).all()
     assert not (module._bias_mean == bias_mean).all()
+
+
+def test_get_variational_parameters() -> None:
+    """Test VIBaseModule.get_variational_parameters."""
+    var_dict1 = dict(
+        weight=(2, 3),
+        bias=(3,),
+    )
+    var_params = ("mean", "std")
+    default_params = (0.0, 0.3)
+
+    class TestDistribution(VariationalDistribution):
+        variational_parameters = var_params
+        _default_variational_parameters = default_params
+
+        def sample(self, mean: Tensor, std: Tensor) -> Tensor:
+            pass
+
+        def log_prob(self, sample: Tensor, mean: Tensor, std: Tensor) -> Tensor:
+            pass
+
+    module = VIBaseModule(var_dict1, TestDistribution())
+
+    for variable in ("weight", "bias"):
+        params_list = module.get_variational_parameters(variable)
+        for param_name, param_value in zip(var_params, params_list):
+            assert param_value.shape == var_dict1[variable]
+            assert (
+                param_value
+                == getattr(
+                    module, module.variational_parameter_name(variable, param_name)
+                )
+            ).all()

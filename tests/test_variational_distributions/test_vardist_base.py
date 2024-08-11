@@ -72,7 +72,42 @@ def test_parameter_checking() -> None:
         def sample(self, mean: Tensor, std: Tensor) -> Tensor:
             return mean + std
 
-    _ = Test5()
+    try:
+        Test5()
+        raise AssertionError
+    except NotImplementedError as e:
+        assert str(e) == "Subclasses must define log_prob"
+
+    class Test6(VariationalDistribution):
+        variational_parameters = ("mean", "std")
+        _default_variational_parameters = (0.0, 1.0)
+
+        def sample(self, mean: Tensor, std: Tensor) -> Tensor:
+            return mean + std
+
+        def log_prob(self, mean: Tensor, std: Tensor) -> Tensor:
+            return mean + std
+
+    try:
+        Test6()
+        raise AssertionError
+    except AssertionError as e:
+        assert (
+            str(e)
+            == "log_prob must accept an argument for each variational parameter plus the sample"
+        )
+
+    class Test7(VariationalDistribution):
+        variational_parameters = ("mean", "std")
+        _default_variational_parameters = (0.0, 1.0)
+
+        def sample(self, mean: Tensor, std: Tensor) -> Tensor:
+            return mean + std
+
+        def log_prob(self, sample: Tensor, mean: Tensor, std: Tensor) -> Tensor:
+            return sample + mean + std
+
+    _ = Test7()
 
 
 def test_match_parameters() -> None:
@@ -84,6 +119,9 @@ def test_match_parameters() -> None:
 
         def sample(self, mean: Tensor, std: Tensor) -> Tensor:
             return mean + std
+
+        def log_prob(self, sample: Tensor, mean: Tensor, std: Tensor) -> Tensor:
+            return sample + mean + std
 
     test = Test()
 

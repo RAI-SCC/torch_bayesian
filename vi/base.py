@@ -1,5 +1,5 @@
 import math
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import torch
 from torch import Tensor
@@ -30,7 +30,7 @@ def _forward_unimplemented(
 class VIModule(Module):
     """Base class for Modules using Variational Inference."""
 
-    forward: Callable[..., Tuple[Tensor, Tensor]] = _forward_unimplemented
+    forward: Callable[..., Tuple[Tensor, ...]] = _forward_unimplemented
 
     @staticmethod
     def _expand_to_samples(input_: Optional[Tensor], samples: int) -> Tensor:
@@ -128,3 +128,10 @@ class VIBaseModule(VIModule):
         """Obtain the attribute name of the variational parameter for the specified variable."""
         spec = ["", variable, variational_parameter]
         return "_".join(spec)
+
+    def get_variational_parameters(self, variable: str) -> List[Tensor]:
+        """Obtain all variational parameters for the specified variable."""
+        return [
+            getattr(self, self.variational_parameter_name(variable, param))
+            for param in self.variational_distribution.variational_parameters
+        ]
