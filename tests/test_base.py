@@ -131,6 +131,26 @@ def test_vibasemodule() -> None:
             == 'Module [TestPrior] is missing the "reset_parameters" function and does not perform prior initialization'
         )
 
+    try:
+        _ = VIBaseModule(var_dict1, [TestDistribution()] * 3, TestPrior())
+        raise AssertionError
+    except AssertionError as e:
+        assert (
+            str(e)
+            == "Provide either exactly one variational distribution or exactly one for each random variable"
+        )
+
+    try:
+        _ = VIBaseModule(var_dict1, TestDistribution(), [TestPrior()] * 3)
+        raise AssertionError
+    except AssertionError as e:
+        assert (
+            str(e)
+            == "Provide either exactly one prior distribution or exactly one for each random variable"
+        )
+
+    _ = VIBaseModule(var_dict1, [TestDistribution()] * 2, [TestPrior()] * 2)
+
 
 def test_get_variational_parameters() -> None:
     """Test VIBaseModule.get_variational_parameters."""
@@ -138,7 +158,7 @@ def test_get_variational_parameters() -> None:
         weight=(2, 3),
         bias=(3,),
     )
-    var_params = ("mean", "std")
+    var_params = ("mean", "log_std")
     default_params = (0.0, 0.3)
 
     class TestDistribution(VariationalDistribution):
