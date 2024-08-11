@@ -1,5 +1,5 @@
 import math
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -69,8 +69,10 @@ class VIBaseModule(VIModule):
     def __init__(
         self,
         variable_shapes: Dict[str, Tuple[int, ...]],
-        variational_distribution: VariationalDistribution,
-        prior: Prior,
+        variational_distribution: Union[
+            VariationalDistribution, List[VariationalDistribution]
+        ],
+        prior: Union[Prior, List[Prior]],
         prior_initialization: bool = False,
         return_log_prob: bool = True,
         device: Optional[torch.device] = None,
@@ -78,17 +80,34 @@ class VIBaseModule(VIModule):
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
         super().__init__()
-        self.variational_distribution = variational_distribution
-        self.prior = prior
+
+        if isinstance(variational_distribution, List):
+            assert (
+                len(variational_distribution) == len(self.random_variables)
+            ), "Provide either exactly one variational distribution or exactly one for each random variable"
+            self.variational_distribution = variational_distribution
+        else:
+            self.variational_distribution = [variational_distribution] * len(
+                self.random_variables
+            )
+
+        if isinstance(prior, List):
+            assert (
+                len(prior) == len(self.random_variables)
+            ), "Provide either exactly one prior distribution or exactly one for each random variable"
+            self.prior = prior
+        else:
+            self.prior = [prior] * len(self.random_variables)
+
         self._prior_init = prior_initialization
         self.return_log_prob = return_log_prob
 
-        for variable in self.random_variables:
+        for variable, vardist in zip(
+            self.random_variables, self.variational_distribution
+        ):
             assert variable in variable_shapes, f"shape of {variable} is missing"
             shape = variable_shapes[variable]
-            for (
-                variational_parameter
-            ) in self.variational_distribution.variational_parameters:
+            for variational_parameter in vardist.variational_parameters:
                 parameter_name = self.variational_parameter_name(
                     variable, variational_parameter
                 )
@@ -103,9 +122,12 @@ class VIBaseModule(VIModule):
     def reset_parameters(self) -> None:
         """Reset or initialize the parameters of the Module."""
         self.reset_mean()
-        self.variational_distribution.reset_parameters(self)
-        if self._prior_init:
-            self.prior.reset_parameters(self)
+        for variable, vardist, prior in zip(
+            self.random_variables, self.variational_distribution, self.prior
+        ):
+            vardist.reset_parameters(self, variable)
+            if self._prior_init:
+                prior.reset_parameters(self, variable)
 
     def reset_mean(self) -> None:
         """Reset the means of random variables similar to non-Bayesian Networks."""
@@ -132,7 +154,8 @@ class VIBaseModule(VIModule):
 
     def get_variational_parameters(self, variable: str) -> List[Tensor]:
         """Obtain all variational parameters for the specified variable."""
+        vardist = self.variational_distribution[self.random_variables.index(variable)]
         return [
             getattr(self, self.variational_parameter_name(variable, param))
-            for param in self.variational_distribution.variational_parameters
+            for param in vardist.variational_parameters
         ]

@@ -10,7 +10,9 @@ if TYPE_CHECKING:
     from ..base import VIBaseModule  # pragma: no cover
 
 
-def _reset_parameters_unimplemented(self: "Prior", module: "VIBaseModule") -> None:
+def _reset_parameters_unimplemented(
+    self: "Prior", module: "VIBaseModule", variable: str
+) -> None:
     warn(
         f'Module [{type(self).__name__}] is missing the "reset_parameters" function and does not perform prior initialization'
     )

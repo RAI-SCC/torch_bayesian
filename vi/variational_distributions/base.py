@@ -18,7 +18,7 @@ class VariationalDistribution(metaclass=ForceRequiredAttributeDefinitionMeta):
     sample: Callable[..., Tensor]
     log_prob: Callable[..., Tensor]
 
-    def reset_parameters(self, module: "VIBaseModule") -> None:
+    def reset_parameters(self, module: "VIBaseModule", variable: str) -> None:
         """
         Reset the variational parameters of module.
 
@@ -30,16 +30,17 @@ class VariationalDistribution(metaclass=ForceRequiredAttributeDefinitionMeta):
         ----------
         module : VIModule
             VIModule to reset parameters.
+        variable : str
+            Name of the variable to reset.
         """
-        for variable in module.random_variables:
-            for parameter, default in zip(
-                self.variational_parameters, self._default_variational_parameters
-            ):
-                if parameter == "mean":
-                    # First moment should be reset by the module by implementing reset_mean
-                    continue
-                parameter_name = module.variational_parameter_name(variable, parameter)
-                init.constant_(getattr(module, parameter_name), default)
+        for parameter, default in zip(
+            self.variational_parameters, self._default_variational_parameters
+        ):
+            if parameter == "mean":
+                # First moment should be reset by the module by implementing reset_mean
+                continue
+            parameter_name = module.variational_parameter_name(variable, parameter)
+            init.constant_(getattr(module, parameter_name), default)
 
     def check_required_attributes(self) -> None:
         """Ensure instance has required attributes."""

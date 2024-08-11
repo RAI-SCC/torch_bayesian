@@ -1,11 +1,12 @@
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
 from torch.nn import functional as F  # noqa: N812
 
 from .base import VIBaseModule
-from .variational_distributions import VariationalDistribution
+from .priors import MeanFieldNormalPrior, Prior
+from .variational_distributions import MeanFieldNormalVarDist, VariationalDistribution
 
 
 class VILinear(VIBaseModule):
@@ -17,10 +18,15 @@ class VILinear(VIBaseModule):
 
     def __init__(
         self,
-        variational_distribution: VariationalDistribution,
         in_features: int,
         out_features: int,
+        variational_distribution: Union[
+            VariationalDistribution, List[VariationalDistribution]
+        ] = MeanFieldNormalVarDist(),
+        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
+        prior_initialization: bool = False,
         bias: bool = True,
+        return_log_prob: bool = False,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -42,17 +48,42 @@ class VILinear(VIBaseModule):
         super().__init__(
             variable_shapes=variable_shapes,
             variational_distribution=variational_distribution,
+            prior=prior,
+            prior_initialization=prior_initialization,
+            return_log_prob=return_log_prob,
             **factory_kwargs,
         )
 
-    def forward(self, input_: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward(self, input_: Tensor) -> Union[Tuple[Tensor, Tensor, Tensor], Tensor]:
         """Forward computation."""
-        weight_variational_parameters = self.get_variational_parameters("weight")
-        weight = self.variational_distribution.sample(*weight_variational_parameters)
-        if self.bias:
-            bias_variational_parameters = self.get_variational_parameters("bias")
-            bias = self.variational_distribution.sample(*bias_variational_parameters)
-        else:
-            bias = torch.tensor(False)
+        params = []
+        for variable, vardist in zip(
+            self.random_variables, self.variational_distribution
+        ):
+            variational_parameters = self.get_variational_parameters(variable)
+            params.append(vardist.sample(*variational_parameters))
 
-        return F.linear(input_, weight, bias), weight.clone(), bias.clone()
+        output = F.linear(input_, *params)
+
+        if self.return_log_prob:
+            variational_log_prob = 0.0
+            prior_log_prob = 0.0
+            for sample, variable, vardist, prior in zip(
+                params, self.random_variables, self.variational_distribution, self.prior
+            ):
+                variational_parameters = self.get_variational_parameters(variable)
+                variational_log_prob = (
+                    variational_log_prob
+                    + vardist.log_prob(sample, *variational_parameters).sum()
+                )
+
+                prior_params = [
+                    getattr(self, self.variational_parameter_name(variable, param))
+                    for param in prior._required_parameters
+                ]
+                prior_log_prob = (
+                    prior_log_prob + prior.log_prob(sample, *prior_params).sum()
+                )
+            return output, variational_log_prob, prior_log_prob
+        else:
+            return output
