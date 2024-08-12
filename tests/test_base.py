@@ -122,7 +122,7 @@ def test_vibasemodule() -> None:
     # Test prior based initialization
     filterwarnings("error")
     try:
-        module = VIBaseModule(
+        _ = VIBaseModule(
             var_dict1, TestDistribution(), TestPrior(), prior_initialization=True
         )
     except UserWarning as e:
