@@ -189,3 +189,36 @@ def test_get_variational_parameters() -> None:
                     module, module.variational_parameter_name(variable, param_name)
                 )
             ).all()
+
+
+def test_get_log_probs() -> None:
+    """Test VIBaseModule.get_log_probs."""
+    var_dict1 = dict(
+        weight=(3, 1),
+        bias=(1,),
+    )
+    var_params = ("mean", "log_std")
+    default_params = (0.0, 0.3)
+
+    class TestDistribution(VariationalDistribution):
+        variational_parameters = var_params
+        _default_variational_parameters = default_params
+
+        def sample(self, mean: Tensor, std: Tensor) -> Tensor:
+            pass
+
+        def log_prob(self, sample: Tensor, mean: Tensor, std: Tensor) -> Tensor:
+            return torch.tensor(3.0)
+
+    class TestPrior(Prior):
+        distribution_parameters = ("mean", "log_std")
+
+        def log_prob(self, x: Tensor) -> Tensor:
+            return torch.tensor(2.0)
+
+    module = VIBaseModule(var_dict1, TestDistribution(), TestPrior())
+    params = [torch.empty(1)] * len(module.random_variables)
+    prior_log_prob, variational_log_prob = module.get_log_probs(params)
+
+    assert prior_log_prob == 2.0 * len(module.random_variables)
+    assert variational_log_prob == 3.0 * len(module.random_variables)

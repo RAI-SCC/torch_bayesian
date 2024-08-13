@@ -1,5 +1,5 @@
 import math
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -29,7 +29,8 @@ def _forward_unimplemented(self: Module, *input_: Optional[Tensor]) -> Tuple[Ten
 class VIModule(Module):
     """Base class for Modules using Variational Inference."""
 
-    forward: Callable[..., Tuple[Tensor, ...]] = _forward_unimplemented
+    forward: Callable[..., Union[Tensor, Tuple[Tensor, ...]]] = _forward_unimplemented
+    _return_log_prob: bool = False
 
     @staticmethod
     def _expand_to_samples(input_: Optional[Tensor], samples: int) -> Tensor:
@@ -98,7 +99,7 @@ class VIBaseModule(VIModule):
             self.prior = [prior] * len(self.random_variables)
 
         self._prior_init = prior_initialization
-        self.return_log_prob = return_log_prob
+        self._return_log_prob = return_log_prob
 
         for variable, vardist in zip(
             self.random_variables, self.variational_distribution
@@ -157,3 +158,28 @@ class VIBaseModule(VIModule):
             getattr(self, self.variational_parameter_name(variable, param))
             for param in vardist.variational_parameters
         ]
+
+    def get_log_probs(self, sampled_params: Iterable[Tensor]) -> Tuple[Tensor, Tensor]:
+        """Get prior and variational log prob of the sampled parameters."""
+        variational_log_prob = 0.0
+        prior_log_prob = 0.0
+        for sample, variable, vardist, prior in zip(
+            sampled_params,
+            self.random_variables,
+            self.variational_distribution,
+            self.prior,
+        ):
+            variational_parameters = self.get_variational_parameters(variable)
+            variational_log_prob = (
+                variational_log_prob
+                + vardist.log_prob(sample, *variational_parameters).sum()
+            )
+
+            prior_params = [
+                getattr(self, self.variational_parameter_name(variable, param))
+                for param in prior._required_parameters
+            ]
+            prior_log_prob = (
+                prior_log_prob + prior.log_prob(sample, *prior_params).sum()
+            )
+        return prior_log_prob, variational_log_prob

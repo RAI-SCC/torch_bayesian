@@ -64,25 +64,8 @@ class VILinear(VIBaseModule):
 
         output = F.linear(input_, *params)
 
-        if self.return_log_prob:
-            variational_log_prob = 0.0
-            prior_log_prob = 0.0
-            for sample, variable, vardist, prior in zip(
-                params, self.random_variables, self.variational_distribution, self.prior
-            ):
-                variational_parameters = self.get_variational_parameters(variable)
-                variational_log_prob = (
-                    variational_log_prob
-                    + vardist.log_prob(sample, *variational_parameters).sum()
-                )
-
-                prior_params = [
-                    getattr(self, self.variational_parameter_name(variable, param))
-                    for param in prior._required_parameters
-                ]
-                prior_log_prob = (
-                    prior_log_prob + prior.log_prob(sample, *prior_params).sum()
-                )
-            return output, variational_log_prob, prior_log_prob
+        if self._return_log_prob:
+            prior_log_prob, variational_log_prob = self.get_log_probs(params)
+            return output, prior_log_prob, variational_log_prob
         else:
             return output
