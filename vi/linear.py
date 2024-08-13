@@ -24,8 +24,8 @@ class VILinear(VIBaseModule):
             VariationalDistribution, List[VariationalDistribution]
         ] = MeanFieldNormalVarDist(),
         prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
-        prior_initialization: bool = False,
         bias: bool = True,
+        prior_initialization: bool = False,
         return_log_prob: bool = False,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
@@ -34,10 +34,10 @@ class VILinear(VIBaseModule):
         self.in_features = in_features
         self.out_features = out_features
 
-        if not bias:
-            self.random_variables = ("weight",)
-        else:
+        if bias:
             self.random_variables = ("weight", "bias")
+        else:
+            self.random_variables = ("weight",)
 
         variable_shapes = dict(
             weight=(out_features, in_features),
@@ -53,14 +53,9 @@ class VILinear(VIBaseModule):
             **factory_kwargs,
         )
 
-    def forward(self, input_: Tensor) -> Union[Tuple[Tensor, Tensor, Tensor], Tensor]:
+    def forward(self, input_: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
         """Forward computation."""
-        params = []
-        for variable, vardist in zip(
-            self.random_variables, self.variational_distribution
-        ):
-            variational_parameters = self.get_variational_parameters(variable)
-            params.append(vardist.sample(*variational_parameters))
+        params = self.sample_variables()
 
         output = F.linear(input_, *params)
 

@@ -183,3 +183,13 @@ class VIBaseModule(VIModule):
                 prior_log_prob + prior.log_prob(sample, *prior_params).sum()
             )
         return prior_log_prob, variational_log_prob
+
+    def sample_variables(self) -> List[Tensor]:
+        """Draw one sample from the variational distribution of each random variable."""
+        params = []
+        for variable, vardist in zip(
+            self.random_variables, self.variational_distribution
+        ):
+            variational_parameters = self.get_variational_parameters(variable)
+            params.append(vardist.sample(*variational_parameters))
+        return params
