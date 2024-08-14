@@ -12,7 +12,7 @@ def test_normal_predictive_distribution() -> None:
     reference = torch.randn((5, 3))
     target_mean = samples.mean(dim=0)
     target_std = samples.std(dim=0)
-    target_log_prob = Normal(target_mean, target_std).log_prob(reference).sum()
+    target_log_prob = Normal(target_mean, target_std).log_prob(reference)
 
     test_mean, test_std = predictive_dist.predictive_parameters_from_samples(samples)
     assert torch.allclose(test_mean, target_mean)

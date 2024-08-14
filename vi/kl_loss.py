@@ -52,9 +52,10 @@ class KullbackLeiblerLoss(Module):
             Total number of samples in the dataset
         """
         prior_matching = (variational_log_prob - prior_log_prob).mean()
+        # Sample average for predictive log prob is already done
         data_fitting = self.predictive_distribution.log_prob_from_samples(
             target, samples
-        )
+        ).sum()
 
         if (dataset_size is None) and (self.dataset_size is None):
             warn(

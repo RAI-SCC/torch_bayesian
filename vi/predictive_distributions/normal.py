@@ -27,4 +27,4 @@ class MeanFieldNormalPredictiveDistribution(PredictiveDistribution):
         variance = std**2
         data_fitting = (reference - mean) ** 2 / variance
         normalization = torch.log(2 * torch.pi * variance)
-        return -0.5 * (data_fitting + normalization).sum()
+        return -0.5 * (data_fitting + normalization)

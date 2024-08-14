@@ -27,7 +27,7 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
         if not hasattr(self, "log_prob_from_parameters"):
             raise NotImplementedError("Subclasses must define log_prob_from_parameters")
 
-    def log_prob_from_samples(self, reference: Tensor, *samples: Tensor) -> Tensor:
+    def log_prob_from_samples(self, reference: Tensor, samples: Tensor) -> Tensor:
         """Calculate the log probability for reference given a set of samples."""
-        params = self.predictive_parameters_from_samples(*samples)
+        params = self.predictive_parameters_from_samples(samples)
         return self.log_prob_from_parameters(reference, params)
