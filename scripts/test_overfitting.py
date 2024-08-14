@@ -34,7 +34,7 @@ def test_overfitting() -> None:
     all_losses = []
     for epoch in range(epochs):
         for batch in data:
-            loss = criterion(*model.sampled_forward(batch, samples=samples), batch)
+            loss = criterion(*model(batch, samples=samples), batch)
             all_losses.append(loss.item())
 
             optimizer.zero_grad()
@@ -49,7 +49,7 @@ def test_overfitting() -> None:
     plt.show()
 
     test_batch = data[0]  # torch.randn(5, *data_shape)
-    pred_samples = model.sampled_forward(test_batch, samples=samples)[0]
+    pred_samples = model(test_batch, samples=samples)[0]
     prediction = predictive_distribution.predictive_parameters_from_samples(
         pred_samples
     )
@@ -60,3 +60,7 @@ def test_overfitting() -> None:
     binned2 = binned.cumsum(0) / binned.sum()
     plt.plot(torch.arange(bins) / bins, binned2.detach().numpy())
     plt.show()
+
+
+if __name__ == "__main__":
+    test_overfitting()
