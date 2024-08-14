@@ -2,10 +2,10 @@ from typing import Callable, Tuple, Union
 
 from torch import Tensor
 
-from ..utils import ForceRequiredAttributeDefinitionMeta
+from ..utils import PostInitCallMeta
 
 
-class PredictiveDistribution(metaclass=ForceRequiredAttributeDefinitionMeta):
+class PredictiveDistribution(metaclass=PostInitCallMeta):
     """Base class for all predictive distributions."""
 
     predictive_parameters: Tuple[str, ...]
@@ -16,7 +16,7 @@ class PredictiveDistribution(metaclass=ForceRequiredAttributeDefinitionMeta):
         [Tensor, Union[Tensor, Tuple[Tensor, ...]]], Tensor
     ]
 
-    def check_required_attributes(self) -> None:
+    def __post_init__(self) -> None:
         """Ensure instance has required attributes."""
         if not hasattr(self, "predictive_parameters"):
             raise NotImplementedError("Subclasses must define predictive_parameters")

@@ -4,13 +4,13 @@ from typing import TYPE_CHECKING, Callable, Dict, Tuple
 from torch import Tensor
 from torch.nn import init
 
-from ..utils import ForceRequiredAttributeDefinitionMeta
+from ..utils import PostInitCallMeta
 
 if TYPE_CHECKING:
     from ..base import VIBaseModule  # pragma: no cover
 
 
-class VariationalDistribution(metaclass=ForceRequiredAttributeDefinitionMeta):
+class VariationalDistribution(metaclass=PostInitCallMeta):
     """Base class for variational distributions."""
 
     variational_parameters: Tuple[str, ...]
@@ -42,7 +42,7 @@ class VariationalDistribution(metaclass=ForceRequiredAttributeDefinitionMeta):
             parameter_name = module.variational_parameter_name(variable, parameter)
             init.constant_(getattr(module, parameter_name), default)
 
-    def check_required_attributes(self) -> None:
+    def __post_init__(self) -> None:
         """Ensure instance has required attributes."""
         if not hasattr(self, "variational_parameters"):
             raise NotImplementedError("Subclasses must define variational_parameters")

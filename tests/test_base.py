@@ -1,8 +1,9 @@
-from typing import Tuple
+from typing import Any, Tuple
 from warnings import filterwarnings
 
 import torch
 from torch import Tensor
+from torch.nn import Module
 
 from vi import VIBaseModule, VIModule
 from vi.priors import Prior
@@ -222,3 +223,66 @@ def test_get_log_probs() -> None:
 
     assert prior_log_prob == 2.0 * len(module.random_variables)
     assert variational_log_prob == 3.0 * len(module.random_variables)
+
+
+def test_slow_forward() -> None:
+    """
+    Test VIModule._slow_forward.
+
+    I'm not familiar with the intricacies of what this method is supposed to do.
+    I basically just copied it from torch to maintain all features.
+    """
+    # Let's just test it by jitifying something
+
+    class Test(VIModule):
+        def forward(self, x: Tensor) -> Tensor:
+            return x
+
+    module1 = Test()
+    inputs = torch.randn(4, 3)
+    filterwarnings(
+        "ignore",
+        "Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!",
+    )
+    _ = torch.jit.trace(module1.forward, inputs)
+
+
+def test_hooks() -> None:
+    """Test hook execution by VIModule._call_impl."""
+
+    def backward_pre_hook(module: Module, grad: Tensor) -> None:
+        pass
+
+    def backward_hook(module: Module, grad_in: Tensor, grad_out: Tensor) -> None:
+        pass
+
+    def forward_pre_hook(module: Module, args: Any) -> Any:
+        return torch.tensor(3.0)
+
+    def forward_hook(module: Module, args: Any, out: Any) -> Any:
+        return torch.tensor(3.0)
+
+    def forward_pre_hook_with_kwargs(
+        module: Module, args: Any, kwargs: Any
+    ) -> Tuple[Any, Any]:
+        return args, kwargs
+
+    def forward_hook_with_kwargs(
+        module: Module, args: Any, kwargs: Any, out: Any
+    ) -> None:
+        pass
+
+    class Test(VIModule):
+        def forward(self, x: Tensor) -> Tensor:
+            return x
+
+    test = Test()
+    test.register_forward_pre_hook(forward_pre_hook)
+    test.register_forward_pre_hook(forward_pre_hook_with_kwargs, with_kwargs=True)
+    test.register_forward_hook(forward_hook, always_call=True)
+    test.register_forward_hook(forward_hook_with_kwargs, with_kwargs=True)
+    test.register_full_backward_pre_hook(backward_pre_hook)
+    test.register_full_backward_hook(backward_hook)
+
+    inputs = torch.randn(4, 3)
+    _ = test(inputs)

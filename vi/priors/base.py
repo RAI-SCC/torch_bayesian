@@ -4,7 +4,7 @@ from warnings import warn
 
 from torch import Tensor
 
-from ..utils import ForceRequiredAttributeDefinitionMeta
+from ..utils import PostInitCallMeta
 
 if TYPE_CHECKING:
     from ..base import VIBaseModule  # pragma: no cover
@@ -18,7 +18,7 @@ def _reset_parameters_unimplemented(
     )
 
 
-class Prior(metaclass=ForceRequiredAttributeDefinitionMeta):
+class Prior(metaclass=PostInitCallMeta):
     """
     Base for prior distributions.
 
@@ -39,7 +39,7 @@ class Prior(metaclass=ForceRequiredAttributeDefinitionMeta):
     log_prob: Callable[..., Tensor]
     reset_parameters: Callable[..., None] = _reset_parameters_unimplemented
 
-    def check_required_attributes(self) -> None:
+    def __post_init__(self) -> None:
         """Ensure instance has required attributes."""
         if not hasattr(self, "distribution_parameters"):
             raise NotImplementedError("Subclasses must define distribution_parameters")

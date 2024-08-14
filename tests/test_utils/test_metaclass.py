@@ -1,13 +1,13 @@
-from vi.utils import ForceRequiredAttributeDefinitionMeta
+from vi.utils import PostInitCallMeta
 
 
-def test_force_required_attribute_definition_meta() -> None:
-    """Test ForceRequiredAttributeDefinitionMeta."""
+def test_post_init_meta() -> None:
+    """Test PostInitCallMeta."""
 
-    class Test(metaclass=ForceRequiredAttributeDefinitionMeta):
+    class Test(metaclass=PostInitCallMeta):
         a: int
 
-        def check_required_attributes(self) -> None:
+        def __post_init__(self) -> None:
             if not hasattr(self, "a"):
                 raise NotImplementedError("Test error")
 

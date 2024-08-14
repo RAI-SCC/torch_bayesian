@@ -1,5 +1,5 @@
 """Contains various utility functions."""
 
-from .enforce_attributes_metaclass import ForceRequiredAttributeDefinitionMeta
+from .post_init_metaclass import PostInitCallMeta
 
-__all__ = ["ForceRequiredAttributeDefinitionMeta"]
+__all__ = ["PostInitCallMeta"]
