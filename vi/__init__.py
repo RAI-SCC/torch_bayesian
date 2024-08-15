@@ -3,5 +3,12 @@
 from .base import VIBaseModule, VIModule
 from .kl_loss import KullbackLeiblerLoss
 from .linear import VILinear
+from .sequential import VISequential
 
-__all__ = ["VIModule", "VIBaseModule", "VILinear", "KullbackLeiblerLoss"]
+__all__ = [
+    "VIModule",
+    "VIBaseModule",
+    "VILinear",
+    "VISequential",
+    "KullbackLeiblerLoss",
+]

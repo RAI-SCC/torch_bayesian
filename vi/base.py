@@ -73,6 +73,21 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         expanded = [self._expand_to_samples(x, samples=samples) for x in input_]
         return torch.vmap(self.forward, randomness="different")(*expanded)
 
+    def return_log_prob(self, mode: bool = True) -> None:
+        """
+        Set whether the module returns log probabilities.
+
+        Log probabilities are required for most standard losses.
+
+        Parameters
+        ----------
+        mode : bool
+            Whether to enable (`True`) or disable (`False`) returning of log probs.
+        """
+        for module in self.modules():
+            if isinstance(module, VIModule):
+                module._return_log_prob = mode
+
     def _set_sampling_responsibility(self) -> None:
         for module in self.modules():
             if isinstance(module, VIModule):

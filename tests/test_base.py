@@ -1,4 +1,4 @@
-from typing import Any, Tuple
+from typing import Any, Tuple, Union
 from warnings import filterwarnings
 
 import torch
@@ -223,6 +223,37 @@ def test_get_log_probs() -> None:
 
     assert prior_log_prob == 2.0 * len(module.random_variables)
     assert variational_log_prob == 3.0 * len(module.random_variables)
+
+
+def test_log_prob_setting() -> None:
+    """Test setting of _return_log_prob with VIModule.return_log_prob."""
+    from vi import VILinear
+
+    in_features = 3
+    out_features = 5
+
+    class Test(VIModule):
+        def __init__(self, d_in: int, d_out: int) -> None:
+            super().__init__()
+            self.module = VILinear(d_in, d_out)
+
+        def forward(self, x: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
+            return self.module(x)
+
+    module1 = Test(in_features, out_features)
+    module1.return_log_prob()
+    assert module1._return_log_prob is True
+    assert module1.module._return_log_prob is True
+    sample1 = torch.randn(4, in_features)
+    out = module1(sample1, samples=10)
+    assert len(out) == 3
+
+    module1.return_log_prob(False)
+    assert module1._return_log_prob is False
+    assert module1.module._return_log_prob is False
+    sample1 = torch.randn(4, in_features)
+    out = module1(sample1, samples=10)
+    assert out.shape == (10, 4, out_features)
 
 
 def test_slow_forward() -> None:
