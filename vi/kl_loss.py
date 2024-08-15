@@ -65,4 +65,4 @@ class KullbackLeiblerLoss(Module):
         else:
             n_data = dataset_size or self.dataset_size
 
-        return -n_data * data_fitting + self.heat * prior_matching
+        return -data_fitting + self.heat * prior_matching / n_data
