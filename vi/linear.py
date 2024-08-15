@@ -26,7 +26,7 @@ class VILinear(VIBaseModule):
         prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
         bias: bool = True,
         prior_initialization: bool = False,
-        return_log_prob: bool = False,
+        return_log_prob: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:

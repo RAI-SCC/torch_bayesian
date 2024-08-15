@@ -11,7 +11,7 @@ def test_vilinear() -> None:
     """Test VILinear and prior initialization."""
     in_features = 3
     out_features = 5
-    module1 = VILinear(in_features, out_features)
+    module1 = VILinear(in_features, out_features, return_log_prob=False)
     assert module1.in_features == in_features
     assert module1.out_features == out_features
     assert module1.random_variables == ("weight", "bias")
@@ -35,7 +35,7 @@ def test_vilinear() -> None:
     # test bias == False
     in_features = 4
     out_features = 3
-    module2 = VILinear(in_features, out_features, bias=False)
+    module2 = VILinear(in_features, out_features, bias=False, return_log_prob=False)
     assert module2.random_variables == ("weight",)
     assert not hasattr(module2, "_bias_mean")
 
@@ -70,7 +70,9 @@ def test_vilinear() -> None:
     # test prior_init
     in_features = 7
     out_features = 3
-    module4 = VILinear(in_features, out_features, prior_initialization=True)
+    module4 = VILinear(
+        in_features, out_features, prior_initialization=True, return_log_prob=False
+    )
 
     weight_mean = module4._weight_mean.clone()
     weight_log_std = module4._weight_log_std.clone()
@@ -92,7 +94,11 @@ def test_vilinear() -> None:
     out_features = 5
     prior = MeanFieldNormalPrior(mean=1.0, std=exp(5.0))
     module5 = VILinear(
-        in_features, out_features, prior=prior, prior_initialization=True
+        in_features,
+        out_features,
+        prior=prior,
+        prior_initialization=True,
+        return_log_prob=False,
     )
 
     weight_mean = module5._weight_mean.clone()

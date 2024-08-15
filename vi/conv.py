@@ -28,7 +28,7 @@ class _VIConvNd(VIBaseModule):
     def _conv_forward(
         self, input_: Tensor, weight: Tensor, bias: Optional[Tensor]
     ) -> Tensor:  # type: ignore[empty-body]
-        ...
+        ...  # pragma: no cover
 
     in_channels: int
     _reversed_padding_repeated_twice: List[int]
@@ -49,10 +49,6 @@ class _VIConvNd(VIBaseModule):
         in_channels: int,
         out_channels: int,
         kernel_size: Tuple[int, ...],
-        variational_distribution: Union[
-            VariationalDistribution, List[VariationalDistribution]
-        ],
-        prior: Union[Prior, List[Prior]],
         stride: Tuple[int, ...],
         padding: Tuple[int, ...],
         dilation: Tuple[int, ...],
@@ -61,8 +57,12 @@ class _VIConvNd(VIBaseModule):
         groups: int,
         bias: bool,
         padding_mode: str,
+        variational_distribution: Union[
+            VariationalDistribution, List[VariationalDistribution]
+        ],
+        prior: Union[Prior, List[Prior]],
         prior_initialization: bool = False,
-        return_log_prob: bool = False,
+        return_log_prob: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -159,18 +159,18 @@ class VIConv1d(_VIConvNd):
         in_channels: int,
         out_channels: int,
         kernel_size: _size_1_t,
-        variational_distribution: Union[
-            VariationalDistribution, List[VariationalDistribution]
-        ] = MeanFieldNormalVarDist(),
-        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
         stride: _size_1_t = 1,
         padding: Union[str, _size_1_t] = 0,
         dilation: _size_1_t = 1,
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "zeros",
+        variational_distribution: Union[
+            VariationalDistribution, List[VariationalDistribution]
+        ] = MeanFieldNormalVarDist(),
+        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
         prior_initialization: bool = False,
-        return_log_prob: bool = False,
+        return_log_prob: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -185,8 +185,6 @@ class VIConv1d(_VIConvNd):
             in_channels,
             out_channels,
             kernel_size_,
-            variational_distribution,
-            prior,
             stride_,
             padding_,
             dilation_,
@@ -195,6 +193,8 @@ class VIConv1d(_VIConvNd):
             groups,
             bias,
             padding_mode,
+            variational_distribution,
+            prior,
             prior_initialization,
             return_log_prob,
             **factory_kwargs,
@@ -242,18 +242,18 @@ class VIConv2d(_VIConvNd):
         in_channels: int,
         out_channels: int,
         kernel_size: _size_2_t,
-        variational_distribution: Union[
-            VariationalDistribution, List[VariationalDistribution]
-        ] = MeanFieldNormalVarDist(),
-        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
         stride: _size_2_t = 1,
         padding: Union[str, _size_2_t] = 0,
         dilation: _size_2_t = 1,
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "zeros",
+        variational_distribution: Union[
+            VariationalDistribution, List[VariationalDistribution]
+        ] = MeanFieldNormalVarDist(),
+        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
         prior_initialization: bool = False,
-        return_log_prob: bool = False,
+        return_log_prob: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -266,8 +266,6 @@ class VIConv2d(_VIConvNd):
             in_channels,
             out_channels,
             kernel_size_,
-            variational_distribution,
-            prior,
             stride_,
             padding_,
             dilation_,
@@ -276,13 +274,15 @@ class VIConv2d(_VIConvNd):
             groups,
             bias,
             padding_mode,
+            variational_distribution,
+            prior,
             prior_initialization,
             return_log_prob,
             **factory_kwargs,
         )
 
     def _conv_forward(
-        self, input_: Tensor, weight: Tensor, bias: Optional[Tensor]
+        self, input_: Tensor, weight: Tensor, bias: Optional[Tensor] = None
     ) -> Tensor:
         if self.padding_mode != "zeros":
             return F.conv2d(
@@ -323,18 +323,18 @@ class VIConv3d(_VIConvNd):
         in_channels: int,
         out_channels: int,
         kernel_size: _size_3_t,
-        variational_distribution: Union[
-            VariationalDistribution, List[VariationalDistribution]
-        ] = MeanFieldNormalVarDist(),
-        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
         stride: _size_3_t = 1,
         padding: Union[str, _size_3_t] = 0,
         dilation: _size_3_t = 1,
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "zeros",
+        variational_distribution: Union[
+            VariationalDistribution, List[VariationalDistribution]
+        ] = MeanFieldNormalVarDist(),
+        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
         prior_initialization: bool = False,
-        return_log_prob: bool = False,
+        return_log_prob: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -347,8 +347,6 @@ class VIConv3d(_VIConvNd):
             in_channels,
             out_channels,
             kernel_size_,
-            variational_distribution,
-            prior,
             stride_,
             padding_,
             dilation_,
@@ -357,13 +355,15 @@ class VIConv3d(_VIConvNd):
             groups,
             bias,
             padding_mode,
+            variational_distribution,
+            prior,
             prior_initialization,
             return_log_prob,
             **factory_kwargs,
         )
 
     def _conv_forward(
-        self, input_: Tensor, weight: Tensor, bias: Optional[Tensor]
+        self, input_: Tensor, weight: Tensor, bias: Optional[Tensor] = None
     ) -> Tensor:
         if self.padding_mode != "zeros":
             return F.conv3d(

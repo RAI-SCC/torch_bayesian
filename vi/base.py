@@ -41,7 +41,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
     """Base class for Modules using Variational Inference."""
 
     forward: Callable[..., Union[Tensor, Tuple[Tensor, ...]]] = _forward_unimplemented
-    _return_log_prob: bool = False
+    _return_log_prob: bool = True
     # this is set to False during the first forward pass by the outermost module for each submodule and True for itself
     # that way submodules automatically call forward and the outermost calls sampled_forward instead
     _has_sampling_responsibility: bool
