@@ -4,7 +4,7 @@ from .base import VIBaseModule, VIModule
 from .conv import VIConv1d, VIConv2d, VIConv3d
 from .kl_loss import KullbackLeiblerLoss
 from .linear import VILinear
-from .sequential import VISequential
+from .sequential import VIResidualConnection, VISequential
 
 __all__ = [
     "VIModule",
@@ -15,4 +15,5 @@ __all__ = [
     "VIConv1d",
     "VIConv2d",
     "VIConv3d",
+    "VIResidualConnection",
 ]

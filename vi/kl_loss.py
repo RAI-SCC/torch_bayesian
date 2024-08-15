@@ -9,9 +9,12 @@ from .predictive_distributions import PredictiveDistribution
 
 class KullbackLeiblerLoss(Module):
     """
-    Kullback-Leibler divergence loss.
+    Kullback-Leibler (KL) divergence loss.
 
-    Requires external calculation of prior and variational log probability, i.e. modules must have return_log_prob = True
+    Calculates the Evidence Lower Bound (ELBO) loss which minimizes the
+    KL-divergence between the variational distribution and the true posterior.
+    Requires external calculation of prior and variational log probability,
+    i.e. modules must have return_log_prob = True.
     """
 
     def __init__(
@@ -34,7 +37,7 @@ class KullbackLeiblerLoss(Module):
         dataset_size: Optional[int] = None,
     ) -> Tensor:
         """
-        Forward pass.
+        Calculate the negative ELBO loss from sampled evaluations, a target and the weight log probs.
 
         Accepts a Tensor of N samples, the associate log probabilities and a target to calculate the loss.
 
@@ -50,6 +53,11 @@ class KullbackLeiblerLoss(Module):
             Target prediction. Shape (*)
         dataset_size: Optional[int] = None
             Total number of samples in the dataset
+
+        Returns
+        -------
+        Tensor
+            Negative ELBO loss. Shape: (1,)
         """
         prior_matching = (variational_log_prob - prior_log_prob).mean()
         # Sample average for predictive log prob is already done

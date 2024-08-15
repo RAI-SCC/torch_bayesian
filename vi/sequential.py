@@ -1,6 +1,7 @@
 from typing import OrderedDict, overload
 
 import torch
+from torch import Tensor
 from torch.nn import Module, Sequential
 
 from vi import VIModule
@@ -71,3 +72,58 @@ class VISequential(VIModule, Sequential):
             for module in self:
                 input_ = module(input_)
             return input_
+
+
+class VIResidualConnection(VISequential):
+    """
+    A version of VISequential that supports residual connections.
+
+    This class is identical to VISequential, but adds the input to the output.
+    Importantly it manages log prob tracking, if required. Note that a single
+    module can also be wrapped to add a residual connection around it.
+    """
+
+    def forward(self, input_):  # type: ignore
+        """
+        Forward pass that manages log probs, if required and adds the input to the output.
+
+        Parameters
+        ----------
+        input_ : Varies
+            Input for the first module in the stack. Passed on to it unchanged.
+
+        Returns
+        -------
+        output, prior_log_prob, variational_log_prob if return_log_prob else output
+
+        output: Varies
+            Output of the module stack plus the input to the residual connection.
+        prior_log_prob: Tensor
+            Total prior log probability all internal VIModules.
+            Only returned if return_log_prob.
+        variational_log_prob: Tensor
+            Total variational log probability all internal VIModules.
+            Only returned if return_log_prob.
+        """
+        if self._return_log_prob:
+            output, prior_log_prob, variational_log_prob = super().forward(input_)
+            return (
+                self._catch_shape_mismatch(input_, output),
+                prior_log_prob,
+                variational_log_prob,
+            )
+        else:
+            output = super().forward(input_)
+            return self._catch_shape_mismatch(input_, output)
+
+    @staticmethod
+    def _catch_shape_mismatch(input_: Tensor, output_: Tensor) -> Tensor:
+        try:
+            return output_ + input_
+        except RuntimeError as e:
+            if str(e).startswith("The size of tensor a"):
+                raise RuntimeError(
+                    f"Output shape ({output_.shape}) of residual connection must match input shape ({input_.shape})"
+                )
+            else:
+                raise e  # pragma: no cover
