@@ -10,7 +10,31 @@ from .variational_distributions import MeanFieldNormalVarDist, VariationalDistri
 
 
 class VILinear(VIBaseModule):
-    """Equivalent of nn.Linear."""
+    """
+    Equivalent of nn.Linear.
+
+    Called with the same arguments as nn.Linear, but accepts four additional arguments.
+    This module's random variables are
+        ("weight", "bias") if bias == True
+        ("weight", )       if bias == False
+
+    Additional Parameters
+    ---------------------
+    variational_distribution: Union[VariationalDistribution, List[VariationalDistribution]]
+        Variational distribution which specifies the assumed weight distribution. A list of
+        distributions may be provided to specify different choices for each random variable.
+        Default: MeanFieldNormalVarDist()
+    prior: Union[Prior, List[Prior]]
+        Prior distribution which specifies the previous knowledge about the weight distribution.
+        A list of distributions may be provided to specify different choices for each random
+        variable. Default: MeanFieldNormalPrior()
+    prior_initialization: bool
+        If True parameters are initialized according to the prior. If False parameters are
+        initialized similar to non-Bayesian networks. Default: False
+    return_log_prob: bool
+        If True the model forward pass returns the log probability of the sampled weight.
+        This is required for the standard loss calculation. Default: True
+    """
 
     __constants__ = ["in_features", "out_features"]
     in_features: int
@@ -54,7 +78,27 @@ class VILinear(VIBaseModule):
         )
 
     def forward(self, input_: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
-        """Forward computation."""
+        """
+        Forward computation.
+
+        Parameters
+        ----------
+        input_: Tensor
+            Input tensor of shape [*, in_features].
+
+        Returns
+        -------
+        output, prior_log_prob, variational_log_prob if return_log_prob else output
+
+        output: Tensor
+            Output tensor of shape [*, out_features].
+        prior_log_prob: Tensor
+            Total prior log probability all internal VIModules.
+            Only returned if return_log_prob.
+        variational_log_prob: Tensor
+            Total variational log probability all internal VIModules.
+            Only returned if return_log_prob.
+        """
         params = self.sample_variables()
 
         output = F.linear(input_, *params)

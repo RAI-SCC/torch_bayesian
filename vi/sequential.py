@@ -7,7 +7,13 @@ from vi import VIModule
 
 
 class VISequential(VIModule, Sequential):
-    """Sequential container equivalent to torch.nn.Sequential, that manages VIModules too."""
+    """
+    Sequential container equivalent to torch.nn.Sequential, that manages VIModules too.
+
+    Detects and aggregates prior_log_prob and variational_log_prob from submodules, if
+    needed. Then passes on only the output to the next module making mixed sequences of
+    VIModules and nn.Modules work with and without return_log_prob.
+    """
 
     @overload
     def __init__(self, *args: Module) -> None: ...
@@ -25,7 +31,27 @@ class VISequential(VIModule, Sequential):
                 self.add_module(str(idx), module)
 
     def forward(self, input_):  # type: ignore
-        """Forward pass that manages log probs, if required."""
+        """
+        Forward pass that manages log probs, if required.
+
+        Parameters
+        ----------
+        input_ : Varies
+            Input for the first module in the stack. Passed on to it unchanged.
+
+        Returns
+        -------
+        output, prior_log_prob, variational_log_prob if return_log_prob else output
+
+        output: Varies
+            Output of the module stack.
+        prior_log_prob: Tensor
+            Total prior log probability all internal VIModules.
+            Only returned if return_log_prob.
+        variational_log_prob: Tensor
+            Total variational log probability all internal VIModules.
+            Only returned if return_log_prob.
+        """
         if self._return_log_prob:
             input_ = [input_]
             total_prior_log_prob = total_var_log_prob = torch.tensor(0.0)
