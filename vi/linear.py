@@ -6,12 +6,12 @@ from torch.nn import functional as F  # noqa: N812
 
 from .base import VIBaseModule
 from .priors import MeanFieldNormalPrior, Prior
-from .variational_distributions import MeanFieldNormalVarDist, VariationalDistribution
+from .variational_distributions import MeanFieldNormalVarDist, VarDist
 
 
 class VILinear(VIBaseModule):
     """
-    Equivalent of nn.Linear.
+    Equivalent of nn.Linear with variational inference.
 
     Called with the same arguments as nn.Linear, but accepts four additional arguments.
     This module's random variables are
@@ -20,11 +20,11 @@ class VILinear(VIBaseModule):
 
     Additional Parameters
     ---------------------
-    variational_distribution: Union[VariationalDistribution, List[VariationalDistribution]]
+    variational_distribution: VarDist | List[VarDist]
         Variational distribution which specifies the assumed weight distribution. A list of
         distributions may be provided to specify different choices for each random variable.
         Default: MeanFieldNormalVarDist()
-    prior: Union[Prior, List[Prior]]
+    prior: Prior | List[Prior]
         Prior distribution which specifies the previous knowledge about the weight distribution.
         A list of distributions may be provided to specify different choices for each random
         variable. Default: MeanFieldNormalPrior()
@@ -44,10 +44,8 @@ class VILinear(VIBaseModule):
         self,
         in_features: int,
         out_features: int,
-        variational_distribution: Union[
-            VariationalDistribution, List[VariationalDistribution]
-        ] = MeanFieldNormalVarDist(),
-        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
+        variational_distribution: VarDist | List[VarDist] = MeanFieldNormalVarDist(),
+        prior: Prior | List[Prior] = MeanFieldNormalPrior(),
         bias: bool = True,
         prior_initialization: bool = False,
         return_log_prob: bool = True,

@@ -8,7 +8,7 @@ from torch.nn.modules.utils import _pair, _reverse_repeat_tuple, _single, _tripl
 
 from .base import VIBaseModule
 from .priors import MeanFieldNormalPrior, Prior
-from .variational_distributions import MeanFieldNormalVarDist, VariationalDistribution
+from .variational_distributions import MeanFieldNormalVarDist, VarDist
 
 
 class _VIConvNd(VIBaseModule):
@@ -57,10 +57,8 @@ class _VIConvNd(VIBaseModule):
         groups: int,
         bias: bool,
         padding_mode: str,
-        variational_distribution: Union[
-            VariationalDistribution, List[VariationalDistribution]
-        ],
-        prior: Union[Prior, List[Prior]],
+        variational_distribution: VarDist | List[VarDist],
+        prior: Prior | List[Prior],
         prior_initialization: bool = False,
         return_log_prob: bool = True,
         device: Optional[torch.device] = None,
@@ -152,7 +150,31 @@ class _VIConvNd(VIBaseModule):
 
 
 class VIConv1d(_VIConvNd):
-    """Equivalent of torch.nn.Conv1d with variational inference."""
+    """
+    Equivalent of nn.Conv1d with variational inference.
+
+    Called with the same arguments as nn.VIConv1d, but accepts four additional arguments.
+    This module's random variables are
+        ("weight", "bias") if bias == True
+        ("weight", )       if bias == False
+
+    Additional Parameters
+    ---------------------
+    variational_distribution: VarDist | List[VarDist]
+        Variational distribution which specifies the assumed weight distribution. A list of
+        distributions may be provided to specify different choices for each random variable.
+        Default: MeanFieldNormalVarDist()
+    prior: Prior | List[Prior]
+        Prior distribution which specifies the previous knowledge about the weight distribution.
+        A list of distributions may be provided to specify different choices for each random
+        variable. Default: MeanFieldNormalPrior()
+    prior_initialization: bool
+        If True parameters are initialized according to the prior. If False parameters are
+        initialized similar to non-Bayesian networks. Default: False
+    return_log_prob: bool
+        If True the model forward pass returns the log probability of the sampled weight.
+        This is required for the standard loss calculation. Default: True
+    """
 
     def __init__(
         self,
@@ -165,10 +187,8 @@ class VIConv1d(_VIConvNd):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "zeros",
-        variational_distribution: Union[
-            VariationalDistribution, List[VariationalDistribution]
-        ] = MeanFieldNormalVarDist(),
-        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
+        variational_distribution: VarDist | List[VarDist] = MeanFieldNormalVarDist(),
+        prior: Prior | List[Prior] = MeanFieldNormalPrior(),
         prior_initialization: bool = False,
         return_log_prob: bool = True,
         device: Optional[torch.device] = None,
@@ -248,10 +268,8 @@ class VIConv2d(_VIConvNd):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "zeros",
-        variational_distribution: Union[
-            VariationalDistribution, List[VariationalDistribution]
-        ] = MeanFieldNormalVarDist(),
-        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
+        variational_distribution: VarDist | List[VarDist] = MeanFieldNormalVarDist(),
+        prior: Prior | List[Prior] = MeanFieldNormalPrior(),
         prior_initialization: bool = False,
         return_log_prob: bool = True,
         device: Optional[torch.device] = None,
@@ -329,10 +347,8 @@ class VIConv3d(_VIConvNd):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "zeros",
-        variational_distribution: Union[
-            VariationalDistribution, List[VariationalDistribution]
-        ] = MeanFieldNormalVarDist(),
-        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
+        variational_distribution: VarDist | List[VarDist] = MeanFieldNormalVarDist(),
+        prior: Prior | List[Prior] = MeanFieldNormalPrior(),
         prior_initialization: bool = False,
         return_log_prob: bool = True,
         device: Optional[torch.device] = None,

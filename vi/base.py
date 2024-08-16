@@ -17,7 +17,7 @@ from torch.nn.modules.module import (
 
 from .priors import Prior
 from .utils import PostInitCallMeta
-from .variational_distributions import VariationalDistribution
+from .variational_distributions import VarDist
 
 
 def _forward_unimplemented(self: Module, *input_: Optional[Tensor]) -> Tuple[Tensor]:
@@ -298,10 +298,8 @@ class VIBaseModule(VIModule):
     def __init__(
         self,
         variable_shapes: Dict[str, Tuple[int, ...]],
-        variational_distribution: Union[
-            VariationalDistribution, List[VariationalDistribution]
-        ],
-        prior: Union[Prior, List[Prior]],
+        variational_distribution: VarDist | List[VarDist],
+        prior: Prior | List[Prior],
         prior_initialization: bool = False,
         return_log_prob: bool = True,
         device: Optional[torch.device] = None,

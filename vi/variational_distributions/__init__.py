@@ -3,4 +3,6 @@
 from .base import VariationalDistribution
 from .normal import MeanFieldNormalVarDist
 
-__all__ = ["VariationalDistribution", "MeanFieldNormalVarDist"]
+VarDist = VariationalDistribution
+
+__all__ = ["VariationalDistribution", "MeanFieldNormalVarDist", "VarDist"]
