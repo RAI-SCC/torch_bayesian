@@ -90,6 +90,7 @@ class VILinear(VIBaseModule):
 
         output: Tensor
             Output tensor of shape [*, out_features].
+            Auto-sampling will add a sample dimension at the start for the overall output.
         prior_log_prob: Tensor
             Total prior log probability all internal VIModules.
             Only returned if return_log_prob.
