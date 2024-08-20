@@ -1,3 +1,4 @@
+import math
 from typing import Any, Tuple, Union
 from warnings import filterwarnings
 
@@ -95,7 +96,10 @@ def test_vibasemodule() -> None:
             pass
 
     class TestPrior(Prior):
-        distribution_parameters = ("mean", "log_std")
+        distribution_parameters = ("mean", "std")
+        _scaling_parameters = ("mean", "std")
+        mean: float = 1.0
+        std: float = 2.0
 
         def log_prob(self, x: Tensor) -> Tensor:
             pass
@@ -107,9 +111,11 @@ def test_vibasemodule() -> None:
             param_name = module.variational_parameter_name(var, param)
             assert hasattr(module, param_name)
             if param != "mean":
+                # kaiming_init scales with sqrt(fan_in=3)
+                scale = math.sqrt(3)  # if var == "bias" else 3
                 index = var_params.index(param)
                 default = default_params[index]
-                assert (getattr(module, param_name) == default).all()
+                assert (getattr(module, param_name) == default / scale).all()
 
     # Check that reset_mean randomizes the means
     weight_mean = module._weight_mean.clone()
@@ -152,6 +158,13 @@ def test_vibasemodule() -> None:
 
     _ = VIBaseModule(var_dict1, [TestDistribution()] * 2, [TestPrior()] * 2)
 
+    module = VIBaseModule(
+        var_dict1, TestDistribution(), TestPrior(), rescale_prior=True
+    )
+    for prior in module.prior:
+        assert prior.mean == 1 / math.sqrt(3)  # type: ignore [attr-defined]
+        assert prior.std == 2 / math.sqrt(3)  # type: ignore [attr-defined]
+
 
 def test_get_variational_parameters() -> None:
     """Test VIBaseModule.get_variational_parameters."""
@@ -174,6 +187,7 @@ def test_get_variational_parameters() -> None:
 
     class TestPrior(Prior):
         distribution_parameters = ("mean", "log_std")
+        _scaling_parameters = ()
 
         def log_prob(self, x: Tensor) -> Tensor:
             pass
@@ -213,6 +227,7 @@ def test_get_log_probs() -> None:
 
     class TestPrior(Prior):
         distribution_parameters = ("mean", "log_std")
+        _scaling_parameters = ()
 
         def log_prob(self, x: Tensor) -> Tensor:
             return torch.tensor(2.0)

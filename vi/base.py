@@ -1,4 +1,3 @@
-import math
 import warnings
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
@@ -300,6 +299,7 @@ class VIBaseModule(VIModule):
         variable_shapes: Dict[str, Tuple[int, ...]],
         variational_distribution: VarDist | List[VarDist],
         prior: Prior | List[Prior],
+        rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,
         device: Optional[torch.device] = None,
@@ -326,6 +326,13 @@ class VIBaseModule(VIModule):
         else:
             self.prior = [prior] * len(self.random_variables)
 
+        if rescale_prior:
+            shape_dummy = torch.zeros(variable_shapes[self.random_variables[0]])
+            fan_in, _ = init._calculate_fan_in_and_fan_out(shape_dummy)
+            for prior in self.prior:
+                prior.kaiming_rescale(fan_in)
+
+        self._rescale_prior = rescale_prior
         self._prior_init = prior_initialization
         self._return_log_prob = return_log_prob
 
@@ -348,30 +355,34 @@ class VIBaseModule(VIModule):
 
     def reset_parameters(self) -> None:
         """Reset or initialize the parameters of the Module."""
-        self.reset_mean()
+        weight_name = self.variational_parameter_name(
+            self.random_variables[0],
+            self.variational_distribution[0].variational_parameters[0],
+        )
+        fan_in, _ = init._calculate_fan_in_and_fan_out(getattr(self, weight_name))
         for variable, vardist, prior in zip(
             self.random_variables, self.variational_distribution, self.prior
         ):
-            vardist.reset_parameters(self, variable)
+            vardist.reset_parameters(self, variable, fan_in)
             if self._prior_init:
                 prior.reset_parameters(self, variable)
 
-    def reset_mean(self) -> None:
-        """Reset the means of random variables similar to non-Bayesian Networks."""
-        for variable in self.random_variables:
-            parameter_name = self.variational_parameter_name(variable, "mean")
-            if variable == "bias" and hasattr(self, parameter_name):
-                weight_mean = self.variational_parameter_name("weight", "mean")
-                assert hasattr(
-                    self, weight_mean
-                ), "Standard initialization of bias requires weight"
-                fan_in, _ = init._calculate_fan_in_and_fan_out(
-                    getattr(self, weight_mean)
-                )
-                bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
-                init.uniform_(getattr(self, parameter_name), -bound, bound)
-            elif hasattr(self, parameter_name):
-                init.kaiming_uniform_(getattr(self, parameter_name), a=math.sqrt(5))
+    #    def reset_mean(self) -> None:
+    #        """Reset the means of random variables similar to non-Bayesian Networks."""
+    #        for variable in self.random_variables:
+    #            parameter_name = self.variational_parameter_name(variable, "mean")
+    #            if variable == "bias" and hasattr(self, parameter_name):
+    #                weight_mean = self.variational_parameter_name("weight", "mean")
+    #                assert hasattr(
+    #                    self, weight_mean
+    #                ), "Standard initialization of bias requires weight"
+    #                fan_in, _ = init._calculate_fan_in_and_fan_out(
+    #                    getattr(self, weight_mean)
+    #                )
+    #                bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+    #                init.uniform_(getattr(self, parameter_name), -bound, bound)
+    #            elif hasattr(self, parameter_name):
+    #                init.kaiming_uniform_(getattr(self, parameter_name), a=math.sqrt(5))
 
     @staticmethod
     def variational_parameter_name(variable: str, variational_parameter: str) -> str:

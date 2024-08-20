@@ -1,3 +1,4 @@
+import math
 from inspect import signature
 from typing import TYPE_CHECKING, Callable, Dict, Tuple
 
@@ -18,29 +19,67 @@ class VariationalDistribution(metaclass=PostInitCallMeta):
     sample: Callable[..., Tensor]
     log_prob: Callable[..., Tensor]
 
-    def reset_parameters(self, module: "VIBaseModule", variable: str) -> None:
+    def reset_parameters(
+        self,
+        module: "VIBaseModule",
+        variable: str,
+        fan_in: int,
+        kaiming_scaling: bool = True,
+    ) -> None:
         """
         Reset the variational parameters of module.
 
-        This ignores the parameter `mean` that is set by module.reset_mean.
-        All other variational parameters are reset to their default value as specified in `_default_variational_parameters`.
-        It may be overwritten by prior.reset_parameters(), if enabled.
+        Parameters equivalent to non-Bayesian weights (currently "mean", "mode", or
+        "loc") are reset accordingly using Kaiming uniform initialization based on
+        fan_in (cf. torch.init._calculate_fan_in_and_fan_out). Other parameters are
+        initialized to the fixed values specified by class defaults.
+        If kaiming_scaling is True, the defaults are scaled with scale * default. Any
+        parameter beginning with "log" is assumed to be in log space and scaled with
+        default + log(scale). The scale is 1 / sqrt(fan_in) for vectors and
+        1 / sqrt(3*fan_in) for matrices.
 
         Parameters
         ----------
         module : VIModule
-            VIModule to reset parameters.
+            Module to reset parameters.
         variable : str
             Name of the variable to reset.
+        fan_in : int
+            Size if  the input parameter map.
+        kaiming_scaling : bool
+            Whether th scale all parameters according to input map size. Default: True
         """
         for parameter, default in zip(
             self.variational_parameters, self._default_variational_parameters
         ):
-            if parameter == "mean":
-                # First moment should be reset by the module by implementing reset_mean
-                continue
             parameter_name = module.variational_parameter_name(variable, parameter)
-            init.constant_(getattr(module, parameter_name), default)
+            param = getattr(module, parameter_name)
+
+            if parameter in ["mean", "mode", "loc"]:
+                self._init_uniform(param, fan_in)
+            elif not kaiming_scaling:
+                init.constant_(param, default)
+            else:
+                is_log = parameter.startswith("log")
+                self._init_constant(param, default, fan_in, is_log)
+
+    @staticmethod
+    def _init_constant(
+        parameter: Tensor, default: float, fan_in: int, is_log: bool, eps: float = 1e-5
+    ) -> None:
+        scale = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+        if is_log:
+            init.constant_(parameter, default + math.log(scale + eps))
+        else:
+            init.constant_(parameter, scale * default)
+
+    @staticmethod
+    def _init_uniform(parameter: Tensor, fan_in: int) -> None:
+        if parameter.dim() < 2:
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            init.uniform_(parameter, -bound, bound)
+        else:
+            init.kaiming_uniform_(parameter, a=math.sqrt(5))
 
     def __post_init__(self) -> None:
         """Ensure instance has required attributes."""

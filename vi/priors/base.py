@@ -1,3 +1,4 @@
+import math
 from inspect import signature
 from typing import TYPE_CHECKING, Callable, Dict, Tuple
 from warnings import warn
@@ -36,6 +37,8 @@ class Prior(metaclass=PostInitCallMeta):
 
     distribution_parameters: Tuple[str, ...]
     _required_parameters: Tuple[str, ...] = ()
+    _scaling_parameters: Tuple[str, ...]
+    _rescaled: bool = False
     log_prob: Callable[..., Tensor]
     reset_parameters: Callable[..., None] = _reset_parameters_unimplemented
 
@@ -49,6 +52,27 @@ class Prior(metaclass=PostInitCallMeta):
             len(self._required_parameters)
             == (len(signature(self.log_prob).parameters) - 1)
         ), "log_prob must accept an argument for each required parameter plus the sample"
+        if not hasattr(self, "_scaling_parameters"):
+            self._scaling_parameters = self.distribution_parameters
+        for parameter in self._scaling_parameters:
+            assert hasattr(
+                self, parameter
+            ), f"Module [{type(self).__name__}] is missing exposed scaling parameter [{parameter}]"
+
+    def kaiming_rescale(self, fan_in: int, eps: float = 1e-5) -> None:
+        """Rescale prior based on layer width, for normalization."""
+        if self._rescaled:
+            pass
+        else:
+            self._rescaled = True
+            scale = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+
+            for parameter in self._scaling_parameters:
+                param = getattr(self, parameter)
+                if parameter.startswith("log"):
+                    setattr(self, parameter, param + math.log(scale + eps))
+                else:
+                    setattr(self, parameter, param * scale)
 
     def match_parameters(
         self, variational_parameters: Tuple[str, ...]

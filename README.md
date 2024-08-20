@@ -45,7 +45,7 @@ modified to train a BNN with variational inference.
 - [ ] README
 - [ ] vi.base
 - [x] conv
-- [x] kl_loss
+- [ ] kl_loss
 - [x] linear
 - [x] sequential
 
@@ -67,3 +67,7 @@ modified to train a BNN with variational inference.
   - [ ] base
   - [ ] categorical
   - [ ] normal
+
+### ToDo
+
+- Check if log params should be set to `-inf` if `fan_in` is 0

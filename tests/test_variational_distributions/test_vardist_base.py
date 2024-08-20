@@ -1,4 +1,8 @@
+from math import log, sqrt
+
+import torch
 from torch import Tensor
+from torch.nn import Linear, Module, Parameter
 
 from vi.variational_distributions import VariationalDistribution
 
@@ -134,3 +138,130 @@ def test_match_parameters() -> None:
     shared, diff = test.match_parameters(ref2)
     assert shared == {"mean": 0, "std": 1}
     assert diff == {}
+
+
+def test_init_uniform() -> None:
+    """Test _init_uniform."""
+    parameter_shape = (6, 20)
+    module = Linear(*parameter_shape)
+
+    weight1 = module.weight.clone()
+    bias1 = module.bias.clone()
+    iter1 = module.parameters()
+    fan_in = 10
+    VariationalDistribution._init_uniform(module.weight, fan_in)
+    VariationalDistribution._init_uniform(module.bias, fan_in)
+    weight2 = iter1.__next__().clone()
+    bias2 = iter1.__next__().clone()
+
+    assert not torch.allclose(weight1, weight2)
+    assert not torch.allclose(bias1, bias2)
+
+    assert (weight2.abs() < (1 / sqrt(parameter_shape[0]))).all()
+    assert (bias2.abs() < (1 / sqrt(fan_in))).all()
+
+    iter2 = module.parameters()
+    fan_in = 0
+    VariationalDistribution._init_uniform(module.weight, fan_in)
+    VariationalDistribution._init_uniform(module.bias, fan_in)
+    weight3 = iter2.__next__().clone()
+    bias3 = iter2.__next__().clone()
+
+    assert not torch.allclose(weight2, weight3)
+    assert (weight3.abs() < (1 / sqrt(parameter_shape[0]))).all()
+    assert (bias3 == 0).all()
+
+
+def test_init_constant() -> None:
+    """Test _init_constant."""
+    parameter_shape = (5, 15)
+    module = Linear(*parameter_shape)
+
+    iter1 = module.parameters()
+    default = (1.0, 2.0)
+    fan_in = 7
+    VariationalDistribution._init_constant(module.weight, default[0], fan_in, False)
+    VariationalDistribution._init_constant(module.bias, default[1], fan_in, False)
+    weight2 = iter1.__next__().clone()
+    bias2 = iter1.__next__().clone()
+
+    assert (weight2 == (default[0] / sqrt(fan_in))).all()
+    assert (bias2 == (default[1] / sqrt(fan_in))).all()
+
+    iter2 = module.parameters()
+    eps1 = 1e-5
+    eps2 = 1e-3
+    VariationalDistribution._init_constant(
+        module.weight, default[0], fan_in, True, eps1
+    )
+    VariationalDistribution._init_constant(module.bias, default[1], 0, True, eps2)
+
+    weight3 = iter2.__next__().clone()
+    bias3 = iter2.__next__().clone()
+
+    assert (weight3 == (default[0] + log(1 / sqrt(fan_in) + eps1))).all()
+    assert (bias3 == default[1] + log(eps2)).all()
+
+
+def test_vardist_reset_parameters() -> None:
+    """Test VariationalDistribution.reset_parameters."""
+    param_shape = (5, 4)
+
+    class Test(VariationalDistribution):
+        variational_parameters = ("mean", "std", "log_std")
+        _default_variational_parameters = (0.0, 1.0, 0.0)
+
+        def sample(self, mean: Tensor, std: Tensor, log_std: Tensor) -> Tensor:
+            return mean + std
+
+        def log_prob(
+            self, sample: Tensor, mean: Tensor, std: Tensor, log_std: Tensor
+        ) -> Tensor:
+            return sample + mean + std
+
+    class ModuleDummy(Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.weight_mean = Parameter(torch.empty(param_shape))
+            self.weight_std = Parameter(torch.empty(param_shape))
+            self.weight_log_std = Parameter(torch.empty(param_shape[0]))
+
+        @staticmethod
+        def variational_parameter_name(variable: str, parameter: str) -> str:
+            return f"{variable}_{parameter}"
+
+    vardist = Test()
+    dummy = ModuleDummy()
+    fan_in = param_shape[1]
+
+    mean1 = dummy.weight_mean.clone()
+    iter1 = dummy.parameters()
+
+    vardist.reset_parameters(dummy, "weight", fan_in, False)
+    mean2 = iter1.__next__().clone()
+    std2 = iter1.__next__().clone()
+    log_std2 = iter1.__next__().clone()
+
+    assert not torch.allclose(mean1, mean2)
+    assert len(torch.unique(mean2)) == param_shape[0] * param_shape[1]
+
+    assert std2.shape == param_shape
+    assert (std2 == 1.0).all()
+    assert log_std2.shape == param_shape[:1]
+    assert (log_std2 == 0.0).all()
+
+    iter2 = dummy.parameters()
+    eps = 1e-5
+
+    vardist.reset_parameters(dummy, "weight", fan_in, True)
+    mean3 = iter2.__next__().clone()
+    std3 = iter2.__next__().clone()
+    log_std3 = iter2.__next__().clone()
+
+    assert not torch.allclose(mean2, mean3)
+    assert len(torch.unique(mean3)) == param_shape[0] * param_shape[1]
+
+    assert std3.shape == param_shape
+    assert (std3 == (1.0 / sqrt(fan_in))).all()
+    assert log_std3.shape == param_shape[:1]
+    assert (log_std3 == 0.0 + log(1 / sqrt(fan_in) + eps)).all()
