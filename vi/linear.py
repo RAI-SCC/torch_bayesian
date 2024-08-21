@@ -13,7 +13,7 @@ class VILinear(VIBaseModule):
     """
     Equivalent of nn.Linear with variational inference.
 
-    Called with the same arguments as nn.Linear, but accepts four additional arguments.
+    Called with the same arguments as nn.Linear, but accepts additional arguments.
     This module's random variables are
         ("weight", "bias") if bias == True
         ("weight", )       if bias == False
@@ -28,6 +28,9 @@ class VILinear(VIBaseModule):
         Prior distribution which specifies the previous knowledge about the weight distribution.
         A list of distributions may be provided to specify different choices for each random
         variable. Default: MeanFieldNormalPrior()
+    rescale_prior: bool
+        If True prior._scaling_parameters are scaled with the sqrt of the layer width.
+        This may be necessary to maintain normalization for wide layers. Default: False
     prior_initialization: bool
         If True parameters are initialized according to the prior. If False parameters are
         initialized similar to non-Bayesian networks. Default: False
@@ -47,6 +50,7 @@ class VILinear(VIBaseModule):
         variational_distribution: VarDist | List[VarDist] = MeanFieldNormalVarDist(),
         prior: Prior | List[Prior] = MeanFieldNormalPrior(),
         bias: bool = True,
+        rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,
         device: Optional[torch.device] = None,
@@ -70,6 +74,7 @@ class VILinear(VIBaseModule):
             variable_shapes=variable_shapes,
             variational_distribution=variational_distribution,
             prior=prior,
+            rescale_prior=rescale_prior,
             prior_initialization=prior_initialization,
             return_log_prob=return_log_prob,
             **factory_kwargs,

@@ -59,6 +59,7 @@ class _VIConvNd(VIBaseModule):
         padding_mode: str,
         variational_distribution: VarDist | List[VarDist],
         prior: Prior | List[Prior],
+        rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,
         device: Optional[torch.device] = None,
@@ -138,6 +139,7 @@ class _VIConvNd(VIBaseModule):
             variable_shapes=variable_shapes,
             variational_distribution=variational_distribution,
             prior=prior,
+            rescale_prior=rescale_prior,
             prior_initialization=prior_initialization,
             return_log_prob=return_log_prob,
             **factory_kwargs,
@@ -153,7 +155,7 @@ class VIConv1d(_VIConvNd):
     """
     Equivalent of nn.Conv1d with variational inference.
 
-    Called with the same arguments as nn.VIConv1d, but accepts four additional arguments.
+    Called with the same arguments as nn.VIConv1d, but accepts additional arguments.
     This module's random variables are
         ("weight", "bias") if bias == True
         ("weight", )       if bias == False
@@ -168,6 +170,9 @@ class VIConv1d(_VIConvNd):
         Prior distribution which specifies the previous knowledge about the weight distribution.
         A list of distributions may be provided to specify different choices for each random
         variable. Default: MeanFieldNormalPrior()
+    rescale_prior: bool
+        If True prior._scaling_parameters are scaled with the sqrt of the layer width.
+        This may be necessary to maintain normalization for wide layers. Default: False
     prior_initialization: bool
         If True parameters are initialized according to the prior. If False parameters are
         initialized similar to non-Bayesian networks. Default: False
@@ -189,6 +194,7 @@ class VIConv1d(_VIConvNd):
         padding_mode: str = "zeros",
         variational_distribution: VarDist | List[VarDist] = MeanFieldNormalVarDist(),
         prior: Prior | List[Prior] = MeanFieldNormalPrior(),
+        rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,
         device: Optional[torch.device] = None,
@@ -215,6 +221,7 @@ class VIConv1d(_VIConvNd):
             padding_mode,
             variational_distribution,
             prior,
+            rescale_prior,
             prior_initialization,
             return_log_prob,
             **factory_kwargs,
@@ -282,7 +289,7 @@ class VIConv2d(_VIConvNd):
     """
     Equivalent of nn.Conv2d with variational inference.
 
-    Called with the same arguments as nn.VIConv2d, but accepts four additional arguments.
+    Called with the same arguments as nn.VIConv2d, but accepts additional arguments.
     This module's random variables are
         ("weight", "bias") if bias == True
         ("weight", )       if bias == False
@@ -297,6 +304,9 @@ class VIConv2d(_VIConvNd):
         Prior distribution which specifies the previous knowledge about the weight distribution.
         A list of distributions may be provided to specify different choices for each random
         variable. Default: MeanFieldNormalPrior()
+    rescale_prior: bool
+        If True prior._scaling_parameters are scaled with the sqrt of the layer width.
+        This may be necessary to maintain normalization for wide layers. Default: False
     prior_initialization: bool
         If True parameters are initialized according to the prior. If False parameters are
         initialized similar to non-Bayesian networks. Default: False
@@ -318,6 +328,7 @@ class VIConv2d(_VIConvNd):
         padding_mode: str = "zeros",
         variational_distribution: VarDist | List[VarDist] = MeanFieldNormalVarDist(),
         prior: Prior | List[Prior] = MeanFieldNormalPrior(),
+        rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,
         device: Optional[torch.device] = None,
@@ -342,6 +353,7 @@ class VIConv2d(_VIConvNd):
             padding_mode,
             variational_distribution,
             prior,
+            rescale_prior,
             prior_initialization,
             return_log_prob,
             **factory_kwargs,
@@ -409,7 +421,7 @@ class VIConv3d(_VIConvNd):
     """
     Equivalent of nn.Conv3d with variational inference.
 
-    Called with the same arguments as nn.VIConv3d, but accepts four additional arguments.
+    Called with the same arguments as nn.VIConv3d, but accepts additional arguments.
     This module's random variables are
         ("weight", "bias") if bias == True
         ("weight", )       if bias == False
@@ -424,6 +436,9 @@ class VIConv3d(_VIConvNd):
         Prior distribution which specifies the previous knowledge about the weight distribution.
         A list of distributions may be provided to specify different choices for each random
         variable. Default: MeanFieldNormalPrior()
+    rescale_prior: bool
+        If True prior._scaling_parameters are scaled with the sqrt of the layer width.
+        This may be necessary to maintain normalization for wide layers. Default: False
     prior_initialization: bool
         If True parameters are initialized according to the prior. If False parameters are
         initialized similar to non-Bayesian networks. Default: False
@@ -445,6 +460,7 @@ class VIConv3d(_VIConvNd):
         padding_mode: str = "zeros",
         variational_distribution: VarDist | List[VarDist] = MeanFieldNormalVarDist(),
         prior: Prior | List[Prior] = MeanFieldNormalPrior(),
+        rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,
         device: Optional[torch.device] = None,
@@ -469,6 +485,7 @@ class VIConv3d(_VIConvNd):
             padding_mode,
             variational_distribution,
             prior,
+            rescale_prior,
             prior_initialization,
             return_log_prob,
             **factory_kwargs,

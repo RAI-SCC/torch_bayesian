@@ -71,3 +71,4 @@ modified to train a BNN with variational inference.
 ### ToDo
 
 - Check if log params should be set to `-inf` if `fan_in` is 0
+- BasicQuietPrior might need an eps to avoid infinity for mean = 0
