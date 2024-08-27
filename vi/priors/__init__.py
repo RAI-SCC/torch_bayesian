@@ -2,6 +2,6 @@
 
 from .base import Prior
 from .normal import MeanFieldNormalPrior
-from .quiet import BasicQuietPrior
+from .marginalisedquiet import MarginalisedQuietPrior
 
-__all__ = ["Prior", "MeanFieldNormalPrior", "BasicQuietPrior"]
+__all__ = ["Prior", "MeanFieldNormalPrior", "MarginalisedQuietPrior"]

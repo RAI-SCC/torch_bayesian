@@ -1,7 +1,7 @@
 from typing import Optional
 from warnings import warn
 
-from torch import Tensor
+from torch import Tensor, isnan, any
 from torch.nn import Module
 
 from .predictive_distributions import PredictiveDistribution
@@ -59,11 +59,17 @@ class KullbackLeiblerLoss(Module):
         Tensor
             Negative ELBO loss. Shape: (1,)
         """
+        #assert (not any(isnan(variational_log_prob)).item())
+        #assert (not any(isnan(prior_log_prob)).item())
+
         prior_matching = (variational_log_prob - prior_log_prob).mean()
         # Sample average for predictive log prob is already done
         data_fitting = self.predictive_distribution.log_prob_from_samples(
             target, samples
         ).sum()
+
+        assert (not isnan(prior_matching).item())
+        assert (not isnan(data_fitting).item())
 
         if (dataset_size is None) and (self.dataset_size is None):
             warn(
@@ -72,5 +78,7 @@ class KullbackLeiblerLoss(Module):
             n_data = samples.shape[0]
         else:
             n_data = dataset_size or self.dataset_size
+
+        assert n_data > 0
 
         return -data_fitting + self.heat * prior_matching / n_data
