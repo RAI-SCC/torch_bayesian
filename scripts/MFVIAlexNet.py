@@ -1,25 +1,25 @@
-#import random
-#import os
+# import random
+# import os
 import time
-from typing import Any, Callable, List, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 import torch
 import torch.utils.data
 import torchvision
-#from torchvision.transforms import Compose
 
+# from torchvision.transforms import Compose
 import vi
 from vi import VIModule
 from vi.predictive_distributions import CategoricalPredictiveDistribution
-from vi.variational_distributions import VariationalDistribution, MeanFieldNormalVarDist
-
+from vi.variational_distributions import MeanFieldNormalVarDist, VariationalDistribution
 
 # MODEL
 # Define neural network by subclassing PyTorch's nn.Module.
 # Save to a separate Python module file `model.py` to import the functions from
 # into your main script and run the training as a batch job later on.
 # Add imports as needed.
+
 
 class MFVIAlexNet(VIModule):
     """
@@ -39,7 +39,12 @@ class MFVIAlexNet(VIModule):
     """
 
     # Initialize neural network layers in __init__.
-    def __init__(self, num_classes: int = 1000, dropout: float = 0.5, variational_distribution : VariationalDistribution = MeanFieldNormalVarDist()) -> None:
+    def __init__(
+        self,
+        num_classes: int = 1000,
+        dropout: float = 0.5,
+        variational_distribution: VariationalDistribution = MeanFieldNormalVarDist(),
+    ) -> None:
         """
         Initialize AlexNet architecture.
 
@@ -60,20 +65,51 @@ class MFVIAlexNet(VIModule):
             #
             # IMPLEMENT FEATURE-EXTRACTOR PART OF ALEXNET HERE!
             # 1st convolutional layer (+ max-pooling)
-            vi.VIConv2d(3, 64, kernel_size=11, stride=4, padding=2, variational_distribution=variational_distribution),
+            vi.VIConv2d(
+                3,
+                64,
+                kernel_size=11,
+                stride=4,
+                padding=2,
+                variational_distribution=variational_distribution,
+            ),
             torch.nn.ReLU(inplace=True),
             torch.nn.MaxPool2d(kernel_size=3, stride=2),
             ## 2nd convolutional layer (+ max-pooling)
-            vi.VIConv2d(64, 192, kernel_size=5, padding=2, variational_distribution=variational_distribution),
+            vi.VIConv2d(
+                64,
+                192,
+                kernel_size=5,
+                padding=2,
+                variational_distribution=variational_distribution,
+            ),
             torch.nn.ReLU(inplace=True),
             torch.nn.MaxPool2d(kernel_size=3, stride=2),
             ## 3rd + 4th convolutional layer
-            vi.VIConv2d(192, 384, kernel_size=3, padding=1, variational_distribution=variational_distribution),
+            vi.VIConv2d(
+                192,
+                384,
+                kernel_size=3,
+                padding=1,
+                variational_distribution=variational_distribution,
+            ),
             torch.nn.ReLU(inplace=True),
-            vi.VIConv2d(384, 256, kernel_size=3, padding=1, variational_distribution=variational_distribution),
+            vi.VIConv2d(
+                384,
+                256,
+                kernel_size=3,
+                padding=1,
+                variational_distribution=variational_distribution,
+            ),
             torch.nn.ReLU(inplace=True),
             ## 5th convolutional layer (+ max-pooling)
-            vi.VIConv2d(256, 256, kernel_size=3, padding=1, variational_distribution=variational_distribution),
+            vi.VIConv2d(
+                256,
+                256,
+                kernel_size=3,
+                padding=1,
+                variational_distribution=variational_distribution,
+            ),
             torch.nn.ReLU(inplace=True),
             torch.nn.MaxPool2d(kernel_size=3, stride=2),
             # Average pooling to downscale possibly larger input images.
@@ -85,20 +121,24 @@ class MFVIAlexNet(VIModule):
             # on the input using its stored weights and biases.
             # 6th fully connected layer (+ dropout)
             torch.nn.Dropout(p=dropout),
-            vi.VILinear(256 * 6 * 6, 4096, variational_distribution=variational_distribution),
+            vi.VILinear(
+                256 * 6 * 6, 4096, variational_distribution=variational_distribution
+            ),
             torch.nn.ReLU(inplace=True),
             ## 7th fully connected layer (+ dropout)
             torch.nn.Dropout(p=dropout),
             vi.VILinear(4096, 4096, variational_distribution=variational_distribution),
             torch.nn.ReLU(inplace=True),
             # 8th (output) layer
-            vi.VILinear(4096, num_classes, variational_distribution=variational_distribution),
+            vi.VILinear(
+                4096, num_classes, variational_distribution=variational_distribution
+            ),
         )
 
     # Forward pass: Implement operations on the input data, i.e., apply model to input x.
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        The forward pass.
+        Do forward pass.
 
         Parameters
         ----------
@@ -110,14 +150,15 @@ class MFVIAlexNet(VIModule):
         torch.Tensor
             The model's output.
         """
-
         x = self.features(x)
         return x
+
 
 # DATA
 # Save to a separate Python module file `utils_data.py` to import the functions from
 # into your main script and run the training as a batch job later on.
 # Add imports as needed.
+
 
 def get_transforms_cifar10() -> (
     Tuple[torchvision.transforms.Compose, torchvision.transforms.Compose]
@@ -202,16 +243,17 @@ def make_train_validation_split(
     )  # Extract and return train and validation indices.
 
 
-
 def get_dataloaders_cifar10(
     batch_size: int,
     data_root: str = "data",
     validation_fraction: float = 0.1,
-    train_transforms: Callable[[Any], Any] = None,
-    test_transforms: Callable[[Any], Any] = None,
+    train_transforms: Optional[Callable] = None,
+    test_transforms: Optional[Callable] = None,
     seed: int = 123,
 ) -> Tuple[
-    torch.utils.data.DataLoader, torch.utils.data.DataLoader, torch.utils.data.DataLoader
+    torch.utils.data.DataLoader,
+    torch.utils.data.DataLoader,
+    torch.utils.data.DataLoader,
 ]:
     """
     Get dataloaders for training, validation, and testing on the CIFAR-10 dataset.
@@ -288,18 +330,17 @@ def get_dataloaders_cifar10(
     return train_loader, valid_loader, test_loader
 
 
-
-
 # EVALUATION
 # Save to a separate Python module file `utils_eval.py` to import the functions from
 # into your main script and run the training as a batch job later on.
 # Add imports as needed.
 
+
 def compute_accuracy(
-        model: torch.nn.Module,
-        data_loader: torch.utils.data.DataLoader,
-        device: torch.device,
-        samples: int = 10,
+    model: torch.nn.Module,
+    data_loader: torch.utils.data.DataLoader,
+    device: torch.device,
+    samples: int = 10,
 ) -> float:
     """
     Compute the accuracy of the model's predictions on given labeled data.
@@ -318,8 +359,7 @@ def compute_accuracy(
     float
         The model's accuracy on the given dataset in percent.
     """
-    with (torch.no_grad()):  # Disable gradient calculation to reduce memory consumption.
-
+    with torch.no_grad():  # Disable gradient calculation to reduce memory consumption.
         # Initialize number of correctly predicted samples + overall number of samples.
         correct_pred, num_examples = (
             0,
@@ -337,13 +377,13 @@ def compute_accuracy(
             ## logits = ...
             logits = model(features, samples=samples)[0]
             probs = torch.nn.functional.softmax(logits, dim=-1)
-            #print(probs.shape)
+            # print(probs.shape)
             outputs = probs.mean(dim=0)
-            #print(outputs.sum(dim=1))
+            # print(outputs.sum(dim=1))
             ## Determine class with highest score.
             prediction = outputs.argmax(dim=1)
-            #print(prediction)
-            #print(targets)
+            # print(prediction)
+            # print(targets)
             ## Compare predictions to actual labels to determine number of correctly predicted samples.
             correct_pred += prediction.eq(targets).sum().item()
             ## Determine overall number of samples.
@@ -354,23 +394,25 @@ def compute_accuracy(
         ## return ...
         return accuracy
 
+
 # TRAINING
 # Save to a separate Python module file `utils_train.py` to import the functions from
 # into your main script and run the training as a batch job later on.
 # Add imports as needed.
 # from utils_eval import compute_accuracy
 
+
 def train_model(
-        model: torch.nn.Module,
-        num_epochs: int,
-        train_loader: torch.utils.data.DataLoader,
-        valid_loader: torch.utils.data.DataLoader,
-        test_loader: torch.utils.data.DataLoader,
-        optimizer: torch.optim.Optimizer,
-        device: torch.device,
-        logging_interval: int = 50,
-        scheduler: torch.optim.lr_scheduler._LRScheduler = None,
-        num_samples: int = 10,
+    model: torch.nn.Module,
+    num_epochs: int,
+    train_loader: torch.utils.data.DataLoader,
+    valid_loader: torch.utils.data.DataLoader,
+    test_loader: torch.utils.data.DataLoader,
+    optimizer: torch.optim.Optimizer,
+    device: torch.device,
+    logging_interval: int = 50,
+    scheduler: torch.optim.lr_scheduler._LRScheduler = None,
+    num_samples: int = 10,
 ) -> Tuple[List[float], List[float], List[float]]:
     """
     Train your model.
@@ -395,7 +437,8 @@ def train_model(
         The logging interval.
     scheduler : torch.optim.lr_scheduler._LRScheduler
         An optional learning rate scheduler.
-     Returns
+
+    Returns
     -------
     List[float]
         The loss history.
@@ -407,7 +450,9 @@ def train_model(
     ## start = ... # Start timer to measure training time.
     start = time.time()
     # Initialize history lists for loss, training accuracy, and validation accuracy.
-    loss_history, train_acc_history, valid_acc_history = [], [], []
+    loss_history: List[float] = []
+    train_acc_history: List[float] = []
+    valid_acc_history: List[float] = []
 
     predictive_distribution = CategoricalPredictiveDistribution()
     loss_fn = vi.KullbackLeiblerLoss(
@@ -423,7 +468,9 @@ def train_model(
         #  test procedures know what is going on and can behave accordingly.
         model.train()
 
-        for batch_idx, (features, targets) in enumerate(train_loader):  # Loop over mini batches.
+        for batch_idx, (features, targets) in enumerate(
+            train_loader
+        ):  # Loop over mini batches.
             # CONVERT DATASET TO USED DEVICE.
             ## features = ...  # Move features to used device.
             features = features.to(device)
@@ -434,10 +481,10 @@ def train_model(
             ## logits = ...  # Get predictions of model with current parameters.
             logits = model(features, samples=num_samples)
             ## loss = ...  # Calculate cross-entropy loss on current mini-batch.
-            #print(logits[0][0,0,:])
+            # print(logits[0][0,0,:])
             loss = loss_fn(*logits, targets)
-            assert (not torch.isinf(loss).item())
-            #print(loss.item())
+            assert not torch.isinf(loss).item()
+            # print(loss.item())
             ## Zero out gradients.
             optimizer.zero_grad()
             ## Calculate gradients of loss w.r.t. model parameters in backward pass.
@@ -460,12 +507,18 @@ def train_model(
         ## Set model to evaluation mode.
         model.eval()
 
-        with torch.no_grad():  # Disable gradient calculation to reduce memory consumption.
+        with (
+            torch.no_grad()
+        ):  # Disable gradient calculation to reduce memory consumption.
             # COMPUTE ACCURACY OF CURRENT MODEL PREDICTIONS ON TRAINING + VALIDATION DATASETS.
             ## train_acc = compute_accuracy(...)  # Compute accuracy on training data.
-            train_acc = compute_accuracy(model, train_loader, device, samples=num_samples)
+            train_acc = compute_accuracy(
+                model, train_loader, device, samples=num_samples
+            )
             ## valid_acc = compute_accuracy(...)  # Compute accuracy on validation data.
-            valid_acc = compute_accuracy(model, valid_loader, device, samples=num_samples)
+            valid_acc = compute_accuracy(
+                model, valid_loader, device, samples=num_samples
+            )
             print(
                 f"Epoch: {epoch + 1:03d}/{num_epochs:03d} "
                 f"| Train: {train_acc :.2f}% "
@@ -515,8 +568,13 @@ if __name__ == "__main__":
     # GET PYTORCH DATALOADERS FOR TRAINING, TESTING, AND VALIDATION DATASET.
     ## train_loader, valid_loader, test_loader = get_dataloaders_cifar10(...)
     train_transforms, test_transforms = get_transforms_cifar10()
-    train_loader, valid_loader, test_loader = get_dataloaders_cifar10(batch_size=batch_size, data_root=data_root,
-                                    train_transforms=train_transforms, test_transforms=test_transforms, seed=rand_seed)
+    train_loader, valid_loader, test_loader = get_dataloaders_cifar10(
+        batch_size=batch_size,
+        data_root=data_root,
+        train_transforms=train_transforms,
+        test_transforms=test_transforms,
+        seed=rand_seed,
+    )
 
     # Check loaded dataset.
     for images, labels in train_loader:
@@ -539,11 +597,14 @@ if __name__ == "__main__":
     print("Device:", device)
 
     ## model = ...  # Build an instance of AlexNet with 10 classes for CIFAR-10 and convert it to the used device.
-    model = MFVIAlexNet(num_classes=10, variational_distribution=MeanFieldNormalVarDist(initial_std=start_std))
+    model = MFVIAlexNet(
+        num_classes=10,
+        variational_distribution=MeanFieldNormalVarDist(initial_std=start_std),
+    )
     model.to(device)
     model.return_log_prob()
     ## Print model.
-    #print(model)
+    # print(model)
 
     # Set up an SGD optimizer from the `torch.optim` package.
     # Use a momentum of 0.9 and a learning rate of 0.1.
@@ -551,17 +612,27 @@ if __name__ == "__main__":
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
 
     # Set up a LR scheduler.
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, mode="max", verbose=True)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, factor=0.1, mode="max", verbose=True
+    )
 
     start_acc = compute_accuracy(model, valid_loader, device, samples=5)
     print("Start Accuracy:", start_acc)
 
     # TRAIN MODEL.
     ## loss_history, train_acc_history, valid_acc_history = train_model(...)
-    loss_history, train_acc_history, valid_acc_history = train_model(model=model, num_epochs=num_epochs, train_loader=train_loader,
-                                                                     valid_loader=valid_loader, test_loader=test_loader,
-                                                                     optimizer=optimizer, device=device, scheduler=scheduler,
-                                                                     logging_interval=10, num_samples=5)
+    loss_history, train_acc_history, valid_acc_history = train_model(
+        model=model,
+        num_epochs=num_epochs,
+        train_loader=train_loader,
+        valid_loader=valid_loader,
+        test_loader=test_loader,
+        optimizer=optimizer,
+        device=device,
+        scheduler=scheduler,
+        logging_interval=10,
+        num_samples=5,
+    )
 
     # Save history lists for loss, training accuracy, and validation accuracy.S
     torch.save(loss_history, "loss.pt")

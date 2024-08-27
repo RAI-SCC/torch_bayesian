@@ -35,14 +35,18 @@ class MarginalisedQuietPrior(Prior):
         """Compute the log probability of sample based on the prior."""
         device = sample.device
         prob_sum = torch.zeros_like(sample).to(device)
-        #mu_dist = torch.distributions.Normal(Tensor([0.0]), Tensor([self.rho]))
+        # mu_dist = torch.distributions.Normal(Tensor([0.0]), Tensor([self.rho]))
         for i in range(self.samples):
-            #this_mu = mu_dist.sample(sample.shape)
-            this_mu =self.rho * torch.normal(torch.zeros_like(sample), torch.ones_like(sample))
+            # this_mu = mu_dist.sample(sample.shape)
+            this_mu = self.rho * torch.normal(
+                torch.zeros_like(sample), torch.ones_like(sample)
+            )
             this_mu = this_mu.to(device)
-            #print(sample.shape, this_mu.shape)
-            variance = (self.a * this_mu)**2
-            this_prob = torch.exp(-(sample - this_mu) ** 2 / (2 * variance)) / torch.sqrt(2 * torch.pi * variance)
+            # print(sample.shape, this_mu.shape)
+            variance = (self.a * this_mu) ** 2
+            this_prob = torch.exp(
+                -((sample - this_mu) ** 2) / (2 * variance)
+            ) / torch.sqrt(2 * torch.pi * variance)
 
             prob_sum += this_prob
 

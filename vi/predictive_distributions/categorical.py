@@ -14,12 +14,10 @@ class CategoricalPredictiveDistribution(PredictiveDistribution):
         assert input_type in ["logits", "probs"], "input_type must be logits or probs"
         self._in_logits = input_type == "logits"
 
-    def predictive_parameters_from_samples(
-        self, samples: Tensor
-    ) -> Tensor:
+    def predictive_parameters_from_samples(self, samples: Tensor) -> Tensor:
         """Calculate predictive probabilities or logits from samples."""
         if self._in_logits:
-            #print(torch.isnan(F.softmax(samples, -1)))
+            # print(torch.isnan(F.softmax(samples, -1)))
             returnval = F.softmax(samples, -1).mean(dim=0)
             return returnval
         else:
@@ -27,15 +25,16 @@ class CategoricalPredictiveDistribution(PredictiveDistribution):
             return normalized.mean(dim=0)
 
     @staticmethod
-    def log_prob_from_parameters(reference: Tensor, parameters: Tensor, offset:float = 1e-10
-        ) -> Tensor:
+    def log_prob_from_parameters(
+        reference: Tensor, parameters: Tensor, offset: float = 1e-10
+    ) -> Tensor:
         """
         Calculate log probability from parameters.
 
         Assumes reference and parameters are probs.
         Offsets the parameters by offset in order to avoid infinities.
         """
-        assert (not torch.any(torch.isnan(parameters)))
+        assert not torch.any(torch.isnan(parameters))
         if offset > 0:
             parameters = parameters + offset
         parameters = parameters.log()

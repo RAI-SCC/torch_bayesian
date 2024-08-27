@@ -1,28 +1,19 @@
-import os
-import time
-from typing import Any, Union, Tuple
+from typing import Tuple, Union
 
-import numpy as np
 import torch
 import torch.utils.data
-import torchvision
-#from torchvision.transforms import Compose
 
-import torch.distributed as dist
-
+# from torchvision.transforms import Compose
 import vi
 from vi import VIModule
-from vi.predictive_distributions import CategoricalPredictiveDistribution
-from vi.variational_distributions import VariationalDistribution, MeanFieldNormalVarDist
 from vi.priors import MeanFieldNormalPrior, Prior
-
+from vi.variational_distributions import MeanFieldNormalVarDist, VariationalDistribution
 
 # MODEL
 # Define neural network by subclassing PyTorch's nn.Module.
 # Save to a separate Python module file `model.py` to import the functions from
 # into your main script and run the training as a batch job later on.
 # Add imports as needed.
-
 
 
 class VIResNetBlock(VIModule):
@@ -45,42 +36,70 @@ class VIResNetBlock(VIModule):
         The forward pass.
     """
 
-    def __init__(self, in_features: int, out_features: int, stride: int = 1,
-                 variational_distribution: VariationalDistribution = MeanFieldNormalVarDist(),
-                 prior=MeanFieldNormalPrior()) -> None:
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        stride: int = 1,
+        variational_distribution: VariationalDistribution = MeanFieldNormalVarDist(),
+        prior: Prior = MeanFieldNormalPrior(),
+    ) -> None:
         """
-            Initialize VIResNet block.
+        Initialize VIResNet block.
 
-            Parameters
-            ----------
-            in_features : int
-                The input feature dimension.
-            out_features : int
-                The output feature dimension.
-            stride : int
-                The stride of the convolutional layers.
-            variational_distribution : VariationalDistribution
-                The variational distribution used in all the VI components.
-            prior: Prior
-                The prior used in all the VI components.
+        Parameters
+        ----------
+        in_features : int
+            The input feature dimension.
+        out_features : int
+            The output feature dimension.
+        stride : int
+            The stride of the convolutional layers.
+        variational_distribution : VariationalDistribution
+            The variational distribution used in all the VI components.
+        prior: Prior
+            The prior used in all the VI components.
         """
         super().__init__()
 
-        self.features = vi.VISequential(vi.VIConv2d(in_features, out_features, kernel_size=3, stride=stride, padding=1,
-                                                    prior=prior, variational_distribution=variational_distribution),
-                                        torch.nn.ReLU(inplace=True),
-                                        vi.VIConv2d(out_features, out_features, kernel_size=3, stride=1, padding=1,
-                                                    prior=prior, variational_distribution=variational_distribution),)
+        self.features = vi.VISequential(
+            vi.VIConv2d(
+                in_features,
+                out_features,
+                kernel_size=3,
+                stride=stride,
+                padding=1,
+                prior=prior,
+                variational_distribution=variational_distribution,
+            ),
+            torch.nn.ReLU(inplace=True),
+            vi.VIConv2d(
+                out_features,
+                out_features,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                prior=prior,
+                variational_distribution=variational_distribution,
+            ),
+        )
 
         self.downsampling = None
         if stride > 1:
-            self.downsampling = vi.VIConv2d(in_features, out_features, kernel_size=1, stride=stride,
-                                            prior=prior, variational_distribution=variational_distribution)
+            self.downsampling = vi.VIConv2d(
+                in_features,
+                out_features,
+                kernel_size=1,
+                stride=stride,
+                prior=prior,
+                variational_distribution=variational_distribution,
+            )
 
-
-    def forward(self, x: torch.Tensor) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+    def forward(
+        self, x: torch.Tensor
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
         """
-        The forward pass.
+        Do forward pass.
 
         Parameters
         ----------
@@ -126,45 +145,81 @@ class VIResNet20(VIModule):
         The forward pass.
     """
 
-    def __init__(self, num_classes: int = 10, variational_distribution: VariationalDistribution = MeanFieldNormalVarDist(),
-                 prior=MeanFieldNormalPrior()) -> None:
+    def __init__(
+        self,
+        num_classes: int = 10,
+        variational_distribution: VariationalDistribution = MeanFieldNormalVarDist(),
+        prior: Prior = MeanFieldNormalPrior(),
+    ) -> None:
         """
-            Initialize VIResNet block.
+        Initialize VIResNet block.
 
-            Parameters
-            ----------
-            num_classes : int
-                The number of classes in the underlying classification problem.
-            variational_distribution : VariationalDistribution
-                The variational distribution used in all the VI components.
-            prior: Prior
-                The prior used in all the VI components.
+        Parameters
+        ----------
+        num_classes : int
+            The number of classes in the underlying classification problem.
+        variational_distribution : VariationalDistribution
+            The variational distribution used in all the VI components.
+        prior: Prior
+            The prior used in all the VI components.
         """
         super().__init__()
 
         self.features = vi.VISequential(
-            vi.VIConv2d(3, 16, kernel_size=3, padding=1, prior=prior, variational_distribution=variational_distribution),
+            vi.VIConv2d(
+                3,
+                16,
+                kernel_size=3,
+                padding=1,
+                prior=prior,
+                variational_distribution=variational_distribution,
+            ),
             torch.nn.ReLU(inplace=True),
-            VIResNetBlock(16, 16, variational_distribution=variational_distribution, prior=prior),
-            VIResNetBlock(16, 16, variational_distribution=variational_distribution, prior=prior),
-            VIResNetBlock(16, 16, variational_distribution=variational_distribution, prior=prior),
-            VIResNetBlock(16, 32, stride=2, variational_distribution=variational_distribution, prior=prior),
-            VIResNetBlock(32, 32, variational_distribution=variational_distribution, prior=prior),
-            VIResNetBlock(32, 32, variational_distribution=variational_distribution, prior=prior),
-            VIResNetBlock(32, 64, stride=2,variational_distribution=variational_distribution, prior=prior),
-            VIResNetBlock(64, 64, variational_distribution=variational_distribution, prior=prior),
-            VIResNetBlock(64, 64, variational_distribution=variational_distribution, prior=prior),
+            VIResNetBlock(
+                16, 16, variational_distribution=variational_distribution, prior=prior
+            ),
+            VIResNetBlock(
+                16, 16, variational_distribution=variational_distribution, prior=prior
+            ),
+            VIResNetBlock(
+                16, 16, variational_distribution=variational_distribution, prior=prior
+            ),
+            VIResNetBlock(
+                16,
+                32,
+                stride=2,
+                variational_distribution=variational_distribution,
+                prior=prior,
+            ),
+            VIResNetBlock(
+                32, 32, variational_distribution=variational_distribution, prior=prior
+            ),
+            VIResNetBlock(
+                32, 32, variational_distribution=variational_distribution, prior=prior
+            ),
+            VIResNetBlock(
+                32,
+                64,
+                stride=2,
+                variational_distribution=variational_distribution,
+                prior=prior,
+            ),
+            VIResNetBlock(
+                64, 64, variational_distribution=variational_distribution, prior=prior
+            ),
+            VIResNetBlock(
+                64, 64, variational_distribution=variational_distribution, prior=prior
+            ),
             torch.nn.AdaptiveAvgPool2d(1),
             torch.nn.Flatten(start_dim=-3),
             vi.VILinear(64, num_classes),
         )
 
-
-
-
-    def forward(self, x: torch.Tensor) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+    def forward(
+        self, x: torch.Tensor
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
         """
-        The forward pass.
+        Do forward pass.
 
         Parameters
         ----------
@@ -173,4 +228,3 @@ class VIResNet20(VIModule):
         """
         out = self.features(x)
         return out
-
