@@ -25,7 +25,7 @@ For the simplest approach three changes need to be made:
     `nn.Module`s and `VIModule`s (including residual connections) this can
     be handled with `VISequential` and `VIResidualConnection`.
 
-For a (potentially familar) example see `scripts/pytorch_tutorial.py`, which
+For a (potentially familiar) example see `scripts/pytorch_tutorial.py`, which
 contains a copy of the pytorch [Quickstart tutorial](https://pytorch.org/tutorials/beginner/basics/quickstart_tutorial.html)
 modified to train a BNN with variational inference.
 
@@ -60,6 +60,7 @@ modified to train a BNN with variational inference.
 
     - [ ] base
     - [ ] normal
+    - [ ] quiet
 
 
 - predictive_distributions
@@ -72,3 +73,4 @@ modified to train a BNN with variational inference.
 
 - Check if log params should be set to `-inf` if `fan_in` is 0
 - BasicQuietPrior might need an eps to avoid infinity for mean = 0
+- Revisit eps in CategoricalPredictiveDistribution or set all eps to 1e-10?
