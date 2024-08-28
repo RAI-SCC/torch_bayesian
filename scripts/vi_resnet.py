@@ -1,16 +1,15 @@
 from typing import Tuple, Union
 
 import torch
-import torch.utils.data
+from torch import Tensor, nn
 
-# from torchvision.transforms import Compose
 import vi
 from vi import VIModule
 from vi.priors import MeanFieldNormalPrior, Prior
 from vi.variational_distributions import MeanFieldNormalVarDist, VariationalDistribution
 
 # MODEL
-# Define neural network by subclassing PyTorch's nn.Module.
+# Define neural network by subclassing vi.VIModule.
 # Save to a separate Python module file `model.py` to import the functions from
 # into your main script and run the training as a batch job later on.
 # Add imports as needed.
@@ -24,7 +23,7 @@ class VIResNetBlock(VIModule):
     ----------
     features : torch.nn.container.Sequential
         both convolutional layers in one VISequential
-    dowsampling: Optional(vi.Conv2d)
+    downsampling: Optional[vi.Conv2d]
         downsampling layer in case stride > 1
 
 
@@ -72,7 +71,7 @@ class VIResNetBlock(VIModule):
                 prior=prior,
                 variational_distribution=variational_distribution,
             ),
-            torch.nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True),
             vi.VIConv2d(
                 out_features,
                 out_features,
@@ -95,15 +94,13 @@ class VIResNetBlock(VIModule):
                 variational_distribution=variational_distribution,
             )
 
-    def forward(
-        self, x: torch.Tensor
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+    def forward(self, x: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
         """
         Do forward pass.
 
         Parameters
         ----------
-        x : torch.Tensor
+        x : Tensor
             The input data.
         """
         out = self.features(x)
@@ -210,20 +207,18 @@ class VIResNet20(VIModule):
             VIResNetBlock(
                 64, 64, variational_distribution=variational_distribution, prior=prior
             ),
-            torch.nn.AdaptiveAvgPool2d(1),
-            torch.nn.Flatten(start_dim=-3),
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(start_dim=-3),
             vi.VILinear(64, num_classes),
         )
 
-    def forward(
-        self, x: torch.Tensor
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+    def forward(self, x: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
         """
         Do forward pass.
 
         Parameters
         ----------
-        x : torch.Tensor
+        x : Tensor
             The input data.
         """
         out = self.features(x)

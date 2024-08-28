@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #SBATCH --partition=accelerated
 #SBATCH --gres=gpu:4
 #SBATCH --time=2:00:00

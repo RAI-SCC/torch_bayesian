@@ -1,267 +1,30 @@
-# import random
 import os
 import time
 from typing import Callable, List, Optional, Tuple
 
-import numpy as np
 import torch
-
-# from torchvision.transforms import Compose
 import torch.distributed as dist
-import torch.utils.data
-import torchvision
+from torch import Tensor, nn
+from torch.nn import functional as F  # noqa: N812
+from torch.utils.data import DataLoader, Subset
+from torch.utils.data.distributed import DistributedSampler
+from torchvision import transforms
+from torchvision.datasets import CIFAR10
+from VIAlexNet import (
+    VIAlexNet,
+    get_transforms_cifar10,
+    make_train_validation_split,
+)
 
 import vi
-from vi import VIModule
 from vi.predictive_distributions import CategoricalPredictiveDistribution
-from vi.priors import BasicQuietPrior, MeanFieldNormalPrior, Prior
-from vi.variational_distributions import MeanFieldNormalVarDist, VariationalDistribution
-
-# MODEL
-# Define neural network by subclassing PyTorch's nn.Module.
-# Save to a separate Python module file `model.py` to import the functions from
-# into your main script and run the training as a batch job later on.
-# Add imports as needed.
-
-
-class MFVIAlexNet(VIModule):
-    """
-    AlexNet architecture.
-
-    Attributes
-    ----------
-    features : torch.nn.container.Sequential
-        everything in AlexNet, all in one VISequential
-
-    Methods
-    -------
-    __init__()
-        The constructor defining the network's architecture.
-    forward()
-        The forward pass.
-    """
-
-    # Initialize neural network layers in __init__.
-    def __init__(
-        self,
-        num_classes: int = 1000,
-        dropout: float = 0.5,
-        variational_distribution: VariationalDistribution = MeanFieldNormalVarDist(),
-        prior: Prior = MeanFieldNormalPrior(),
-    ) -> None:
-        """
-        Initialize AlexNet architecture.
-
-        Parameters
-        ----------
-        num_classes : int
-            The number of classes in the underlying classification problem.
-        dropout : float
-            The dropout probability.
-        """
-        super().__init__()
-        self.features = vi.VISequential(
-            # AlexNet has 8 layers: 5 convolutional layers, some followed by max-pooling (see figure),
-            # and 3 fully connected layers. In this model, we use nn.ReLU between our layers.
-            # nn.Sequential is an ordered container of modules.
-            # The data is passed through all the modules in the same order as defined.
-            # You can use sequential containers to put together a quick network.
-            #
-            # IMPLEMENT FEATURE-EXTRACTOR PART OF ALEXNET HERE!
-            # 1st convolutional layer (+ max-pooling)
-            vi.VIConv2d(
-                3,
-                64,
-                kernel_size=11,
-                stride=4,
-                padding=2,
-                variational_distribution=variational_distribution,
-                prior=prior,
-            ),
-            torch.nn.ReLU(inplace=True),
-            torch.nn.MaxPool2d(kernel_size=3, stride=2),
-            ## 2nd convolutional layer (+ max-pooling)
-            vi.VIConv2d(
-                64,
-                192,
-                kernel_size=5,
-                padding=2,
-                variational_distribution=variational_distribution,
-                prior=prior,
-            ),
-            torch.nn.ReLU(inplace=True),
-            torch.nn.MaxPool2d(kernel_size=3, stride=2),
-            ## 3rd + 4th convolutional layer
-            vi.VIConv2d(
-                192,
-                384,
-                kernel_size=3,
-                padding=1,
-                variational_distribution=variational_distribution,
-                prior=prior,
-            ),
-            torch.nn.ReLU(inplace=True),
-            vi.VIConv2d(
-                384,
-                256,
-                kernel_size=3,
-                padding=1,
-                variational_distribution=variational_distribution,
-                prior=prior,
-            ),
-            torch.nn.ReLU(inplace=True),
-            ## 5th convolutional layer (+ max-pooling)
-            vi.VIConv2d(
-                256,
-                256,
-                kernel_size=3,
-                padding=1,
-                variational_distribution=variational_distribution,
-                prior=prior,
-            ),
-            torch.nn.ReLU(inplace=True),
-            torch.nn.MaxPool2d(kernel_size=3, stride=2),
-            # Average pooling to downscale possibly larger input images.
-            torch.nn.AdaptiveAvgPool2d((6, 6)),
-            torch.nn.Flatten(1),
-            # IMPLEMENT FULLY CONNECTED PART HERE!
-            # 6th, 7th + 8th fully connected layer
-            # The linear layer is a module that applies a linear transformation
-            # on the input using its stored weights and biases.
-            # 6th fully connected layer (+ dropout)
-            torch.nn.Dropout(p=dropout),
-            vi.VILinear(
-                256 * 6 * 6,
-                4096,
-                variational_distribution=variational_distribution,
-                prior=prior,
-            ),
-            torch.nn.ReLU(inplace=True),
-            ## 7th fully connected layer (+ dropout)
-            torch.nn.Dropout(p=dropout),
-            vi.VILinear(
-                4096,
-                4096,
-                variational_distribution=variational_distribution,
-                prior=prior,
-            ),
-            torch.nn.ReLU(inplace=True),
-            # 8th (output) layer
-            vi.VILinear(
-                4096,
-                num_classes,
-                variational_distribution=variational_distribution,
-                prior=prior,
-            ),
-        )
-
-    # Forward pass: Implement operations on the input data, i.e., apply model to input x.
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Do forward pass.
-
-        Parameters
-        ----------
-        x : torch.Tensor
-            The input data.
-
-        Returns
-        -------
-        torch.Tensor
-            The model's output.
-        """
-        x = self.features(x)
-
-        return x
-
+from vi.priors import BasicQuietPrior
+from vi.variational_distributions import MeanFieldNormalVarDist
 
 # DATA
 # Save to a separate Python module file `utils_data.py` to import the functions from
 # into your main script and run the training as a batch job later on.
 # Add imports as needed.
-
-
-def get_transforms_cifar10() -> (
-    Tuple[torchvision.transforms.Compose, torchvision.transforms.Compose]
-):
-    """
-    Get transforms applied to CIFAR-10 data for AlexNet training and inference.
-
-    Returns
-    -------
-    torchvision.transforms.Compose
-        The transforms applied to CIFAR-10 for training AlexNet.
-    torchvision.transforms.Compose
-        The transforms applied to CIFAR-10 to run inference with AlexNet.
-    """
-    # Transforms applied to training data (randomness to make network more robust against overfitting)
-    train_transforms = (
-        torchvision.transforms.Compose(  # Compose several transforms together.
-            [
-                torchvision.transforms.Resize(
-                    (70, 70)
-                ),  # Upsample CIFAR-10 images to make them work with AlexNet.
-                torchvision.transforms.RandomCrop(
-                    (64, 64)
-                ),  # Randomly crop image to make NN more robust against overfitting.
-                torchvision.transforms.ToTensor(),  # Convert image into torch tensor.
-                torchvision.transforms.Normalize(
-                    (0.5, 0.5, 0.5), (0.5, 0.5, 0.5)
-                ),  # Normalize to [-1,1] via (image-mean)/std.
-            ]
-        )
-    )
-
-    test_transforms = torchvision.transforms.Compose(
-        [
-            torchvision.transforms.Resize((70, 70)),
-            torchvision.transforms.CenterCrop((64, 64)),
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ]
-    )
-    return train_transforms, test_transforms
-
-
-def make_train_validation_split(
-    train_dataset: torchvision.datasets.CIFAR10,
-    seed: int = 123,
-    validation_fraction: float = 0.1,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Split original CIFAR-10 training data into train and validation sets.
-
-    Parameters
-    ----------
-    train_dataset : torchvision.datasets.CIFAR10
-        The original CIFAR-10 training dataset.
-    seed : int
-        The seed used to split the data.
-    validation_fraction : float
-        The fraction of samples used for validation.
-
-    Returns
-    -------
-    numpy.ndarray
-        The sample indices for the training dataset.
-    numpy.ndarray
-        The sample indices for the validation dataset.
-    """
-    num_samples = len(
-        train_dataset
-    )  # Get overall number of samples in original training data.
-    rng = np.random.default_rng(
-        seed=seed
-    )  # Set same seed over all ranks for consistent train-test split.
-    idx = np.arange(0, num_samples)  # Construct array of all indices.
-    rng.shuffle(idx)  # Shuffle them.
-    num_validate = int(
-        validation_fraction * num_samples
-    )  # Determine number of validation samples from validation split.
-    return (
-        idx[num_validate:],
-        idx[0:num_validate],
-    )  # Extract and return train and validation indices.
 
 
 def get_dataloaders_cifar10_ddp(
@@ -271,7 +34,7 @@ def get_dataloaders_cifar10_ddp(
     train_transforms: Optional[Callable] = None,
     test_transforms: Optional[Callable] = None,
     seed: int = 123,
-) -> Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
+) -> Tuple[DataLoader, DataLoader]:
     """
     Get distributed CIFAR-10 dataloaders for training and validation in a DDP setting.
 
@@ -283,30 +46,30 @@ def get_dataloaders_cifar10_ddp(
         The path to the data directory.
     validation_fraction : float
         The fraction of training samples used for validation.
-    train_transforms : Callable[[Any], Any]
+    train_transforms : Callable
         The transform applied to the training data.
-    test_transforms : Callable[[Any], Any]
+    test_transforms : Callable
         The transform applied to the testing data (inference).
     seed : int
         Seed for train-validation split.
 
     Returns
     -------
-    torch.utils.data.DataLoader
+    DataLoader
         The training dataloader.
-    torch.utils.data.DataLoader
+    DataLoader
         The validation dataloader.
     """
     if train_transforms is None:
-        train_transforms = torchvision.transforms.ToTensor()
+        train_transforms = transforms.ToTensor()
     if test_transforms is None:
-        test_transforms = torchvision.transforms.ToTensor()
+        test_transforms = transforms.ToTensor()
 
     train_dataset = None
     if (
         dist.get_rank() == 0
     ):  # Only root shall download dataset if data is not already there.
-        train_dataset = torchvision.datasets.CIFAR10(
+        train_dataset = CIFAR10(
             root=data_root, train=True, transform=train_transforms, download=True
         )
 
@@ -315,13 +78,9 @@ def get_dataloaders_cifar10_ddp(
     if (
         dist.get_rank() != 0
     ):  # Other ranks must not download dataset at the same time in parallel.
-        train_dataset = torchvision.datasets.CIFAR10(
-            root=data_root, train=True, transform=train_transforms
-        )
+        train_dataset = CIFAR10(root=data_root, train=True, transform=train_transforms)
 
-    valid_dataset = torchvision.datasets.CIFAR10(
-        root=data_root, train=True, transform=test_transforms
-    )
+    valid_dataset = CIFAR10(root=data_root, train=True, transform=test_transforms)
 
     ## PERFORM INDEX-BASED TRAIN-VALIDATION SPLIT OF ORIGINAL TRAINING DATA.
     ## train_indices, valid_indices = ...  # Extract train and validation indices using helper function from task 1.
@@ -330,8 +89,8 @@ def get_dataloaders_cifar10_ddp(
     )
 
     # Split into training and validation dataset according to specified validation fraction.
-    train_dataset = torch.utils.data.Subset(train_dataset, train_indices)
-    valid_dataset = torch.utils.data.Subset(valid_dataset, valid_indices)
+    train_dataset = Subset(train_dataset, train_indices)
+    valid_dataset = Subset(valid_dataset, valid_indices)
 
     # Sampler that restricts data loading to a subset of the dataset.
     # Especially useful in conjunction with DistributedDataParallel.
@@ -339,31 +98,31 @@ def get_dataloaders_cifar10_ddp(
     # and load a subset of the original dataset that is exclusive to it.
 
     # Get samplers.
-    train_sampler = torch.utils.data.distributed.DistributedSampler(
+    train_sampler = DistributedSampler(
         train_dataset,
-        num_replicas=torch.distributed.get_world_size(),
-        rank=torch.distributed.get_rank(),
+        num_replicas=dist.get_world_size(),
+        rank=dist.get_rank(),
         shuffle=True,
         drop_last=True,
     )
 
-    valid_sampler = torch.utils.data.distributed.DistributedSampler(
+    valid_sampler = DistributedSampler(
         valid_dataset,
-        num_replicas=torch.distributed.get_world_size(),
-        rank=torch.distributed.get_rank(),
+        num_replicas=dist.get_world_size(),
+        rank=dist.get_rank(),
         shuffle=True,
         drop_last=True,
     )
 
     # Get dataloaders.
-    train_loader = torch.utils.data.DataLoader(
+    train_loader = DataLoader(
         dataset=train_dataset,
         batch_size=batch_size,
         drop_last=True,
         sampler=train_sampler,
     )
 
-    valid_loader = torch.utils.data.DataLoader(
+    valid_loader = DataLoader(
         dataset=valid_dataset,
         batch_size=batch_size,
         drop_last=True,
@@ -380,8 +139,8 @@ def get_dataloaders_cifar10_ddp(
 
 
 def get_right_ddp(
-    model: torch.nn.Module, data_loader: torch.utils.data.DataLoader, samples: int = 10
-) -> Tuple[torch.Tensor, torch.Tensor]:
+    model: nn.Module, data_loader: DataLoader, samples: int = 10
+) -> Tuple[Tensor, Tensor]:
     """
     Compute the number of correctly predicted samples and the overall number of samples in a given dataset.
 
@@ -389,29 +148,30 @@ def get_right_ddp(
 
     Parameters
     ----------
-    model : torch.nn.Module
+    model : nn.Module
         The model.
-    data_loader : torch.utils.data.DataLoader
+    data_loader : DataLoader
         The dataloader.
+    samples : int
+        The number of samples to compute accuracy from.
 
     Returns
     -------
-    torch.Tensor
+    Tensor
         The number of correctly predicted samples.
-    torch.Tensor
+    Tensor
         The overall number of samples in the dataset.
     """
     with torch.no_grad():
         correct_pred, num_examples = 0, 0
 
         for i, (features, targets) in enumerate(data_loader):
-            features = torch.Tensor(features).cuda()
-            targets = torch.Tensor(targets).cuda()
+            features = torch.tensor(features).cuda()
+            targets = torch.tensor(targets).cuda()
             targets = targets.float().cuda()
             # CALCULATE PREDICTIONS OF CURRENT MODEL ON FEATURES OF INPUT DATA.
-            ## logits = ...
             logits = model(features, samples=samples)[0]
-            probs = torch.nn.functional.softmax(logits, dim=-1)
+            probs = F.softmax(logits, dim=-1)
             outputs = probs.mean(dim=0)
             ## Determine class with highest score.
             prediction = outputs.argmax(dim=1)
@@ -425,22 +185,22 @@ def get_right_ddp(
             ## Update overall number of samples.
             ## Compare predictions to actual labels to determine number of correctly predicted samples.
 
-    correct_pred = torch.Tensor([correct_pred]).cuda()
-    num_examples = torch.Tensor([num_examples]).cuda()
+    correct_pred = torch.tensor([correct_pred]).cuda()
+    num_examples = torch.tensor([num_examples]).cuda()
     return correct_pred, num_examples
 
 
 def compute_accuracy_ddp(
-    model: torch.nn.Module, data_loader: torch.utils.data.DataLoader, samples: int = 10
+    model: nn.Module, data_loader: DataLoader, samples: int = 10
 ) -> float:
     """
     Compute the accuracy of the model's predictions on given labeled data.
 
     Parameters
     ----------
-    model : torch.nn.Module
+    model : nn.Module
         The model.
-    data_loader : torch.utils.data.DataLoader
+    data_loader : DataLoader
         The dataloader.
     samples : int
         The number of samples to compute accuracy from.
@@ -460,10 +220,10 @@ def compute_accuracy_ddp(
 
 
 def train_model_ddp(
-    model: torch.nn.Module,
+    model: nn.Module,
     num_epochs: int,
-    train_loader: torch.utils.data.DataLoader,
-    valid_loader: torch.utils.data.DataLoader,
+    train_loader: DataLoader,
+    valid_loader: DataLoader,
     optimizer: torch.optim.Optimizer,
     num_samples: int = 10,
 ) -> Tuple[List[float], List[float], List[float]]:
@@ -472,16 +232,18 @@ def train_model_ddp(
 
     Parameters
     ----------
-    model : torch.nn.Module
+    model : nn.Module
         The model to train.
     num_epochs : int
         The number of epochs to train.
-    train_loader : torch.utils.data.DataLoader
+    train_loader : DataLoader
         The training dataloader.
-    valid_loader : torch.utils.data.DataLoader
+    valid_loader : DataLoader
         The validation dataloader.
     optimizer : torch.optim.Optimizer
         The optimizer to use.
+    num_samples : int
+        Number of samples per forward pass. Default: 10
 
     Returns
     -------
@@ -492,10 +254,9 @@ def train_model_ddp(
     List[float]
         The epoch-wise validation accuracy history.
     """
-    ## start = ...  # Start timer to measure training time.
     start = time.perf_counter()
-    rank = torch.distributed.get_rank()  # Get local process ID (= rank).
-    world_size = torch.distributed.get_world_size()  # Get overall number of processes.
+    rank = dist.get_rank()  # Get local process ID (= rank).
+    world_size = dist.get_world_size()  # Get overall number of processes.
 
     loss_history: List[float] = []
     train_acc_history: List[float] = []
@@ -528,23 +289,16 @@ def train_model_ddp(
                 ## Zero out gradients.
                 optimizer.zero_grad()
                 # FORWARD & BACKWARD PASS
-                ## logits = ...  # Get predictions of current model from forward pass.
                 logits = model(features, samples=num_samples)
-                ## loss = ...  # Calculate cross-entropy loss on current mini-batch.
-                # print(logits[0][0,0,:])
                 loss = loss_fn(*logits, targets)
                 try:
                     assert not torch.isinf(loss).item()
                     assert not torch.isnan(loss).item()
                 except AssertionError as err:
-                    print(err)
-                    # print("Features: ", features)
-                    # print("Targets: ", targets)
                     print("Logit NaNs: ", torch.any(torch.isnan(logits[0])))
                     print("Logit Infs: ", torch.any(torch.isinf(logits[0])))
                     print("Loss: ", loss.item())
-                    assert False
-                # print(loss.item())
+                    raise err
 
             torch.cuda.empty_cache()
             ## Calculate gradients of loss w.r.t. model parameters in backward pass.
@@ -586,11 +340,9 @@ def train_model_ddp(
             # Determine number of correctly classified samples and overall number
             # of samples in training and validation dataset.
             #
-            ## right_train, num_train = get_right_ddp(...)
             right_train, num_train = get_right_ddp(
                 model, train_loader, samples=num_samples
             )
-            ## right_valid, num_valid = get_right_ddp(...)
             right_valid, num_valid = get_right_ddp(
                 model, valid_loader, samples=num_samples
             )
@@ -609,9 +361,7 @@ def train_model_ddp(
             # work with torch tensors, i.e., floats, ints, etc. must be converted before!
             # From these values, calculate overall training + validation accuracy.
             #
-            ## train_acc = ...
             train_acc = right_train.item() / num_train.item() * 100
-            ## valid_acc = ...
             valid_acc = right_valid.item() / num_valid.item() * 100
             ## Append accuracy values to corresponding history lists.
 
@@ -625,16 +375,16 @@ def train_model_ddp(
 
         elapsed = (time.perf_counter() - start) / 60  # Measure training time per epoch.
         elapsed_sync = torch.Tensor([elapsed]).cuda()
-        torch.distributed.all_reduce(elapsed_sync)
+        dist.all_reduce(elapsed_sync)
         elapsed = elapsed_sync.item()
         elapsed /= world_size
 
         if rank == 0:
             print(f"Time elapsed: {elapsed} min")
 
-    ## elapsed = ...  # Stop timer and calculate training time elapsed after epoch.
+    # Stop timer and calculate training time elapsed after epoch.
     elapsed = time.perf_counter() - start
-    elapsed_sync = torch.Tensor([elapsed]).cuda()
+    elapsed_sync = torch.tensor([elapsed]).cuda()
     ## Calculate average training time elapsed after each epoch over all processes,
     ## i.e., sum up times from all processes and divide by overall number of processes.
     ## Use collective communication functions from torch.distributed package.
@@ -679,7 +429,7 @@ def main_ddp() -> None:
 
     if dist.is_initialized():
         print(
-            f"Rank {rank}/{world_size}: Process group initialized with torch rank {torch.distributed.get_rank()} and torch world size {torch.distributed.get_world_size()}."
+            f"Rank {rank}/{world_size}: Process group initialized with torch rank {dist.get_rank()} and torch world size {dist.get_world_size()}."
         )
 
     dist.new_group(list(range(world_size)))
@@ -704,11 +454,9 @@ def main_ddp() -> None:
     prior_std_ratio = 0.4
     prior_mean_std = 10 * start_std / prior_std_ratio
     # Get transforms for data preprocessing to make smaller CIFAR-10 images work with AlexNet using helper function from task 1.
-    ## train_transforms, test_transforms = ...
     train_transforms, test_transforms = get_transforms_cifar10()
 
     # Get distributed dataloaders for training and validation data on all ranks.
-    ## train_loader, valid_loader = get_dataloaders_cifar10_ddp(...)
     train_loader, valid_loader = get_dataloaders_cifar10_ddp(
         batch_size=batch_size,
         data_root=data_root,
@@ -716,31 +464,28 @@ def main_ddp() -> None:
         test_transforms=test_transforms,
     )
 
-    ## model = ...  # Create AlexNet model with 10 classes for CIFAR-10 and move it to GPU.
+    # Create AlexNet model with 10 classes for CIFAR-10 and move it to GPU.
     vardist = MeanFieldNormalVarDist(initial_std=start_std)
     # prior = MeanFieldNormalPrior(std=prior_std)
     prior = BasicQuietPrior(std_ratio=prior_std_ratio, mean_std=prior_mean_std)
-    model = MFVIAlexNet(
+    model = VIAlexNet(
         num_classes=10, dropout=0.0, variational_distribution=vardist, prior=prior
     )
     model.to(device)
     model.return_log_prob()
-    ## ddp_model = ...  # Wrap model with DDP.
-    ddp_model = torch.nn.parallel.DistributedDataParallel(
+    # Wrap model with DDP.
+    ddp_model = nn.parallel.DistributedDataParallel(
         model, device_ids=[slurm_localid], output_device=slurm_localid
     )
 
     # Set up stochastic gradient descent optimizer from torch.optim package.
-    # Use a momentum of 0.9 and a learning rate of 0.1.
     # Use parameters of DDP model here!
-    ## optimizer = ...
     # optimizer = torch.optim.SGD(ddp_model.parameters(), lr=learning_rate, momentum=momentum)
     optimizer = torch.optim.Adam(
         ddp_model.parameters(), lr=learning_rate, weight_decay=weight_decay, betas=betas
     )
 
     # Train DDP model.
-    ## train_model_ddp(...)
     train_model_ddp(
         model=ddp_model,
         num_epochs=num_epochs,
@@ -752,15 +497,15 @@ def main_ddp() -> None:
 
     # Test final model on root.
     if dist.get_rank() == 0:
-        test_dataset = torchvision.datasets.CIFAR10(
+        test_dataset = CIFAR10(
             root=data_root,
             train=False,
             transform=test_transforms,
         )  # Get dataset for test data.
-        test_loader = torch.utils.data.DataLoader(
+        test_loader = DataLoader(
             dataset=test_dataset, batch_size=batch_size, shuffle=False
         )  # Get dataloader for test data.
-        ## test_acc = compute_accuracy_ddp(...) # Compute accuracy on test data.
+        # Compute accuracy on test data.
         test_acc = compute_accuracy_ddp(ddp_model, test_loader, samples=5)
         ## Print test accuracy.
         print(f"Test Accuracy: {test_acc:.2f}")
