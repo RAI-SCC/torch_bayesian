@@ -11,10 +11,21 @@ class KullbackLeiblerLoss(Module):
     """
     Kullback-Leibler (KL) divergence loss.
 
-    Calculates the Evidence Lower Bound (ELBO) loss which minimizes the
-    KL-divergence between the variational distribution and the true posterior.
-    Requires external calculation of prior and variational log probability,
-    i.e. modules must have return_log_prob = True.
+    Calculates the Evidence Lower Bound (ELBO) loss which minimizes the KL-divergence
+    between the variational distribution and the true posterior. Requires external
+    calculation of prior and variational log probability, i.e. modules must have
+    return_log_prob = True.
+
+    Parameters
+    ----------
+    predictive_distribution: PredictiveDistribution
+        Assumed distribution of the outputs. Typically, `CategoricalPredictiveDistribution`
+        for classification and `MeanFieldNormalPredictiveDistribution` for regression.
+    dataset_size: Optional[int]
+        Size of the training dataset. Required for loss calculation. If not provided,
+        it must be provided to the forward method.
+    heat: float
+        Temperature in the sense of the Cold Posterior effect. Default: 1.
     """
 
     def __init__(
@@ -39,7 +50,8 @@ class KullbackLeiblerLoss(Module):
         """
         Calculate the negative ELBO loss from sampled evaluations, a target and the weight log probs.
 
-        Accepts a Tensor of N samples, the associate log probabilities and a target to calculate the loss.
+        Accepts a Tensor of N samples, the associate log probabilities and a target to
+        calculate the loss.
 
         Parameters
         ----------
@@ -52,7 +64,8 @@ class KullbackLeiblerLoss(Module):
         target: Tensor,
             Target prediction. Shape (*)
         dataset_size: Optional[int] = None
-            Total number of samples in the dataset
+            Total number of samples in the dataset. Used in place of self.dataset_size
+            if provided.
 
         Returns
         -------

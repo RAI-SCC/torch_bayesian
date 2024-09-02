@@ -45,7 +45,7 @@ modified to train a BNN with variational inference.
 - [ ] README
 - [ ] vi.base
 - [x] conv
-- [ ] kl_loss
+- [x] kl_loss
 - [x] linear
 - [x] sequential
 
@@ -60,11 +60,12 @@ modified to train a BNN with variational inference.
 
     - [ ] base
     - [ ] normal
+    - [ ] quiet
 
 
 - predictive_distributions
 
-  - [ ] base
+  - [x] base
   - [ ] categorical
   - [ ] normal
 
