@@ -297,8 +297,8 @@ class VIBaseModule(VIModule):
     def __init__(
         self,
         variable_shapes: Dict[str, Tuple[int, ...]],
-        variational_distribution: VarDist | List[VarDist],
-        prior: Prior | List[Prior],
+        variational_distribution: Union[VarDist, List[VarDist]],
+        prior: Union[Prior, List[Prior]],
         rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,

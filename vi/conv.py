@@ -57,8 +57,8 @@ class _VIConvNd(VIBaseModule):
         groups: int,
         bias: bool,
         padding_mode: str,
-        variational_distribution: VarDist | List[VarDist],
-        prior: Prior | List[Prior],
+        variational_distribution: Union[VarDist, List[VarDist]],
+        prior: Union[Prior, List[Prior]],
         rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,
@@ -162,11 +162,11 @@ class VIConv1d(_VIConvNd):
 
     Additional Parameters
     ---------------------
-    variational_distribution: VarDist | List[VarDist]
+    variational_distribution: Union[VarDist, List[VarDist]]
         Variational distribution which specifies the assumed weight distribution. A list of
         distributions may be provided to specify different choices for each random variable.
         Default: MeanFieldNormalVarDist()
-    prior: Prior | List[Prior]
+    prior: Union[Prior, List[Prior]]
         Prior distribution which specifies the previous knowledge about the weight distribution.
         A list of distributions may be provided to specify different choices for each random
         variable. Default: MeanFieldNormalPrior()
@@ -192,8 +192,10 @@ class VIConv1d(_VIConvNd):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "zeros",
-        variational_distribution: VarDist | List[VarDist] = MeanFieldNormalVarDist(),
-        prior: Prior | List[Prior] = MeanFieldNormalPrior(),
+        variational_distribution: Union[
+            VarDist, List[VarDist]
+        ] = MeanFieldNormalVarDist(),
+        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
         rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,
@@ -296,11 +298,11 @@ class VIConv2d(_VIConvNd):
 
     Additional Parameters
     ---------------------
-    variational_distribution: VarDist | List[VarDist]
+    variational_distribution: Union[VarDist, List[VarDist]]
         Variational distribution which specifies the assumed weight distribution. A list of
         distributions may be provided to specify different choices for each random variable.
         Default: MeanFieldNormalVarDist()
-    prior: Prior | List[Prior]
+    prior: Union[Prior, List[Prior]]
         Prior distribution which specifies the previous knowledge about the weight distribution.
         A list of distributions may be provided to specify different choices for each random
         variable. Default: MeanFieldNormalPrior()
@@ -326,8 +328,10 @@ class VIConv2d(_VIConvNd):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "zeros",
-        variational_distribution: VarDist | List[VarDist] = MeanFieldNormalVarDist(),
-        prior: Prior | List[Prior] = MeanFieldNormalPrior(),
+        variational_distribution: Union[
+            VarDist, List[VarDist]
+        ] = MeanFieldNormalVarDist(),
+        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
         rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,
@@ -428,11 +432,11 @@ class VIConv3d(_VIConvNd):
 
     Additional Parameters
     ---------------------
-    variational_distribution: VarDist | List[VarDist]
+    variational_distribution: Union[VarDist, List[VarDist]]
         Variational distribution which specifies the assumed weight distribution. A list of
         distributions may be provided to specify different choices for each random variable.
         Default: MeanFieldNormalVarDist()
-    prior: Prior | List[Prior]
+    prior: Union[Prior, List[Prior]]
         Prior distribution which specifies the previous knowledge about the weight distribution.
         A list of distributions may be provided to specify different choices for each random
         variable. Default: MeanFieldNormalPrior()
@@ -458,8 +462,10 @@ class VIConv3d(_VIConvNd):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "zeros",
-        variational_distribution: VarDist | List[VarDist] = MeanFieldNormalVarDist(),
-        prior: Prior | List[Prior] = MeanFieldNormalPrior(),
+        variational_distribution: Union[
+            VarDist, List[VarDist]
+        ] = MeanFieldNormalVarDist(),
+        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
         rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,

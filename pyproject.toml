@@ -13,13 +13,12 @@ authors = [
 ]
 description = "Library for BNNs trained with Variational Inference"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Development Status :: 3 - Alpha",
 ]
 dependencies = [
-    "numpy",
     "torch",
 ]
 
@@ -37,7 +36,7 @@ scripts = [
 ]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.8"
 modules = ["vi"]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
@@ -81,8 +80,8 @@ exclude = [
 line-length = 88
 indent-width = 4
 
-# Assume Python 3.11.
-target-version = "py311"
+# Assume Python 3.8.
+target-version = "py38"
 
 [tool.ruff.lint]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.

@@ -12,7 +12,7 @@ most components mirror components from [pytorch](https://pytorch.org/docs/stable
 
 ## Installation
 
-We heavily recommend installing ``vi`` in a dedicated `Python3.12+`
+We heavily recommend installing ``vi`` in a dedicated `Python3.8+`
 [virtual environment](https://docs.python.org/3/library/venv.html). You can install
 ``vi`` directly from the GitHub repository via:
 
