@@ -7,8 +7,10 @@ from torch.nn.common_types import _size_1_t, _size_2_t, _size_3_t
 from torch.nn.modules.utils import _pair, _reverse_repeat_tuple, _single, _triple
 
 from .base import VIBaseModule
-from .priors import MeanFieldNormalPrior, Prior
-from .variational_distributions import MeanFieldNormalVarDist, VarDist
+from .priors import MeanFieldNormalPrior
+from .utils import to_log_prob_return_format
+from .utils.common_types import _log_prob_return_format, _prior_any_t, _vardist_any_t
+from .variational_distributions import MeanFieldNormalVarDist
 
 
 class _VIConvNd(VIBaseModule):
@@ -57,8 +59,8 @@ class _VIConvNd(VIBaseModule):
         groups: int,
         bias: bool,
         padding_mode: str,
-        variational_distribution: Union[VarDist, List[VarDist]],
-        prior: Union[Prior, List[Prior]],
+        variational_distribution: _vardist_any_t,
+        prior: _prior_any_t,
         rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,
@@ -192,10 +194,8 @@ class VIConv1d(_VIConvNd):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "zeros",
-        variational_distribution: Union[
-            VarDist, List[VarDist]
-        ] = MeanFieldNormalVarDist(),
-        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
+        variational_distribution: _vardist_any_t = MeanFieldNormalVarDist(),
+        prior: _prior_any_t = MeanFieldNormalPrior(),
         rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,
@@ -250,7 +250,7 @@ class VIConv1d(_VIConvNd):
             input_, weight, bias, self.stride, self.padding, self.dilation, self.groups
         )
 
-    def forward(self, input_: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
+    def forward(self, input_: Tensor) -> Union[Tensor, _log_prob_return_format[Tensor]]:
         """
         Forward computation.
 
@@ -282,7 +282,9 @@ class VIConv1d(_VIConvNd):
 
         if self._return_log_prob:
             prior_log_prob, variational_log_prob = self.get_log_probs(params)
-            return output, prior_log_prob, variational_log_prob
+            return to_log_prob_return_format(
+                output, prior_log_prob, variational_log_prob
+            )
         else:
             return output
 
@@ -328,10 +330,8 @@ class VIConv2d(_VIConvNd):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "zeros",
-        variational_distribution: Union[
-            VarDist, List[VarDist]
-        ] = MeanFieldNormalVarDist(),
-        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
+        variational_distribution: _vardist_any_t = MeanFieldNormalVarDist(),
+        prior: _prior_any_t = MeanFieldNormalPrior(),
         rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,
@@ -384,7 +384,7 @@ class VIConv2d(_VIConvNd):
             input_, weight, bias, self.stride, self.padding, self.dilation, self.groups
         )
 
-    def forward(self, input_: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
+    def forward(self, input_: Tensor) -> Union[Tensor, _log_prob_return_format[Tensor]]:
         """
         Forward computation.
 
@@ -416,7 +416,9 @@ class VIConv2d(_VIConvNd):
 
         if self._return_log_prob:
             prior_log_prob, variational_log_prob = self.get_log_probs(params)
-            return output, prior_log_prob, variational_log_prob
+            return to_log_prob_return_format(
+                output, prior_log_prob, variational_log_prob
+            )
         else:
             return output
 
@@ -462,10 +464,8 @@ class VIConv3d(_VIConvNd):
         groups: int = 1,
         bias: bool = True,
         padding_mode: str = "zeros",
-        variational_distribution: Union[
-            VarDist, List[VarDist]
-        ] = MeanFieldNormalVarDist(),
-        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
+        variational_distribution: _vardist_any_t = MeanFieldNormalVarDist(),
+        prior: _prior_any_t = MeanFieldNormalPrior(),
         rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,
@@ -518,7 +518,7 @@ class VIConv3d(_VIConvNd):
             input_, weight, bias, self.stride, self.padding, self.dilation, self.groups
         )
 
-    def forward(self, input_: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
+    def forward(self, input_: Tensor) -> Union[Tensor, _log_prob_return_format[Tensor]]:
         """
         Forward computation.
 
@@ -550,6 +550,8 @@ class VIConv3d(_VIConvNd):
 
         if self._return_log_prob:
             prior_log_prob, variational_log_prob = self.get_log_probs(params)
-            return output, prior_log_prob, variational_log_prob
+            return to_log_prob_return_format(
+                output, prior_log_prob, variational_log_prob
+            )
         else:
             return output

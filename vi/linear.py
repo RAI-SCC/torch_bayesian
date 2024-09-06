@@ -1,12 +1,14 @@
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import torch
 from torch import Tensor
 from torch.nn import functional as F  # noqa: N812
 
 from .base import VIBaseModule
-from .priors import MeanFieldNormalPrior, Prior
-from .variational_distributions import MeanFieldNormalVarDist, VarDist
+from .priors import MeanFieldNormalPrior
+from .utils import to_log_prob_return_format
+from .utils.common_types import _log_prob_return_format, _prior_any_t, _vardist_any_t
+from .variational_distributions import MeanFieldNormalVarDist
 
 
 class VILinear(VIBaseModule):
@@ -47,10 +49,8 @@ class VILinear(VIBaseModule):
         self,
         in_features: int,
         out_features: int,
-        variational_distribution: Union[
-            VarDist, List[VarDist]
-        ] = MeanFieldNormalVarDist(),
-        prior: Union[Prior, List[Prior]] = MeanFieldNormalPrior(),
+        variational_distribution: _vardist_any_t = MeanFieldNormalVarDist(),
+        prior: _prior_any_t = MeanFieldNormalPrior(),
         bias: bool = True,
         rescale_prior: bool = False,
         prior_initialization: bool = False,
@@ -82,7 +82,7 @@ class VILinear(VIBaseModule):
             **factory_kwargs,
         )
 
-    def forward(self, input_: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
+    def forward(self, input_: Tensor) -> Union[Tensor, _log_prob_return_format[Tensor]]:
         """
         Forward computation.
 
@@ -111,6 +111,8 @@ class VILinear(VIBaseModule):
 
         if self._return_log_prob:
             prior_log_prob, variational_log_prob = self.get_log_probs(params)
-            return output, prior_log_prob, variational_log_prob
+            return to_log_prob_return_format(
+                output, prior_log_prob, variational_log_prob
+            )
         else:
             return output

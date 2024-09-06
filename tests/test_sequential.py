@@ -33,8 +33,8 @@ def test_sequential() -> None:
 
     model1.return_log_prob()
     model2.return_log_prob()
-    out1, plp1, vlp1 = model1(sample, samples=5)
-    out2, plp2, vlp2 = model2(sample, samples=5)
+    out1, (plp1, vlp1) = model1(sample, samples=5)
+    out2, (plp2, vlp2) = model2(sample, samples=5)
     assert out1.shape == (5, 2, out_features)
     assert out2.shape == (5, 2, out_features)
 
@@ -50,23 +50,28 @@ def test_residual_connection() -> None:
     """Test VIResidualConnection."""
 
     class Test(VIModule):
-        def forward(self, x: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
+        def forward(
+            self, x: Tensor
+        ) -> Union[Tensor, Tuple[Tensor, Tuple[Tensor, Tensor]]]:
             if self._return_log_prob:
-                return x, torch.tensor(0.0), torch.tensor(1.0)
+                return x, (torch.tensor(0.0), torch.tensor(1.0))
             else:
                 return x
 
     class Test2(VIModule):
-        def forward(self, x: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
+        def forward(
+            self, x: Tensor
+        ) -> Union[Tensor, Tuple[Tensor, Tuple[Tensor, Tensor]]]:
             if self._return_log_prob:
-                return x.reshape((3, 6)), torch.tensor(0.0), torch.tensor(1.0)
+                return x.reshape((3, 6)), (torch.tensor(0.0), torch.tensor(1.0))
             else:
                 return x.reshape((2, 9))
 
     module = VIResidualConnection(Test())
     broken_module = VIResidualConnection(Test2())
+    module.return_log_prob()
     sample1 = torch.randn(6, 3)
-    out1, plp1, vlp1 = module(sample1, samples=3)
+    out1, (plp1, vlp1) = module(sample1, samples=3)
     try:
         broken_module(sample1, samples=3)
         raise AssertionError

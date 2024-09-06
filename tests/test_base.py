@@ -261,7 +261,11 @@ def test_log_prob_setting() -> None:
     assert module1.module._return_log_prob is True
     sample1 = torch.randn(4, in_features)
     out = module1(sample1, samples=10)
-    assert len(out) == 3
+    assert len(out) == 2
+    assert out[0].shape == (10, 4, out_features)
+    assert len(out[1]) == 2
+    assert out[1][0].shape == (10,)
+    assert out[1][1].shape == (10,)
 
     module1.return_log_prob(False)
     assert module1._return_log_prob is False

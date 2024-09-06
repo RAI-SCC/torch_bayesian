@@ -49,13 +49,13 @@ def test_vilinear() -> None:
     module3 = VILinear(in_features, out_features, return_log_prob=True)
 
     sample3 = torch.randn(4, 7, in_features)
-    out, var, pri = module3(sample3, samples=5)
+    out, (pri, var) = module3(sample3, samples=5)
     assert out.shape == (5, 4, 7, out_features)
     assert var.shape == (5,)
     assert pri.shape == (5,)
 
     module3._has_sampling_responsibility = False
-    out, var, pri = module3(sample3)
+    out, (pri, var) = module3(sample3)
     assert out.shape == (4, 7, out_features)
     assert var.shape == ()
     assert pri.shape == ()
@@ -63,8 +63,8 @@ def test_vilinear() -> None:
 
     multisample2 = module3.sampled_forward(sample3, samples=10)
     assert multisample2[0].shape == (10, 4, 7, out_features)
-    assert multisample2[1].shape == (10,)
-    assert multisample2[2].shape == (10,)
+    assert multisample2[1][0].shape == (10,)
+    assert multisample2[1][1].shape == (10,)
     multisample2[0].sum().backward()
 
     # test prior_init

@@ -91,7 +91,7 @@ def torch_tutorial() -> None:
 
             # Compute prediction error
             pred = model(x)
-            loss = loss_fn(*pred, y)
+            loss = loss_fn(pred, y)
 
             # Backpropagation
             loss.backward()
@@ -111,7 +111,7 @@ def torch_tutorial() -> None:
             for x, y in dataloader:
                 x, y = x.to(device), y.to(device)
                 samples = model(x)
-                test_loss += loss_fn(*samples, y).item()
+                test_loss += loss_fn(samples, y).item()
 
                 pred = predictive_distribution.predictive_parameters_from_samples(
                     samples[0]

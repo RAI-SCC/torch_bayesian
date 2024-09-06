@@ -131,7 +131,7 @@ def test_viconv1d() -> None:
 
     sample = torch.randn((6, args["in_channels"], 7))
     test1 = VIConv1d(**args, return_log_prob=True)  # type: ignore
-    out1, plp1, vlp1 = test1(sample, samples=5)
+    out1, (plp1, vlp1) = test1(sample, samples=5)
     assert out1.shape == (5, 6, args["out_channels"], 3)
     assert plp1.shape == (5,)
     assert vlp1.shape == (5,)
@@ -179,7 +179,7 @@ def test_viconv2d() -> None:
 
     sample = torch.randn((6, args["in_channels"], 7, 4))
     test1 = VIConv2d(**args, return_log_prob=True)  # type: ignore
-    out1, plp1, vlp1 = test1(sample, samples=5)
+    out1, (plp1, vlp1) = test1(sample, samples=5)
     assert out1.shape == (5, 6, args["out_channels"], 3, 1)
     assert plp1.shape == (5,)
     assert vlp1.shape == (5,)
@@ -230,7 +230,7 @@ def test_viconv3d() -> None:
 
     sample = torch.randn((6, args["in_channels"], 7, 4, 9))
     test1 = VIConv3d(**args, return_log_prob=True)  # type: ignore
-    out1, plp1, vlp1 = test1(sample, samples=5)
+    out1, (plp1, vlp1) = test1(sample, samples=5)
     assert out1.shape == (5, 6, args["out_channels"], 3, 1, 4)
     assert plp1.shape == (5,)
     assert vlp1.shape == (5,)

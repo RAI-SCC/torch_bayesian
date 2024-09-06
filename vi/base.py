@@ -5,6 +5,7 @@ import torch
 import torch.utils.hooks as hooks
 from torch import Tensor
 from torch.nn import Module, Parameter, init
+from torch.nn.common_types import _tensor_list_t
 from torch.nn.modules.module import (
     _global_backward_hooks,
     _global_backward_pre_hooks,
@@ -14,9 +15,8 @@ from torch.nn.modules.module import (
     _WrappedHook,
 )
 
-from .priors import Prior
 from .utils import PostInitCallMeta
-from .variational_distributions import VarDist
+from .utils.common_types import _log_prob_return_format, _prior_any_t, _vardist_any_t
 
 
 def _forward_unimplemented(self: Module, *input_: Optional[Tensor]) -> Tuple[Tensor]:
@@ -39,10 +39,11 @@ def _forward_unimplemented(self: Module, *input_: Optional[Tensor]) -> Tuple[Ten
 class VIModule(Module, metaclass=PostInitCallMeta):
     """Base class for Modules using Variational Inference."""
 
-    forward: Callable[..., Union[Tensor, Tuple[Tensor, ...]]] = _forward_unimplemented
+    forward: Callable[..., _tensor_list_t] = _forward_unimplemented
     _return_log_prob: bool = True
-    # this is set to False during the first forward pass by the outermost module for each submodule and True for itself
-    # that way submodules automatically call forward and the outermost calls sampled_forward instead
+    # _has_sampling_responsibility is set to False right after __init__ completes for
+    # each submodule and True for itself that way submodules automatically call forward
+    # and the outermost module calls sampled_forward instead
     _has_sampling_responsibility: bool
 
     @staticmethod
@@ -53,7 +54,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
     def sampled_forward(
         self, *input_: Optional[Tensor], samples: int = 10
-    ) -> Union[Tensor, Tuple[Tensor, ...]]:
+    ) -> Union[_tensor_list_t, _log_prob_return_format[_tensor_list_t]]:
         """
         Forward pass of the module evaluating multiple weight samples.
 
@@ -101,13 +102,18 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         """
         self._set_sampling_responsibility()
 
+    def _pre_forward(self, *input_: Any, **kwargs: Any) -> Any:
+        """Select sampled_forward or forward based on _has_sampling_responsibility."""
+        if self._has_sampling_responsibility:
+            return self.sampled_forward(*input_, **kwargs)
+        else:
+            return self.forward(*input_, **kwargs)
+
     # Copied from pytorch 2.4, basically untested since assumed working
-    # Change: choose between sampled_forward and forward base on _has_sampling_responsibility
+    # Change: call _pre_forward instead of forward
     def _slow_forward(self, *input_: Any, **kwargs: Any) -> Any:  # pragma: no cover
         tracing_state = torch._C._get_tracing_state()
-        forward_call = (
-            self.sampled_forward if self._has_sampling_responsibility else self.forward
-        )
+        forward_call = self._pre_forward
         if not tracing_state or isinstance(forward_call, torch._C.ScriptMethod):
             return forward_call(*input_, **kwargs)
         recording_scopes = torch.jit._trace._trace_module_map is not None
@@ -131,14 +137,12 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         return result
 
     # Copied from pytorch 2.4, basically untested since assumed working
-    # Change: choose between sampled_forward and forward base on _has_sampling_responsibility
+    # Change: call _pre_forward instead of forward
     def _call_impl(self, *args: Any, **kwargs: Any) -> Any:  # pragma: no cover
         if torch._C._get_tracing_state():
             forward_call = self._slow_forward
-        elif self._has_sampling_responsibility:
-            forward_call = self.sampled_forward
         else:
-            forward_call = self.forward
+            forward_call = self._pre_forward
         # If we don't have any hooks, we want to skip the rest of the logic in
         # this function, and just call forward.
         if not (
@@ -297,8 +301,8 @@ class VIBaseModule(VIModule):
     def __init__(
         self,
         variable_shapes: Dict[str, Tuple[int, ...]],
-        variational_distribution: Union[VarDist, List[VarDist]],
-        prior: Union[Prior, List[Prior]],
+        variational_distribution: _vardist_any_t,
+        prior: _prior_any_t,
         rescale_prior: bool = False,
         prior_initialization: bool = False,
         return_log_prob: bool = True,

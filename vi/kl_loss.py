@@ -5,6 +5,7 @@ from torch import Tensor
 from torch.nn import Module
 
 from .predictive_distributions import PredictiveDistribution
+from .utils.common_types import _log_prob_return_format
 
 
 class KullbackLeiblerLoss(Module):
@@ -41,9 +42,7 @@ class KullbackLeiblerLoss(Module):
 
     def forward(
         self,
-        samples: Tensor,
-        prior_log_prob: Tensor,
-        variational_log_prob: Tensor,
+        model_output: _log_prob_return_format[Tensor],
         target: Tensor,
         dataset_size: Optional[int] = None,
     ) -> Tensor:
@@ -55,12 +54,11 @@ class KullbackLeiblerLoss(Module):
 
         Parameters
         ----------
-        samples: Tensor
-            Sample Tensor. Shape (N, *)
-        prior_log_prob: Tensor
-            Prior log probability. Shape (N,)
-        variational_log_prob: Tensor,
-            Variational log probability. Shape (N,)
+        model_output: Tuple[Tensor, Tuple[Tensor, Tensor]]
+            The model output in with return_log_prob = True. The first Tensor is the
+            sampled model prediction (Shape: (N, *). The Tuple contains prior_log_prob
+            and variational_log_prob. The log probability of the sampled weights under
+            the prior and variational distribution respectively. Both have shape (N,).
         target: Tensor,
             Target prediction. Shape (*)
         dataset_size: Optional[int] = None
@@ -72,6 +70,7 @@ class KullbackLeiblerLoss(Module):
         Tensor
             Negative ELBO loss. Shape: (1,)
         """
+        samples, (prior_log_prob, variational_log_prob) = model_output
         prior_matching = (variational_log_prob - prior_log_prob).mean()
         # Sample average for predictive log prob is already done
         data_fitting = self.predictive_distribution.log_prob_from_samples(

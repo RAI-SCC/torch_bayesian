@@ -6,6 +6,8 @@ from torch.nn import Module, Sequential
 
 from vi import VIModule
 
+from .utils import to_log_prob_return_format
+
 
 class VISequential(VIModule, Sequential):
     """
@@ -54,20 +56,18 @@ class VISequential(VIModule, Sequential):
             Only returned if return_log_prob.
         """
         if self._return_log_prob:
-            input_ = [input_]
             total_prior_log_prob = total_var_log_prob = torch.tensor(0.0)
             for module in self:
                 if isinstance(module, VIModule):
-                    out = module(*input_)
-                    input_ = out[:-2]
-                    prior_log_prob = out[-2]
-                    var_log_prob = out[-1]
+                    input_, (prior_log_prob, var_log_prob) = module(input_)
 
                     total_prior_log_prob = total_prior_log_prob + prior_log_prob
                     total_var_log_prob = total_var_log_prob + var_log_prob
                 else:
-                    input_ = [module(*input_)]
-            return *input_, total_prior_log_prob, total_var_log_prob
+                    input_ = module(input_)
+            return to_log_prob_return_format(
+                input_, total_prior_log_prob, total_var_log_prob
+            )
         else:
             for module in self:
                 input_ = module(input_)
@@ -106,18 +106,18 @@ class VIResidualConnection(VISequential):
             Only returned if return_log_prob.
         """
         if self._return_log_prob:
-            output, prior_log_prob, variational_log_prob = super().forward(input_)
-            return (
-                self._catch_shape_mismatch(input_, output),
+            output, (prior_log_prob, variational_log_prob) = super().forward(input_)
+            return to_log_prob_return_format(
+                self._safe_add(input_, output),
                 prior_log_prob,
                 variational_log_prob,
             )
         else:
             output = super().forward(input_)
-            return self._catch_shape_mismatch(input_, output)
+            return self._safe_add(input_, output)
 
     @staticmethod
-    def _catch_shape_mismatch(input_: Tensor, output_: Tensor) -> Tensor:
+    def _safe_add(input_: Tensor, output_: Tensor) -> Tensor:
         try:
             return output_ + input_
         except RuntimeError as e:

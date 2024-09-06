@@ -38,14 +38,14 @@ $ pip install -e .
 To get the development dependencies, run:
 
 ```console
-$ pip install -e ."[dev]"
+$ pip install -e .[dev]
 ```
 
 For additional dependencies required if you want to run scripts from the scripts
 directory, run:
 
 ```console
-$ pip install -e ."[scripts]"
+$ pip install -e .[scripts]
 ```
 
 
@@ -150,11 +150,16 @@ to be identical for all modules in the same nested hierarchy. This can be manual
 but we are all adults here: Always call `return_log_prob` on the top module in the
 hierarchy (and noone will get hurt).
 When creating advance `VIModule`s you will need to consider, that provided modules
-return two additional tensors - prior_log_prob and variational_log_prob - during
-training. Your modules must be able to handle both cases (by checking `_return_log_prob`)
-and return log probs accordingly. If you have multiple submodels returning log probs
-you can just add them. Creating custom `VIModules` with parameters goes beyond the scope
-of this guide.
+return a tuple during training. The first element of this tuple is the usual model
+output. The second element is a tuple containing two additional tensors: prior_log_prob
+and variational_log_prob. Your modules must be able to handle both cases (by checking
+`_return_log_prob`) and return log probs accordingly. If you have multiple submodels
+returning log probs you can just add them. You can easily bundle the required values
+into the required format with `vi.util.to_log_prob_return_format`, which accepts the
+intended module output and the two log probs and returns the in the required format.
+This format is also the expected input of `KullBackLeiblerLoss`.
+
+Creating custom `VIModules` with parameters goes beyond the scope of this guide.
 
 
 ## Variational Inference
