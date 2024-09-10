@@ -24,7 +24,7 @@ def test_overfitting() -> None:
         in_features=data_shape[-1],
         out_features=data_shape[-1],
         prior_initialization=True,
-        return_log_prob=True,
+        return_log_probs=True,
     )
     predictive_distribution = MeanFieldNormalPredictiveDistribution()
     criterion = KullbackLeiblerLoss(predictive_distribution, dataset_size=dataset_size)
@@ -49,7 +49,7 @@ def test_overfitting() -> None:
     plt.show()
 
     test_batch = data[0]  # torch.randn(5, *data_shape)
-    model.return_log_prob(False)
+    model.return_log_probs(False)
     pred_samples = model(test_batch, samples=samples)
     prediction = predictive_distribution.predictive_parameters_from_samples(
         pred_samples

@@ -63,7 +63,7 @@ class _VIConvNd(VIBaseModule):
         prior: _prior_any_t,
         rescale_prior: bool = False,
         prior_initialization: bool = False,
-        return_log_prob: bool = True,
+        return_log_probs: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -143,7 +143,7 @@ class _VIConvNd(VIBaseModule):
             prior=prior,
             rescale_prior=rescale_prior,
             prior_initialization=prior_initialization,
-            return_log_prob=return_log_prob,
+            return_log_probs=return_log_probs,
             **factory_kwargs,
         )
 
@@ -178,7 +178,7 @@ class VIConv1d(_VIConvNd):
     prior_initialization: bool
         If True parameters are initialized according to the prior. If False parameters are
         initialized similar to non-Bayesian networks. Default: False
-    return_log_prob: bool
+    return_log_probs: bool
         If True the model forward pass returns the log probability of the sampled weight.
         This is required for the standard loss calculation. Default: True
     """
@@ -198,7 +198,7 @@ class VIConv1d(_VIConvNd):
         prior: _prior_any_t = MeanFieldNormalPrior(),
         rescale_prior: bool = False,
         prior_initialization: bool = False,
-        return_log_prob: bool = True,
+        return_log_probs: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -225,7 +225,7 @@ class VIConv1d(_VIConvNd):
             prior,
             rescale_prior,
             prior_initialization,
-            return_log_prob,
+            return_log_probs,
             **factory_kwargs,
         )
 
@@ -264,23 +264,23 @@ class VIConv1d(_VIConvNd):
 
         Returns
         -------
-        output, prior_log_prob, variational_log_prob if return_log_prob else output
+        output, prior_log_prob, variational_log_prob if return_log_probs else output
 
         output: Tensor
             Output tensor of shape [N, C_out, W_out].
             Auto-sampling will add a sample dimension at the start for the overall output.
         prior_log_prob: Tensor
             Total prior log probability all internal VIModules.
-            Only returned if return_log_prob.
+            Only returned if return_log_probs.
         variational_log_prob: Tensor
             Total variational log probability all internal VIModules.
-            Only returned if return_log_prob.
+            Only returned if return_log_probs.
         """
         params = self.sample_variables()
 
         output = self._conv_forward(input_, *params)
 
-        if self._return_log_prob:
+        if self._return_log_probs:
             prior_log_prob, variational_log_prob = self.get_log_probs(params)
             return to_log_prob_return_format(
                 output, prior_log_prob, variational_log_prob
@@ -314,7 +314,7 @@ class VIConv2d(_VIConvNd):
     prior_initialization: bool
         If True parameters are initialized according to the prior. If False parameters are
         initialized similar to non-Bayesian networks. Default: False
-    return_log_prob: bool
+    return_log_probs: bool
         If True the model forward pass returns the log probability of the sampled weight.
         This is required for the standard loss calculation. Default: True
     """
@@ -334,7 +334,7 @@ class VIConv2d(_VIConvNd):
         prior: _prior_any_t = MeanFieldNormalPrior(),
         rescale_prior: bool = False,
         prior_initialization: bool = False,
-        return_log_prob: bool = True,
+        return_log_probs: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -359,7 +359,7 @@ class VIConv2d(_VIConvNd):
             prior,
             rescale_prior,
             prior_initialization,
-            return_log_prob,
+            return_log_probs,
             **factory_kwargs,
         )
 
@@ -398,23 +398,23 @@ class VIConv2d(_VIConvNd):
 
         Returns
         -------
-        output, prior_log_prob, variational_log_prob if return_log_prob else output
+        output, prior_log_prob, variational_log_prob if return_log_probs else output
 
         output: Tensor
             Output tensor of shape [N, C_out, H_out, W_out].
             Auto-sampling will add a sample dimension at the start for the overall output.
         prior_log_prob: Tensor
             Total prior log probability all internal VIModules.
-            Only returned if return_log_prob.
+            Only returned if return_log_probs.
         variational_log_prob: Tensor
             Total variational log probability all internal VIModules.
-            Only returned if return_log_prob.
+            Only returned if return_log_probs.
         """
         params = self.sample_variables()
 
         output = self._conv_forward(input_, *params)
 
-        if self._return_log_prob:
+        if self._return_log_probs:
             prior_log_prob, variational_log_prob = self.get_log_probs(params)
             return to_log_prob_return_format(
                 output, prior_log_prob, variational_log_prob
@@ -448,7 +448,7 @@ class VIConv3d(_VIConvNd):
     prior_initialization: bool
         If True parameters are initialized according to the prior. If False parameters are
         initialized similar to non-Bayesian networks. Default: False
-    return_log_prob: bool
+    return_log_probs: bool
         If True the model forward pass returns the log probability of the sampled weight.
         This is required for the standard loss calculation. Default: True
     """
@@ -468,7 +468,7 @@ class VIConv3d(_VIConvNd):
         prior: _prior_any_t = MeanFieldNormalPrior(),
         rescale_prior: bool = False,
         prior_initialization: bool = False,
-        return_log_prob: bool = True,
+        return_log_probs: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -493,7 +493,7 @@ class VIConv3d(_VIConvNd):
             prior,
             rescale_prior,
             prior_initialization,
-            return_log_prob,
+            return_log_probs,
             **factory_kwargs,
         )
 
@@ -532,23 +532,23 @@ class VIConv3d(_VIConvNd):
 
         Returns
         -------
-        output, prior_log_prob, variational_log_prob if return_log_prob else output
+        output, prior_log_prob, variational_log_prob if return_log_probs else output
 
         output: Tensor
             Output tensor of shape [N, C_out, D_out, H_out, W_out].
             Auto-sampling will add a sample dimension at the start for the overall output.
         prior_log_prob: Tensor
             Total prior log probability all internal VIModules.
-            Only returned if return_log_prob.
+            Only returned if return_log_probs.
         variational_log_prob: Tensor
             Total variational log probability all internal VIModules.
-            Only returned if return_log_prob.
+            Only returned if return_log_probs.
         """
         params = self.sample_variables()
 
         output = self._conv_forward(input_, *params)
 
-        if self._return_log_prob:
+        if self._return_log_probs:
             prior_log_prob, variational_log_prob = self.get_log_probs(params)
             return to_log_prob_return_format(
                 output, prior_log_prob, variational_log_prob

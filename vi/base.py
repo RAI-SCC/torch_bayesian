@@ -40,7 +40,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
     """Base class for Modules using Variational Inference."""
 
     forward: Callable[..., _tensor_list_t] = _forward_unimplemented
-    _return_log_prob: bool = True
+    _return_log_probs: bool = True
     # _has_sampling_responsibility is set to False right after __init__ completes for
     # each submodule and True for itself that way submodules automatically call forward
     # and the outermost module calls sampled_forward instead
@@ -73,7 +73,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         expanded = [self._expand_to_samples(x, samples=samples) for x in input_]
         return torch.vmap(self.forward, randomness="different")(*expanded)
 
-    def return_log_prob(self, mode: bool = True) -> None:
+    def return_log_probs(self, mode: bool = True) -> None:
         """
         Set whether the module returns log probabilities.
 
@@ -86,7 +86,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         """
         for module in self.modules():
             if isinstance(module, VIModule):
-                module._return_log_prob = mode
+                module._return_log_probs = mode
 
     def _set_sampling_responsibility(self) -> None:
         for module in self.modules():
@@ -305,7 +305,7 @@ class VIBaseModule(VIModule):
         prior: _prior_any_t,
         rescale_prior: bool = False,
         prior_initialization: bool = False,
-        return_log_prob: bool = True,
+        return_log_probs: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -338,7 +338,7 @@ class VIBaseModule(VIModule):
 
         self._rescale_prior = rescale_prior
         self._prior_init = prior_initialization
-        self._return_log_prob = return_log_prob
+        self._return_log_probs = return_log_probs
 
         for variable, vardist in zip(
             self.random_variables, self.variational_distribution

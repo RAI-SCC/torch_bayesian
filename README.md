@@ -130,7 +130,7 @@ May help with convergence, but may lead to overconfidence. Current research.
 instead of according to standard non-Bayesian methods. May lead to much faster
 convergence, but can cause the issues Kaiming-initialization counteracts unless
 rescale_prior is also set to True. Current research.
-- return_log_prob (`bool`): This is the topic of [Quickstart: Level 3](#level-3).
+- return_log_probs (`bool`): This is the topic of [Quickstart: Level 3](#level-3).
 
 ### Level 3
 
@@ -141,19 +141,19 @@ variational and prior distribution. Since it is quite inefficient to save the sa
 these log probabilities are evaluated during the forward pass and returned by the model.
 Since this is only necessary for training it can be controlled with the argument
 return_prob. Once the model is initialized this flag can be changed with the method
-`VIModule.return_log_prob()`, which accepts one bool (default: `True`) and either
+`VIModule.return_log_probs()`, which accepts one bool (default: `True`) and either
 enables (`True`) or disables (`False`) the returning of the log probabilities for all
 submodules.
 
-The internal indicator for this mode is `VIModule._return_log_prob`, which can be assumed
+The internal indicator for this mode is `VIModule._return_log_probs`, which can be assumed
 to be identical for all modules in the same nested hierarchy. This can be manually broken,
-but we are all adults here: Always call `return_log_prob` on the top module in the
+but we are all adults here: Always call `return_log_probs` on the top module in the
 hierarchy (and noone will get hurt).
 When creating advance `VIModule`s you will need to consider, that provided modules
 return a tuple during training. The first element of this tuple is the usual model
 output. The second element is a tuple containing two additional tensors: prior_log_prob
 and variational_log_prob. Your modules must be able to handle both cases (by checking
-`_return_log_prob`) and return log probs accordingly. If you have multiple submodels
+`_return_log_probs`) and return log probs accordingly. If you have multiple submodels
 returning log probs you can just add them. You can easily bundle the required values
 into the required format with `vi.util.to_log_prob_return_format`, which accepts the
 intended module output and the two log probs and returns the in the required format.

@@ -69,7 +69,7 @@ def torch_tutorial() -> None:
             return logits
 
     model = NeuralNetwork().to(device)
-    model.return_log_prob()
+    model.return_log_probs()
     print(model)
 
     predictive_distribution = CategoricalPredictiveDistribution()

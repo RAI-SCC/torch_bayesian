@@ -15,7 +15,7 @@ class VISequential(VIModule, Sequential):
 
     Detects and aggregates prior_log_prob and variational_log_prob from submodules, if
     needed. Then passes on only the output to the next module making mixed sequences of
-    VIModules and nn.Modules work with and without return_log_prob.
+    VIModules and nn.Modules work with and without return_log_probs.
     """
 
     @overload
@@ -44,18 +44,18 @@ class VISequential(VIModule, Sequential):
 
         Returns
         -------
-        output, prior_log_prob, variational_log_prob if return_log_prob else output
+        output, prior_log_prob, variational_log_prob if return_log_probs else output
 
         output: Varies
             Output of the module stack.
         prior_log_prob: Tensor
             Total prior log probability all internal VIModules.
-            Only returned if return_log_prob.
+            Only returned if return_log_probs.
         variational_log_prob: Tensor
             Total variational log probability all internal VIModules.
-            Only returned if return_log_prob.
+            Only returned if return_log_probs.
         """
-        if self._return_log_prob:
+        if self._return_log_probs:
             total_prior_log_prob = total_var_log_prob = torch.tensor(0.0)
             for module in self:
                 if isinstance(module, VIModule):
@@ -94,18 +94,18 @@ class VIResidualConnection(VISequential):
 
         Returns
         -------
-        output, prior_log_prob, variational_log_prob if return_log_prob else output
+        output, prior_log_prob, variational_log_prob if return_log_probs else output
 
         output: Varies
             Output of the module stack plus the input to the residual connection.
         prior_log_prob: Tensor
             Total prior log probability all internal VIModules.
-            Only returned if return_log_prob.
+            Only returned if return_log_probs.
         variational_log_prob: Tensor
             Total variational log probability all internal VIModules.
-            Only returned if return_log_prob.
+            Only returned if return_log_probs.
         """
-        if self._return_log_prob:
+        if self._return_log_probs:
             output, (prior_log_prob, variational_log_prob) = super().forward(input_)
             return to_log_prob_return_format(
                 self._safe_add(input_, output),

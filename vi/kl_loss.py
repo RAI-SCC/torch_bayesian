@@ -15,7 +15,7 @@ class KullbackLeiblerLoss(Module):
     Calculates the Evidence Lower Bound (ELBO) loss which minimizes the KL-divergence
     between the variational distribution and the true posterior. Requires external
     calculation of prior and variational log probability, i.e. modules must have
-    return_log_prob = True.
+    return_log_probs = True.
 
     Parameters
     ----------
@@ -55,7 +55,7 @@ class KullbackLeiblerLoss(Module):
         Parameters
         ----------
         model_output: Tuple[Tensor, Tuple[Tensor, Tensor]]
-            The model output in with return_log_prob = True. The first Tensor is the
+            The model output in with return_log_probs = True. The first Tensor is the
             sampled model prediction (Shape: (N, *). The Tuple contains prior_log_prob
             and variational_log_prob. The log probability of the sampled weights under
             the prior and variational distribution respectively. Both have shape (N,).

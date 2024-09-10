@@ -241,7 +241,7 @@ def test_get_log_probs() -> None:
 
 
 def test_log_prob_setting() -> None:
-    """Test setting of _return_log_prob with VIModule.return_log_prob."""
+    """Test setting of _return_log_probs with VIModule.return_log_probs."""
     from vi import VILinear
 
     in_features = 3
@@ -256,9 +256,9 @@ def test_log_prob_setting() -> None:
             return self.module(x)
 
     module1 = Test(in_features, out_features)
-    module1.return_log_prob()
-    assert module1._return_log_prob is True
-    assert module1.module._return_log_prob is True
+    module1.return_log_probs()
+    assert module1._return_log_probs is True
+    assert module1.module._return_log_probs is True
     sample1 = torch.randn(4, in_features)
     out = module1(sample1, samples=10)
     assert len(out) == 2
@@ -267,9 +267,9 @@ def test_log_prob_setting() -> None:
     assert out[1][0].shape == (10,)
     assert out[1][1].shape == (10,)
 
-    module1.return_log_prob(False)
-    assert module1._return_log_prob is False
-    assert module1.module._return_log_prob is False
+    module1.return_log_probs(False)
+    assert module1._return_log_probs is False
+    assert module1.module._return_log_probs is False
     sample1 = torch.randn(4, in_features)
     out = module1(sample1, samples=10)
     assert out.shape == (10, 4, out_features)
