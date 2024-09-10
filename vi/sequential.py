@@ -6,8 +6,6 @@ from torch.nn import Module, Sequential
 
 from vi import VIModule
 
-from .utils import to_log_prob_return_format
-
 
 class VISequential(VIModule, Sequential):
     """
@@ -44,30 +42,25 @@ class VISequential(VIModule, Sequential):
 
         Returns
         -------
-        output, prior_log_prob, variational_log_prob if return_log_probs else output
+        output, log_probs if return_log_probs else output
 
         output: Varies
             Output of the module stack.
-        prior_log_prob: Tensor
-            Total prior log probability all internal VIModules.
-            Only returned if return_log_probs.
-        variational_log_prob: Tensor
-            Total variational log probability all internal VIModules.
+        log_probs: Tensor
+            Tensor of shape (2,) containing the total prior and variational log
+            probability (in that order) of all sampled weights and biases.
             Only returned if return_log_probs.
         """
         if self._return_log_probs:
-            total_prior_log_prob = total_var_log_prob = torch.tensor(0.0)
+            total_log_probs = torch.tensor([0.0, 0.0])
             for module in self:
                 if isinstance(module, VIModule):
-                    input_, (prior_log_prob, var_log_prob) = module(input_)
+                    input_, log_probs = module(input_)
 
-                    total_prior_log_prob = total_prior_log_prob + prior_log_prob
-                    total_var_log_prob = total_var_log_prob + var_log_prob
+                    total_log_probs = total_log_probs + log_probs
                 else:
                     input_ = module(input_)
-            return to_log_prob_return_format(
-                input_, total_prior_log_prob, total_var_log_prob
-            )
+            return input_, total_log_probs
         else:
             for module in self:
                 input_ = module(input_)
@@ -85,7 +78,7 @@ class VIResidualConnection(VISequential):
 
     def forward(self, input_):  # type: ignore
         """
-        Forward pass that manages log probs, if required and adds the input to the output.
+        Forward pass that manages log probs, if required, and adds the input to the output.
 
         Parameters
         ----------
@@ -94,24 +87,18 @@ class VIResidualConnection(VISequential):
 
         Returns
         -------
-        output, prior_log_prob, variational_log_prob if return_log_probs else output
+        output, log_probs if return_log_probs else output
 
         output: Varies
             Output of the module stack plus the input to the residual connection.
-        prior_log_prob: Tensor
-            Total prior log probability all internal VIModules.
-            Only returned if return_log_probs.
-        variational_log_prob: Tensor
-            Total variational log probability all internal VIModules.
+        log_probs: Tensor
+            Tensor of shape (2,) containing the total prior and variational log
+            probability (in that order) of all sampled weights and biases.
             Only returned if return_log_probs.
         """
         if self._return_log_probs:
-            output, (prior_log_prob, variational_log_prob) = super().forward(input_)
-            return to_log_prob_return_format(
-                self._safe_add(input_, output),
-                prior_log_prob,
-                variational_log_prob,
-            )
+            output, log_probs = super().forward(input_)
+            return self._safe_add(input_, output), log_probs
         else:
             output = super().forward(input_)
             return self._safe_add(input_, output)

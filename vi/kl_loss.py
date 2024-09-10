@@ -54,11 +54,12 @@ class KullbackLeiblerLoss(Module):
 
         Parameters
         ----------
-        model_output: Tuple[Tensor, Tuple[Tensor, Tensor]]
+        model_output: Tuple[Tensor, Tensor]
             The model output in with return_log_probs = True. The first Tensor is the
-            sampled model prediction (Shape: (N, *). The Tuple contains prior_log_prob
-            and variational_log_prob. The log probability of the sampled weights under
-            the prior and variational distribution respectively. Both have shape (N,).
+            sampled model prediction (Shape: (N, *). The second Tensor contains
+            prior_log_prob and variational_log_prob - the log probability of the sampled
+            weights under the prior and variational distribution respectively - and has
+            shape (N, 2).
         target: Tensor,
             Target prediction. Shape (*)
         dataset_size: Optional[int] = None
@@ -70,8 +71,10 @@ class KullbackLeiblerLoss(Module):
         Tensor
             Negative ELBO loss. Shape: (1,)
         """
-        samples, (prior_log_prob, variational_log_prob) = model_output
-        prior_matching = (variational_log_prob - prior_log_prob).mean()
+        samples, log_probs = model_output
+        # Average log probs separately and calculate prior matching term
+        mean_log_probs = log_probs.mean(dim=0)
+        prior_matching = mean_log_probs[1] - mean_log_probs[0]
         # Sample average for predictive log prob is already done
         data_fitting = self.predictive_distribution.log_prob_from_samples(
             target, samples

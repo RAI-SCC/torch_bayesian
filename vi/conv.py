@@ -8,7 +8,6 @@ from torch.nn.modules.utils import _pair, _reverse_repeat_tuple, _single, _tripl
 
 from .base import VIBaseModule
 from .priors import MeanFieldNormalPrior
-from .utils import to_log_prob_return_format
 from .utils.common_types import _log_prob_return_format, _prior_any_t, _vardist_any_t
 from .variational_distributions import MeanFieldNormalVarDist
 
@@ -281,10 +280,8 @@ class VIConv1d(_VIConvNd):
         output = self._conv_forward(input_, *params)
 
         if self._return_log_probs:
-            prior_log_prob, variational_log_prob = self.get_log_probs(params)
-            return to_log_prob_return_format(
-                output, prior_log_prob, variational_log_prob
-            )
+            log_probs = self.get_log_probs(params)
+            return output, log_probs
         else:
             return output
 
@@ -415,10 +412,8 @@ class VIConv2d(_VIConvNd):
         output = self._conv_forward(input_, *params)
 
         if self._return_log_probs:
-            prior_log_prob, variational_log_prob = self.get_log_probs(params)
-            return to_log_prob_return_format(
-                output, prior_log_prob, variational_log_prob
-            )
+            log_probs = self.get_log_probs(params)
+            return output, log_probs
         else:
             return output
 
@@ -549,9 +544,7 @@ class VIConv3d(_VIConvNd):
         output = self._conv_forward(input_, *params)
 
         if self._return_log_probs:
-            prior_log_prob, variational_log_prob = self.get_log_probs(params)
-            return to_log_prob_return_format(
-                output, prior_log_prob, variational_log_prob
-            )
+            log_probs = self.get_log_probs(params)
+            return output, log_probs
         else:
             return output

@@ -402,10 +402,10 @@ class VIBaseModule(VIModule):
             for param in vardist.variational_parameters
         ]
 
-    def get_log_probs(self, sampled_params: Iterable[Tensor]) -> Tuple[Tensor, Tensor]:
+    def get_log_probs(self, sampled_params: Iterable[Tensor]) -> Tensor:
         """Get prior and variational log prob of the sampled parameters."""
-        variational_log_prob = 0.0
-        prior_log_prob = 0.0
+        variational_log_prob = torch.tensor([0.0])
+        prior_log_prob = torch.tensor([0.0])
         for sample, variable, vardist, prior in zip(
             sampled_params,
             self.random_variables,
@@ -425,7 +425,7 @@ class VIBaseModule(VIModule):
             prior_log_prob = (
                 prior_log_prob + prior.log_prob(sample, *prior_params).sum()
             )
-        return prior_log_prob, variational_log_prob
+        return torch.cat([prior_log_prob, variational_log_prob])
 
     def sample_variables(self) -> List[Tensor]:
         """Draw one sample from the variational distribution of each random variable."""

@@ -6,7 +6,6 @@ from torch.nn import functional as F  # noqa: N812
 
 from .base import VIBaseModule
 from .priors import MeanFieldNormalPrior
-from .utils import to_log_prob_return_format
 from .utils.common_types import _log_prob_return_format, _prior_any_t, _vardist_any_t
 from .variational_distributions import MeanFieldNormalVarDist
 
@@ -89,20 +88,18 @@ class VILinear(VIBaseModule):
         Parameters
         ----------
         input_: Tensor
-            Input tensor of shape [*, in_features].
+            Input tensor of shape (*, in_features).
 
         Returns
         -------
-        output, prior_log_prob, variational_log_prob if return_log_probs else output
+        output, log_probs if return_log_probs else output
 
         output: Tensor
-            Output tensor of shape [*, out_features].
+            Output tensor of shape (*, out_features).
             Auto-sampling will add a sample dimension at the start for the overall output.
-        prior_log_prob: Tensor
-            Total prior log probability all internal VIModules.
-            Only returned if return_log_probs.
-        variational_log_prob: Tensor
-            Total variational log probability all internal VIModules.
+        log_probs: Tensor
+            Tensor of shape (2,) containing the total prior and variational log
+            probability (in that order) of the sampled weights and biases.
             Only returned if return_log_probs.
         """
         params = self.sample_variables()
@@ -110,9 +107,7 @@ class VILinear(VIBaseModule):
         output = F.linear(input_, *params)
 
         if self._return_log_probs:
-            prior_log_prob, variational_log_prob = self.get_log_probs(params)
-            return to_log_prob_return_format(
-                output, prior_log_prob, variational_log_prob
-            )
+            log_probs = self.get_log_probs(params)
+            return output, log_probs
         else:
             return output

@@ -10,4 +10,4 @@ _prior_any_t = _scalar_or_tuple_any_t["Prior"]
 _vardist_any_t = _scalar_or_tuple_any_t["VariationalDistribution"]
 
 T = TypeVar("T")
-_log_prob_return_format = Tuple[T, Tuple[Tensor, Tensor]]
+_log_prob_return_format = Tuple[T, Tensor]

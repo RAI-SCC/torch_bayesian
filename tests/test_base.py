@@ -263,9 +263,7 @@ def test_log_prob_setting() -> None:
     out = module1(sample1, samples=10)
     assert len(out) == 2
     assert out[0].shape == (10, 4, out_features)
-    assert len(out[1]) == 2
-    assert out[1][0].shape == (10,)
-    assert out[1][1].shape == (10,)
+    assert out[1].shape == (10, 2)
 
     module1.return_log_probs(False)
     assert module1._return_log_probs is False

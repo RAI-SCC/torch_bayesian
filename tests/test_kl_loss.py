@@ -4,7 +4,6 @@ import torch
 
 from vi import KullbackLeiblerLoss
 from vi.predictive_distributions import MeanFieldNormalPredictiveDistribution
-from vi.utils import to_log_prob_return_format
 
 
 def test_kl_loss() -> None:
@@ -12,13 +11,10 @@ def test_kl_loss() -> None:
     sample_nr = 8
     sample_shape = (5,)
     samples = torch.randn((sample_nr, *sample_shape))
-    prior_log_prob = torch.randn((sample_nr,))
-    variational_log_prob = torch.randn((sample_nr,))
+    log_probs = torch.randn((sample_nr, 2))
     target = torch.randn(sample_shape)
 
-    model_return = to_log_prob_return_format(
-        samples, prior_log_prob, variational_log_prob
-    )
+    model_return = samples, log_probs
 
     loss1 = KullbackLeiblerLoss(MeanFieldNormalPredictiveDistribution())
     filterwarnings("error")
