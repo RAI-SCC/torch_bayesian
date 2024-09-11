@@ -11,14 +11,6 @@ if TYPE_CHECKING:
     from ..base import VIBaseModule  # pragma: no cover
 
 
-def _reset_parameters_unimplemented(
-    self: "Prior", module: "VIBaseModule", variable: str
-) -> None:
-    warn(
-        f'Module [{type(self).__name__}] is missing the "reset_parameters" function and does not perform prior initialization'
-    )
-
-
 class Prior(metaclass=PostInitCallMeta):
     """
     Base for prior distributions.
@@ -26,13 +18,15 @@ class Prior(metaclass=PostInitCallMeta):
     Parameters
     ----------
     distribution_parameters: Tuple[str, ...]
-        Parameters characterizing the prior and can be set during prior based initialization.
+        Parameters characterizing the prior and can be set during prior based
+        initialization.
     _required_parameters: Tuple[str, ...] = ()
         Parameters besides a sample needed to calculate log_prob.
+    _scaling_parameters: Tuple[str, ...]
+        Parameters that need to be rescaled for prior rescaling.
+        Default: distribution_parameters
     log_prob: Callable[..., Tensor]
         Function to calculate the log probability of the input sample.
-    reset_parameters: Callable[[Prior, VIBaseModule], None]
-        Function initializing the parameters of a VIBaseModule according to the prior distribution.
     """
 
     distribution_parameters: Tuple[str, ...]
@@ -40,7 +34,6 @@ class Prior(metaclass=PostInitCallMeta):
     _scaling_parameters: Tuple[str, ...]
     _rescaled: bool = False
     log_prob: Callable[..., Tensor]
-    reset_parameters: Callable[..., None] = _reset_parameters_unimplemented
 
     def __post_init__(self) -> None:
         """Ensure instance has required attributes."""
@@ -73,6 +66,13 @@ class Prior(metaclass=PostInitCallMeta):
                     setattr(self, parameter, param + math.log(scale + eps))
                 else:
                     setattr(self, parameter, param * scale)
+
+    def reset_parameters(self, module: "VIBaseModule", variable: str) -> None:
+        """Initialize the parameters of a VIBaseModule according to the prior distribution."""
+        warn(
+            f'Module [{type(self).__name__}] is missing the "reset_parameters" function'
+            f" and therefore does not support prior initialization."
+        )
 
     def match_parameters(
         self, variational_parameters: Tuple[str, ...]

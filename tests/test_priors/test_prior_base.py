@@ -1,6 +1,6 @@
 from math import log, sqrt
-from warnings import filterwarnings
 
+import pytest
 import torch
 from torch import Tensor
 
@@ -14,21 +14,17 @@ def test_parameter_checking() -> None:
     class Test1(Prior):
         pass
 
-    try:
+    with pytest.raises(
+        NotImplementedError, match=r"Subclasses must define distribution_parameters"
+    ):
         Test1()
-        raise AssertionError
-    except NotImplementedError as e:
-        assert str(e) == "Subclasses must define distribution_parameters"
 
     # log_prob assertion
     class Test2(Prior):
         distribution_parameters = ("mean", "log_std")
 
-    try:
+    with pytest.raises(NotImplementedError, match=r"Subclasses must define log_prob"):
         Test2()
-        raise AssertionError
-    except NotImplementedError as e:
-        assert str(e) == "Subclasses must define log_prob"
 
     # log_prob signature assertion
     class Test3(Prior):
@@ -38,14 +34,11 @@ def test_parameter_checking() -> None:
         def log_prob(self, x: Tensor) -> Tensor:
             pass
 
-    try:
+    with pytest.raises(
+        AssertionError,
+        match=r"log_prob must accept an argument for each required parameter plus the sample",
+    ):
         Test3()
-        raise AssertionError
-    except AssertionError as e:
-        assert (
-            str(e)
-            == "log_prob must accept an argument for each required parameter plus the sample"
-        )
 
     class Test4(Prior):
         distribution_parameters = ("mean", "log_std")
@@ -53,14 +46,11 @@ def test_parameter_checking() -> None:
         def log_prob(self, x: Tensor, mean: Tensor) -> Tensor:
             pass
 
-    try:
+    with pytest.raises(
+        AssertionError,
+        match=r"log_prob must accept an argument for each required parameter plus the sample",
+    ):
         Test4()
-        raise AssertionError
-    except AssertionError as e:
-        assert (
-            str(e)
-            == "log_prob must accept an argument for each required parameter plus the sample"
-        )
 
     # Test scaling parameter enforcement
     class Test5(Prior):
@@ -70,11 +60,11 @@ def test_parameter_checking() -> None:
         def log_prob(self, x: Tensor, mean: Tensor) -> Tensor:
             pass
 
-    try:
+    with pytest.raises(
+        AssertionError,
+        match=r"Module \[Test5\] is missing exposed scaling parameter \[mean\]",
+    ):
         Test5()
-        raise AssertionError
-    except AssertionError as e:
-        assert str(e) == "Module [Test5] is missing exposed scaling parameter [mean]"
 
     class Test6(Prior):
         distribution_parameters = ("mean", "log_std")
@@ -86,15 +76,11 @@ def test_parameter_checking() -> None:
 
     test = Test6()
 
-    filterwarnings("error")
-    try:
-        test.reset_parameters(test, "mean")
-        raise AssertionError
-    except UserWarning as e:
-        assert (
-            str(e)
-            == 'Module [Test6] is missing the "reset_parameters" function and does not perform prior initialization'
-        )
+    with pytest.warns(
+        UserWarning,
+        match=r'Module \[Test6\] is missing the "reset_parameters" function.*',
+    ):
+        test.reset_parameters(test, "mean")  # type: ignore [arg-type]
 
     class Test7(Prior):
         distribution_parameters = ("mean", "log_std")

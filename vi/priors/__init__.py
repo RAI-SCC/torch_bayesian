@@ -3,5 +3,6 @@
 from .base import Prior
 from .normal import MeanFieldNormalPrior
 from .quiet import BasicQuietPrior
+from .uniform import UniformPrior
 
-__all__ = ["Prior", "MeanFieldNormalPrior", "BasicQuietPrior"]
+__all__ = ["Prior", "MeanFieldNormalPrior", "BasicQuietPrior", "UniformPrior"]
