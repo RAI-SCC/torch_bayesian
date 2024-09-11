@@ -8,4 +8,4 @@ def fixed_(tensor: Tensor, other: Tensor) -> Tensor:
         tensor.size() == other.size()
     ), "Values must be provided for all tensor elements."
     with torch.no_grad():
-        return tensor.put_(torch.arange(tensor.numel()), other)
+        return tensor.copy_(other)
