@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional
 
 import torch
 from torch import Tensor
@@ -6,7 +6,7 @@ from torch.nn import functional as F  # noqa: N812
 
 from .base import VIBaseModule
 from .priors import MeanFieldNormalPrior
-from .utils.common_types import _log_prob_return_format, _prior_any_t, _vardist_any_t
+from .utils.common_types import VIReturn, _prior_any_t, _vardist_any_t
 from .variational_distributions import MeanFieldNormalVarDist
 
 
@@ -81,7 +81,7 @@ class VILinear(VIBaseModule):
             **factory_kwargs,
         )
 
-    def forward(self, input_: Tensor) -> Union[Tensor, _log_prob_return_format[Tensor]]:
+    def forward(self, input_: Tensor) -> VIReturn[Tensor]:
         """
         Forward computation.
 

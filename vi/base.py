@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import torch
 import torch.utils.hooks as hooks
@@ -16,10 +16,10 @@ from torch.nn.modules.module import (
 )
 
 from .utils import PostInitCallMeta
-from .utils.common_types import _log_prob_return_format, _prior_any_t, _vardist_any_t
+from .utils.common_types import VIReturn, _prior_any_t, _vardist_any_t
 
 
-def _forward_unimplemented(self: Module, *input_: Optional[Tensor]) -> Tuple[Tensor]:
+def _forward_unimplemented(self: Module, *input_: Optional[Tensor]) -> VIReturn[Tensor]:
     r"""Define the computation performed at every call.
 
     Should be overridden by all subclasses.
@@ -39,7 +39,7 @@ def _forward_unimplemented(self: Module, *input_: Optional[Tensor]) -> Tuple[Ten
 class VIModule(Module, metaclass=PostInitCallMeta):
     """Base class for Modules using Variational Inference."""
 
-    forward: Callable[..., _tensor_list_t] = _forward_unimplemented
+    forward: Callable[..., VIReturn] = _forward_unimplemented
     _return_log_probs: bool = True
     # _has_sampling_responsibility is set to False right after __init__ completes for
     # each submodule and True for itself that way submodules automatically call forward
@@ -54,7 +54,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
     def sampled_forward(
         self, *input_: Optional[Tensor], samples: int = 10
-    ) -> Union[_tensor_list_t, _log_prob_return_format[_tensor_list_t]]:
+    ) -> VIReturn[_tensor_list_t]:
         """
         Forward pass of the module evaluating multiple weight samples.
 

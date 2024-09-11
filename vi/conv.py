@@ -8,7 +8,7 @@ from torch.nn.modules.utils import _pair, _reverse_repeat_tuple, _single, _tripl
 
 from .base import VIBaseModule
 from .priors import MeanFieldNormalPrior
-from .utils.common_types import _log_prob_return_format, _prior_any_t, _vardist_any_t
+from .utils.common_types import VIReturn, _prior_any_t, _vardist_any_t
 from .variational_distributions import MeanFieldNormalVarDist
 
 
@@ -249,7 +249,7 @@ class VIConv1d(_VIConvNd):
             input_, weight, bias, self.stride, self.padding, self.dilation, self.groups
         )
 
-    def forward(self, input_: Tensor) -> Union[Tensor, _log_prob_return_format[Tensor]]:
+    def forward(self, input_: Tensor) -> VIReturn[Tensor]:
         """
         Forward computation.
 
@@ -263,16 +263,14 @@ class VIConv1d(_VIConvNd):
 
         Returns
         -------
-        output, prior_log_prob, variational_log_prob if return_log_probs else output
+        output, log_probs if return_log_probs else output
 
         output: Tensor
             Output tensor of shape [N, C_out, W_out].
             Auto-sampling will add a sample dimension at the start for the overall output.
-        prior_log_prob: Tensor
-            Total prior log probability all internal VIModules.
-            Only returned if return_log_probs.
-        variational_log_prob: Tensor
-            Total variational log probability all internal VIModules.
+        log_probs: Tensor
+            Tensor of shape (2,) containing the total prior and variational log
+            probability (in that order) of the sampled weights and biases.
             Only returned if return_log_probs.
         """
         params = self.sample_variables()
@@ -381,7 +379,7 @@ class VIConv2d(_VIConvNd):
             input_, weight, bias, self.stride, self.padding, self.dilation, self.groups
         )
 
-    def forward(self, input_: Tensor) -> Union[Tensor, _log_prob_return_format[Tensor]]:
+    def forward(self, input_: Tensor) -> VIReturn[Tensor]:
         """
         Forward computation.
 
@@ -395,16 +393,14 @@ class VIConv2d(_VIConvNd):
 
         Returns
         -------
-        output, prior_log_prob, variational_log_prob if return_log_probs else output
+        output, log_probs if return_log_probs else output
 
         output: Tensor
             Output tensor of shape [N, C_out, H_out, W_out].
             Auto-sampling will add a sample dimension at the start for the overall output.
-        prior_log_prob: Tensor
-            Total prior log probability all internal VIModules.
-            Only returned if return_log_probs.
-        variational_log_prob: Tensor
-            Total variational log probability all internal VIModules.
+        log_probs: Tensor
+            Tensor of shape (2,) containing the total prior and variational log
+            probability (in that order) of the sampled weights and biases.
             Only returned if return_log_probs.
         """
         params = self.sample_variables()
@@ -513,7 +509,7 @@ class VIConv3d(_VIConvNd):
             input_, weight, bias, self.stride, self.padding, self.dilation, self.groups
         )
 
-    def forward(self, input_: Tensor) -> Union[Tensor, _log_prob_return_format[Tensor]]:
+    def forward(self, input_: Tensor) -> VIReturn[Tensor]:
         """
         Forward computation.
 
@@ -527,16 +523,14 @@ class VIConv3d(_VIConvNd):
 
         Returns
         -------
-        output, prior_log_prob, variational_log_prob if return_log_probs else output
+        output, log_probs if return_log_probs else output
 
         output: Tensor
             Output tensor of shape [N, C_out, D_out, H_out, W_out].
             Auto-sampling will add a sample dimension at the start for the overall output.
-        prior_log_prob: Tensor
-            Total prior log probability all internal VIModules.
-            Only returned if return_log_probs.
-        variational_log_prob: Tensor
-            Total variational log probability all internal VIModules.
+        log_probs: Tensor
+            Tensor of shape (2,) containing the total prior and variational log
+            probability (in that order) of the sampled weights and biases.
             Only returned if return_log_probs.
         """
         params = self.sample_variables()

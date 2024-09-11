@@ -1,3 +1,5 @@
+from vi import VIModule
+
 # vi - Easy Variational Inference
 
 This package provides a simple way for non-expert users to implement and train Bayesian
@@ -140,27 +142,59 @@ probability of the actually used weights (which are sampled on each forward pass
 variational and prior distribution. Since it is quite inefficient to save the samples
 these log probabilities are evaluated during the forward pass and returned by the model.
 Since this is only necessary for training it can be controlled with the argument
-return_prob. Once the model is initialized this flag can be changed with the method
+return_log_probs. Once the model is initialized this flag can be changed with the method
 `VIModule.return_log_probs()`, which accepts one bool (default: `True`) and either
 enables (`True`) or disables (`False`) the returning of the log probabilities for all
 submodules.
 
-The internal indicator for this mode is `VIModule._return_log_probs`, which can be assumed
-to be identical for all modules in the same nested hierarchy. This can be manually broken,
-but we are all adults here: Always call `return_log_probs` on the top module in the
-hierarchy (and noone will get hurt).
+The internal indicator for this mode is `VIModule._return_log_probs`, which can be
+assumed to be identical for all modules in the same nested hierarchy. This can be
+manually broken, but we are all adults here: Always call `return_log_probs` on the top
+module in the hierarchy (and noone will get hurt).
 When creating advance `VIModule`s you will need to consider, that provided modules
 return a tuple during training. The first element of this tuple is the usual model
-output. The second element is a tuple containing two additional tensors: prior_log_prob
-and variational_log_prob. Your modules must be able to handle both cases (by checking
+output. The second element is a Tensor containing two values: prior_log_prob and
+variational_log_prob. Your modules must be able to handle both cases (by checking
 `_return_log_probs`) and return log probs accordingly. If you have multiple submodels
-returning log probs you can just add them. You can easily bundle the required values
-into the required format with `vi.util.to_log_prob_return_format`, which accepts the
-intended module output and the two log probs and returns the in the required format.
-This format is also the expected input of `KullBackLeiblerLoss`.
+returning log probs you can just add them. Generally, this will follow the pattern:
+
+```python
+from torch import Tensor
+
+from vi import VIModule
+from vi.utils.common_types import VIReturn
+
+
+class VINetwork(VIModule):
+  def __init__(self) -> None:
+    super().__init__()
+    self.module1 = ... # some VIModule
+    self.module2 = ... # another VIModule
+
+  def foward(self, input_: Tensor) -> VIReturn[Tensor]:
+      if self._return_log_probs:
+          input_, log_probs1 = self.module1(input_)
+          output, log_probs2 = self.module2(input_)
+          log_probs = log_probs1 + log_probs2
+          return output, log_probs
+      else:
+          input_ = self.module1(input_)
+          output = self.module2(input_)
+          return output
+```
+
+`VIReturn` is a type alias that encapsulates this shifting return type. Just provide the
+type of the layer output to it.
 
 Creating custom `VIModules` with parameters goes beyond the scope of this guide.
 
+> **Note:** Due to [Autosampling](#autosampling) all output Tensors, i.e. each Tensor
+> in the model output and the Tensor containing the log probs has an additional
+> dimension at the beginning representing the multiple samples necessary to properly
+> evaluate the stochastic forward pass. This is only relevant for VIModules that are not
+> contained within other VIModules. Loss functions are designed to expect and handle
+> this output format, i.e. you can simply feed the model output into the loss and
+> everything will work.
 
 ## Variational Inference
 
@@ -170,7 +204,7 @@ Creating custom `VIModules` with parameters goes beyond the scope of this guide.
 
 ### The Predictive Distribution
 
-### Auto-Sampling
+### Autosampling
 
 
 #### The Documentation grind tracker
