@@ -6,6 +6,7 @@ from torch import Tensor, nn
 import vi
 from vi import VIModule
 from vi.priors import MeanFieldNormalPrior, Prior
+from vi.utils.common_types import VIReturn
 from vi.variational_distributions import MeanFieldNormalVarDist, VariationalDistribution
 
 # MODEL
@@ -94,7 +95,7 @@ class VIResNetBlock(VIModule):
                 variational_distribution=variational_distribution,
             )
 
-    def forward(self, x: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
+    def forward(self, x: Tensor) -> VIReturn[Tensor]:
         """
         Do forward pass.
 
@@ -108,12 +109,11 @@ class VIResNetBlock(VIModule):
             if self.downsampling is not None:
                 down_x = self.downsampling(x)
                 out_value = torch.relu(out[0] + down_x[0])
-                out_priorlogprob = out[-2] + down_x[-2]
-                out_varlogprob = out[-1] + down_x[-1]
-                return out_value, out_priorlogprob, out_varlogprob
+                out_log_probs = out[1] + down_x[1]
+                return out_value, out_log_probs
             else:
                 out_value = torch.relu(out[0] + x)
-                return out_value, out[-2], out[-1]
+                return out_value, out[1]
         else:
             if self.downsampling is not None:
                 out = out + self.downsampling(x)
