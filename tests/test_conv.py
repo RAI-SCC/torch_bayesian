@@ -92,14 +92,14 @@ def test_viconvnd() -> None:
     args["groups"] = 2
     args["bias"] = False
 
-    # Test passing of prior_initialization and return_log_prob
+    # Test passing of prior_initialization and return_log_probs
     test2 = _VIConvNd(
         *args.values(),  # type: ignore
         prior_initialization=not test1._prior_init,
-        return_log_prob=not test1._return_log_prob,
+        return_log_probs=not test1._return_log_probs,
     )
     assert test1._prior_init != test2._prior_init
-    assert test1._return_log_prob != test2._return_log_prob
+    assert test1._return_log_probs != test2._return_log_probs
     assert test2._reversed_padding_repeated_twice == (2, 2)
     print(test2._weight_mean.shape)
     assert test2._weight_mean.shape == (2, 4, 3, 5)
@@ -130,11 +130,10 @@ def test_viconv1d() -> None:
     )
 
     sample = torch.randn((6, args["in_channels"], 7))
-    test1 = VIConv1d(**args, return_log_prob=True)  # type: ignore
-    out1, plp1, vlp1 = test1(sample, samples=5)
+    test1 = VIConv1d(**args, return_log_probs=True)  # type: ignore
+    out1, lps1 = test1(sample, samples=5)
     assert out1.shape == (5, 6, args["out_channels"], 3)
-    assert plp1.shape == (5,)
-    assert vlp1.shape == (5,)
+    assert lps1.shape == (5, 2)
 
     for key in args:
         if key == "bias":
@@ -155,7 +154,7 @@ def test_viconv1d() -> None:
 
     args["padding_mode"] = "zeros"
     args["bias"] = True
-    test2 = VIConv1d(**args, return_log_prob=False)  # type: ignore
+    test2 = VIConv1d(**args, return_log_probs=False)  # type: ignore
 
     out2 = test2(sample, samples=5)
     assert out2.shape == (5, 6, args["out_channels"], 3)
@@ -178,11 +177,10 @@ def test_viconv2d() -> None:
     )
 
     sample = torch.randn((6, args["in_channels"], 7, 4))
-    test1 = VIConv2d(**args, return_log_prob=True)  # type: ignore
-    out1, plp1, vlp1 = test1(sample, samples=5)
+    test1 = VIConv2d(**args, return_log_probs=True)  # type: ignore
+    out1, lps1 = test1(sample, samples=5)
     assert out1.shape == (5, 6, args["out_channels"], 3, 1)
-    assert plp1.shape == (5,)
-    assert vlp1.shape == (5,)
+    assert lps1.shape == (5, 2)
 
     for key in args:
         if key == "bias":
@@ -206,7 +204,7 @@ def test_viconv2d() -> None:
 
     args["padding_mode"] = "zeros"
     args["bias"] = True
-    test2 = VIConv2d(**args, return_log_prob=False)  # type: ignore
+    test2 = VIConv2d(**args, return_log_probs=False)  # type: ignore
 
     out2 = test2(sample, samples=5)
     assert out2.shape == (5, 6, args["out_channels"], 3, 1)
@@ -229,11 +227,10 @@ def test_viconv3d() -> None:
     )
 
     sample = torch.randn((6, args["in_channels"], 7, 4, 9))
-    test1 = VIConv3d(**args, return_log_prob=True)  # type: ignore
-    out1, plp1, vlp1 = test1(sample, samples=5)
+    test1 = VIConv3d(**args, return_log_probs=True)  # type: ignore
+    out1, lps1 = test1(sample, samples=5)
     assert out1.shape == (5, 6, args["out_channels"], 3, 1, 4)
-    assert plp1.shape == (5,)
-    assert vlp1.shape == (5,)
+    assert lps1.shape == (5, 2)
 
     for key in args:
         if key == "bias":
@@ -257,7 +254,7 @@ def test_viconv3d() -> None:
 
     args["padding_mode"] = "zeros"
     args["bias"] = True
-    test2 = VIConv3d(**args, return_log_prob=False)  # type: ignore
+    test2 = VIConv3d(**args, return_log_probs=False)  # type: ignore
 
     out2 = test2(sample, samples=5)
     assert out2.shape == (5, 6, args["out_channels"], 3, 1, 4)

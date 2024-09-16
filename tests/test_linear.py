@@ -11,7 +11,7 @@ def test_vilinear() -> None:
     """Test VILinear and prior initialization."""
     in_features = 3
     out_features = 5
-    module1 = VILinear(in_features, out_features, return_log_prob=False)
+    module1 = VILinear(in_features, out_features, return_log_probs=False)
     assert module1.in_features == in_features
     assert module1.out_features == out_features
     assert module1.random_variables == ("weight", "bias")
@@ -35,7 +35,7 @@ def test_vilinear() -> None:
     # test bias == False
     in_features = 4
     out_features = 3
-    module2 = VILinear(in_features, out_features, bias=False, return_log_prob=False)
+    module2 = VILinear(in_features, out_features, bias=False, return_log_probs=False)
     assert module2.random_variables == ("weight",)
     assert not hasattr(module2, "_bias_mean")
 
@@ -43,35 +43,32 @@ def test_vilinear() -> None:
     out = module2(sample2, samples=4)
     assert out.shape == (4, 6, out_features)
 
-    # test return_log_prob == True
+    # test return_log_probs == True
     in_features = 2
     out_features = 5
-    module3 = VILinear(in_features, out_features, return_log_prob=True)
+    module3 = VILinear(in_features, out_features, return_log_probs=True)
 
     sample3 = torch.randn(4, 7, in_features)
-    out, var, pri = module3(sample3, samples=5)
+    out, lps = module3(sample3, samples=5)
     assert out.shape == (5, 4, 7, out_features)
-    assert var.shape == (5,)
-    assert pri.shape == (5,)
+    assert lps.shape == (5, 2)
 
     module3._has_sampling_responsibility = False
-    out, var, pri = module3(sample3)
+    out, lps = module3(sample3)
     assert out.shape == (4, 7, out_features)
-    assert var.shape == ()
-    assert pri.shape == ()
+    assert lps.shape == (2,)
     out.sum().backward()
 
     multisample2 = module3.sampled_forward(sample3, samples=10)
     assert multisample2[0].shape == (10, 4, 7, out_features)
-    assert multisample2[1].shape == (10,)
-    assert multisample2[2].shape == (10,)
+    assert multisample2[1].shape == (10, 2)
     multisample2[0].sum().backward()
 
     # test prior_init
     in_features = 7
     out_features = 3
     module4 = VILinear(
-        in_features, out_features, prior_initialization=True, return_log_prob=False
+        in_features, out_features, prior_initialization=True, return_log_probs=False
     )
 
     weight_mean = module4._weight_mean.clone()
@@ -98,7 +95,7 @@ def test_vilinear() -> None:
         out_features,
         prior=prior,
         prior_initialization=True,
-        return_log_prob=False,
+        return_log_probs=False,
     )
 
     weight_mean = module5._weight_mean.clone()

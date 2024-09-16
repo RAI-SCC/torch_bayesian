@@ -1,10 +1,11 @@
 import warnings
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import torch
 import torch.utils.hooks as hooks
 from torch import Tensor
 from torch.nn import Module, Parameter, init
+from torch.nn.common_types import _tensor_list_t
 from torch.nn.modules.module import (
     _global_backward_hooks,
     _global_backward_pre_hooks,
@@ -14,12 +15,11 @@ from torch.nn.modules.module import (
     _WrappedHook,
 )
 
-from .priors import Prior
 from .utils import PostInitCallMeta
-from .variational_distributions import VarDist
+from .utils.common_types import VIReturn, _prior_any_t, _vardist_any_t
 
 
-def _forward_unimplemented(self: Module, *input_: Optional[Tensor]) -> Tuple[Tensor]:
+def _forward_unimplemented(self: Module, *input_: Optional[Tensor]) -> VIReturn[Tensor]:
     r"""Define the computation performed at every call.
 
     Should be overridden by all subclasses.
@@ -39,10 +39,11 @@ def _forward_unimplemented(self: Module, *input_: Optional[Tensor]) -> Tuple[Ten
 class VIModule(Module, metaclass=PostInitCallMeta):
     """Base class for Modules using Variational Inference."""
 
-    forward: Callable[..., Union[Tensor, Tuple[Tensor, ...]]] = _forward_unimplemented
-    _return_log_prob: bool = True
-    # this is set to False during the first forward pass by the outermost module for each submodule and True for itself
-    # that way submodules automatically call forward and the outermost calls sampled_forward instead
+    forward: Callable[..., VIReturn] = _forward_unimplemented
+    _return_log_probs: bool = True
+    # _has_sampling_responsibility is set to False right after __init__ completes for
+    # each submodule and True for itself that way submodules automatically call forward
+    # and the outermost module calls sampled_forward instead
     _has_sampling_responsibility: bool
 
     @staticmethod
@@ -53,7 +54,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
     def sampled_forward(
         self, *input_: Optional[Tensor], samples: int = 10
-    ) -> Union[Tensor, Tuple[Tensor, ...]]:
+    ) -> VIReturn[_tensor_list_t]:
         """
         Forward pass of the module evaluating multiple weight samples.
 
@@ -72,7 +73,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         expanded = [self._expand_to_samples(x, samples=samples) for x in input_]
         return torch.vmap(self.forward, randomness="different")(*expanded)
 
-    def return_log_prob(self, mode: bool = True) -> None:
+    def return_log_probs(self, mode: bool = True) -> None:
         """
         Set whether the module returns log probabilities.
 
@@ -85,7 +86,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         """
         for module in self.modules():
             if isinstance(module, VIModule):
-                module._return_log_prob = mode
+                module._return_log_probs = mode
 
     def _set_sampling_responsibility(self) -> None:
         for module in self.modules():
@@ -101,13 +102,18 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         """
         self._set_sampling_responsibility()
 
+    def _pre_forward(self, *input_: Any, **kwargs: Any) -> Any:
+        """Select sampled_forward or forward based on _has_sampling_responsibility."""
+        if self._has_sampling_responsibility:
+            return self.sampled_forward(*input_, **kwargs)
+        else:
+            return self.forward(*input_, **kwargs)
+
     # Copied from pytorch 2.4, basically untested since assumed working
-    # Change: choose between sampled_forward and forward base on _has_sampling_responsibility
+    # Change: call _pre_forward instead of forward
     def _slow_forward(self, *input_: Any, **kwargs: Any) -> Any:  # pragma: no cover
         tracing_state = torch._C._get_tracing_state()
-        forward_call = (
-            self.sampled_forward if self._has_sampling_responsibility else self.forward
-        )
+        forward_call = self._pre_forward
         if not tracing_state or isinstance(forward_call, torch._C.ScriptMethod):
             return forward_call(*input_, **kwargs)
         recording_scopes = torch.jit._trace._trace_module_map is not None
@@ -131,14 +137,12 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         return result
 
     # Copied from pytorch 2.4, basically untested since assumed working
-    # Change: choose between sampled_forward and forward base on _has_sampling_responsibility
+    # Change: call _pre_forward instead of forward
     def _call_impl(self, *args: Any, **kwargs: Any) -> Any:  # pragma: no cover
         if torch._C._get_tracing_state():
             forward_call = self._slow_forward
-        elif self._has_sampling_responsibility:
-            forward_call = self.sampled_forward
         else:
-            forward_call = self.forward
+            forward_call = self._pre_forward
         # If we don't have any hooks, we want to skip the rest of the logic in
         # this function, and just call forward.
         if not (
@@ -297,11 +301,11 @@ class VIBaseModule(VIModule):
     def __init__(
         self,
         variable_shapes: Dict[str, Tuple[int, ...]],
-        variational_distribution: VarDist | List[VarDist],
-        prior: Prior | List[Prior],
+        variational_distribution: _vardist_any_t,
+        prior: _prior_any_t,
         rescale_prior: bool = False,
         prior_initialization: bool = False,
-        return_log_prob: bool = True,
+        return_log_probs: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -334,7 +338,7 @@ class VIBaseModule(VIModule):
 
         self._rescale_prior = rescale_prior
         self._prior_init = prior_initialization
-        self._return_log_prob = return_log_prob
+        self._return_log_probs = return_log_probs
 
         for variable, vardist in zip(
             self.random_variables, self.variational_distribution
@@ -398,10 +402,10 @@ class VIBaseModule(VIModule):
             for param in vardist.variational_parameters
         ]
 
-    def get_log_probs(self, sampled_params: Iterable[Tensor]) -> Tuple[Tensor, Tensor]:
+    def get_log_probs(self, sampled_params: Iterable[Tensor]) -> Tensor:
         """Get prior and variational log prob of the sampled parameters."""
-        variational_log_prob = 0.0
-        prior_log_prob = 0.0
+        variational_log_prob = torch.tensor([0.0])
+        prior_log_prob = torch.tensor([0.0])
         for sample, variable, vardist, prior in zip(
             sampled_params,
             self.random_variables,
@@ -421,7 +425,7 @@ class VIBaseModule(VIModule):
             prior_log_prob = (
                 prior_log_prob + prior.log_prob(sample, *prior_params).sum()
             )
-        return prior_log_prob, variational_log_prob
+        return torch.cat([prior_log_prob, variational_log_prob])
 
     def sample_variables(self) -> List[Tensor]:
         """Draw one sample from the variational distribution of each random variable."""

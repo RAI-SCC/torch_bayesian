@@ -2,6 +2,7 @@ import math
 from typing import Any, Tuple, Union
 from warnings import filterwarnings
 
+import pytest
 import torch
 from torch import Tensor
 from torch.nn import Module
@@ -34,11 +35,11 @@ def test_expand_to_samples() -> None:
 def test_no_forward_error() -> None:
     """Test that forward throws error if not implemented."""
     module = VIModule()
-    try:
+    with pytest.raises(
+        NotImplementedError,
+        match=r'Module \[VIModule\] is missing the required "forward" function',
+    ):
         module.forward(torch.randn((3, 4)))
-        raise AssertionError
-    except NotImplementedError as e:
-        assert str(e) == 'Module [VIModule] is missing the required "forward" function'
 
 
 def test_sampled_forward() -> None:
@@ -127,34 +128,25 @@ def test_vibasemodule() -> None:
     assert not (module._bias_mean == bias_mean).all()
 
     # Test prior based initialization
-    filterwarnings("error")
-    try:
+    with pytest.warns(
+        UserWarning,
+        match=r'Module \[TestPrior\] is missing the "reset_parameters" function.*',
+    ):
         _ = VIBaseModule(
             var_dict1, TestDistribution(), TestPrior(), prior_initialization=True
         )
-    except UserWarning as e:
-        assert (
-            str(e)
-            == 'Module [TestPrior] is missing the "reset_parameters" function and does not perform prior initialization'
-        )
 
-    try:
+    with pytest.raises(
+        AssertionError,
+        match=r"Provide either exactly one variational distribution or exactly one for each random variable",
+    ):
         _ = VIBaseModule(var_dict1, [TestDistribution()] * 3, TestPrior())
-        raise AssertionError
-    except AssertionError as e:
-        assert (
-            str(e)
-            == "Provide either exactly one variational distribution or exactly one for each random variable"
-        )
 
-    try:
+    with pytest.raises(
+        AssertionError,
+        match=r"Provide either exactly one prior distribution or exactly one for each random variable",
+    ):
         _ = VIBaseModule(var_dict1, TestDistribution(), [TestPrior()] * 3)
-        raise AssertionError
-    except AssertionError as e:
-        assert (
-            str(e)
-            == "Provide either exactly one prior distribution or exactly one for each random variable"
-        )
 
     _ = VIBaseModule(var_dict1, [TestDistribution()] * 2, [TestPrior()] * 2)
 
@@ -241,7 +233,7 @@ def test_get_log_probs() -> None:
 
 
 def test_log_prob_setting() -> None:
-    """Test setting of _return_log_prob with VIModule.return_log_prob."""
+    """Test setting of _return_log_probs with VIModule.return_log_probs."""
     from vi import VILinear
 
     in_features = 3
@@ -256,16 +248,18 @@ def test_log_prob_setting() -> None:
             return self.module(x)
 
     module1 = Test(in_features, out_features)
-    module1.return_log_prob()
-    assert module1._return_log_prob is True
-    assert module1.module._return_log_prob is True
+    module1.return_log_probs()
+    assert module1._return_log_probs is True
+    assert module1.module._return_log_probs is True
     sample1 = torch.randn(4, in_features)
     out = module1(sample1, samples=10)
-    assert len(out) == 3
+    assert len(out) == 2
+    assert out[0].shape == (10, 4, out_features)
+    assert out[1].shape == (10, 2)
 
-    module1.return_log_prob(False)
-    assert module1._return_log_prob is False
-    assert module1.module._return_log_prob is False
+    module1.return_log_probs(False)
+    assert module1._return_log_probs is False
+    assert module1.module._return_log_probs is False
     sample1 = torch.randn(4, in_features)
     out = module1(sample1, samples=10)
     assert out.shape == (10, 4, out_features)
