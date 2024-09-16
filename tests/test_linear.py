@@ -107,3 +107,33 @@ def test_vilinear() -> None:
     assert (weight_log_std == torch.full_like(weight_log_std, 5.0)).all()
     assert (bias_mean == torch.ones_like(bias_mean)).all()
     assert (bias_log_std == torch.full_like(bias_log_std, 5.0)).all()
+
+
+def test_fastpath() -> None:
+    """Test Gaussian fastpath of VILinear."""
+    in_features = 7
+    out_features = 9
+
+    module1 = VILinear(in_features, out_features)
+    sample1 = torch.randn(4, in_features)
+
+    out1, _ = module1(sample1, samples=10000)
+    module1.return_log_probs(False)
+    out2 = module1(sample1, samples=10000)
+    out3 = torch.vmap(module1._gaussian_stable_fast_forward, randomness="different")(
+        sample1.expand(10000, 4, in_features)
+    )
+
+    mean1 = out1.mean(0)
+    mean2 = out2.mean(0)
+    mean3 = out3.mean(0)
+
+    assert torch.allclose(mean1, mean2, rtol=1e-1)
+    assert torch.allclose(mean2, mean3, rtol=1e-1)
+
+    std1 = out1.std(0)
+    std2 = out2.std(0)
+    std3 = out3.std(0)
+
+    assert torch.allclose(std1, std2, rtol=1e-1)
+    assert torch.allclose(std2, std3, rtol=1e-1)

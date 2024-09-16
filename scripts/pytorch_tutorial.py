@@ -56,11 +56,11 @@ def torch_tutorial() -> None:
             super().__init__()
             self.flatten = nn.Flatten()
             self.linear_relu_stack = vi.VISequential(
-                vi.VILinear(28 * 28, 512),
+                vi.ApproximateFastVILinear(28 * 28, 512),
                 nn.ReLU(),
-                vi.VILinear(512, 512),
+                vi.ApproximateFastVILinear(512, 512),
                 nn.ReLU(),
-                vi.VILinear(512, 10),
+                vi.ApproximateFastVILinear(512, 10),
             )
 
         def forward(self, x_: Tensor) -> Tensor:
