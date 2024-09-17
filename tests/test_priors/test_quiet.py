@@ -11,31 +11,41 @@ def test_log_prob() -> None:
     std_ratio1 = 0.5
     mean_mean1 = 0.1
     mean_std1 = 0.4
-    prior1 = BasicQuietPrior(std_ratio1, mean_mean1, mean_std1)
+    eps1 = 1e-6
+    prior1 = BasicQuietPrior(std_ratio1, mean_mean1, mean_std1, eps1)
     assert prior1.distribution_parameters == ("mean", "log_std")
     assert prior1._required_parameters == ("mean",)
-    assert prior1._scaling_parameters == ("mean_mean", "mean_std")
+    assert prior1._scaling_parameters == ("mean_mean", "mean_std", "eps")
     assert prior1._std_ratio == std_ratio1
     assert prior1.mean_mean == mean_mean1
     assert prior1.mean_std == mean_std1
+    assert prior1.eps == eps1
 
     std_ratio2 = 1.0
     mean_mean2 = 0.0
     mean_std2 = 1.0
+    eps2 = 1e-5
     prior2 = BasicQuietPrior()
     assert prior2._std_ratio == std_ratio2
     assert prior2.mean_mean == mean_mean2
     assert prior2.mean_std == mean_std2
+    assert prior2.eps == eps2
 
     mean = torch.arange(0.1, 1.1, 0.1)
     sample1 = torch.zeros_like(mean)
     sample2 = mean.clone()
-    ref1 = -0.5 - 0.5 * mean**2 - mean.log() - log(2 * torch.pi)
-    ref2 = -0.5 * mean**2 - mean.log() - log(2 * torch.pi)
+    variance = (std_ratio2 * mean) ** 2 + eps2
 
+    ref1 = (
+        -0.5 * mean**2 / variance
+        - 0.5 * mean**2
+        - 0.5 * variance.log()
+        - log(2 * torch.pi)
+    )
     log_prob1 = prior2.log_prob(sample1, mean)
     assert torch.allclose(log_prob1, ref1)
 
+    ref2 = -0.5 * mean**2 - 0.5 * variance.log() - log(2 * torch.pi)
     log_prob2 = prior2.log_prob(sample2, mean)
     assert torch.allclose(log_prob2, ref2)
 

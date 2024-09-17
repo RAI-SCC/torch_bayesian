@@ -16,19 +16,24 @@ class BasicQuietPrior(Prior):
     """Prior assuming normal distributed mean and std proportional to it."""
 
     def __init__(
-        self, std_ratio: float = 1.0, mean_mean: float = 0.0, mean_std: float = 1.0
+        self,
+        std_ratio: float = 1.0,
+        mean_mean: float = 0.0,
+        mean_std: float = 1.0,
+        eps: float = 1e-5,
     ) -> None:
         super().__init__()
         self.distribution_parameters = ("mean", "log_std")
         self._required_parameters = ("mean",)
-        self._scaling_parameters = ("mean_mean", "mean_std")
+        self._scaling_parameters = ("mean_mean", "mean_std", "eps")
         self._std_ratio = std_ratio
         self.mean_mean = mean_mean
         self.mean_std = mean_std
+        self.eps = eps
 
     def log_prob(self, sample: Tensor, mean: Tensor) -> Tensor:
         """Compute the log probability of sample based on the prior."""
-        variance = (self._std_ratio * mean) ** 2
+        variance = (self._std_ratio * mean) ** 2 + self.eps
         data_fitting = (sample - mean) ** 2 / variance
         mean_decay = (mean - self.mean_mean) ** 2 / (self.mean_std**2)
         normalization = variance.log() + 2 * log(self.mean_std) + 2 * log(2 * torch.pi)

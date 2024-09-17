@@ -400,7 +400,7 @@ class VIBaseModule(VIModule):
             variational_parameters = self.get_variational_parameters(variable)
             variational_log_prob = (
                 variational_log_prob
-                + vardist.log_prob(sample, *variational_parameters).mean(0).sum()
+                + vardist.log_prob(sample, *variational_parameters).sum()
             )
 
             prior_params = [
@@ -408,7 +408,7 @@ class VIBaseModule(VIModule):
                 for param in prior._required_parameters
             ]
             prior_log_prob = (
-                prior_log_prob + prior.log_prob(sample, *prior_params).mean(0).sum()
+                prior_log_prob + prior.log_prob(sample, *prior_params).sum()
             )
         return torch.cat([prior_log_prob, variational_log_prob])
 
