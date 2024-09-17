@@ -98,7 +98,9 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         """
         After __init__ set sampling responsibility.
 
-        Since higher level modules overwrite _has_sampling_responsibility for lower ones only the top level class will have it set to True, making it use sampled_forward by default.
+        Since higher level modules overwrite _has_sampling_responsibility for lower ones
+        only the top level class will have it set to True, making it use sampled_forward
+        by default.
         """
         self._set_sampling_responsibility()
 
@@ -371,23 +373,6 @@ class VIBaseModule(VIModule):
             if self._prior_init:
                 prior.reset_parameters(self, variable)
 
-    #    def reset_mean(self) -> None:
-    #        """Reset the means of random variables similar to non-Bayesian Networks."""
-    #        for variable in self.random_variables:
-    #            parameter_name = self.variational_parameter_name(variable, "mean")
-    #            if variable == "bias" and hasattr(self, parameter_name):
-    #                weight_mean = self.variational_parameter_name("weight", "mean")
-    #                assert hasattr(
-    #                    self, weight_mean
-    #                ), "Standard initialization of bias requires weight"
-    #                fan_in, _ = init._calculate_fan_in_and_fan_out(
-    #                    getattr(self, weight_mean)
-    #                )
-    #                bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
-    #                init.uniform_(getattr(self, parameter_name), -bound, bound)
-    #            elif hasattr(self, parameter_name):
-    #                init.kaiming_uniform_(getattr(self, parameter_name), a=math.sqrt(5))
-
     @staticmethod
     def variational_parameter_name(variable: str, variational_parameter: str) -> str:
         """Obtain the attribute name of the variational parameter for the specified variable."""
@@ -415,7 +400,7 @@ class VIBaseModule(VIModule):
             variational_parameters = self.get_variational_parameters(variable)
             variational_log_prob = (
                 variational_log_prob
-                + vardist.log_prob(sample, *variational_parameters).sum()
+                + vardist.log_prob(sample, *variational_parameters).mean(0).sum()
             )
 
             prior_params = [
@@ -423,7 +408,7 @@ class VIBaseModule(VIModule):
                 for param in prior._required_parameters
             ]
             prior_log_prob = (
-                prior_log_prob + prior.log_prob(sample, *prior_params).sum()
+                prior_log_prob + prior.log_prob(sample, *prior_params).mean(0).sum()
             )
         return torch.cat([prior_log_prob, variational_log_prob])
 

@@ -54,7 +54,7 @@ def test_reset_parameters() -> None:
         def variational_parameter_name(variable: str, parameter: str) -> str:
             return f"{variable}_{parameter}"
 
-    prior = BasicQuietPrior(0.5, 2.0, 0.5)
+    prior = BasicQuietPrior(0.5, -1.0, 5.0)
     dummy = ModuleDummy()
     mean0 = dummy.weight_mean.clone()
 
@@ -65,6 +65,6 @@ def test_reset_parameters() -> None:
     log_std = iter1.__next__().clone()
 
     assert not torch.allclose(mean0, mean)
-    assert torch.allclose(mean.mean(), torch.tensor(2.0), atol=1e-1)
-    assert torch.allclose(mean.std(), torch.tensor(0.5), rtol=1e-1)
-    assert (log_std == (mean / 2).log()).all()
+    assert torch.allclose(mean.mean(), torch.tensor(-1.0), atol=1e-1)
+    assert torch.allclose(mean.std(), torch.tensor(5.0), rtol=1e-1)
+    assert (log_std == (mean.abs() / 2).log()).all()

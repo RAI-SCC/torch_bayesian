@@ -39,5 +39,5 @@ class BasicQuietPrior(Prior):
         mean_name = module.variational_parameter_name(variable, "mean")
         init._no_grad_normal_(getattr(module, mean_name), self.mean_mean, self.mean_std)
         log_std_name = module.variational_parameter_name(variable, "log_std")
-        log_std = torch.log(self._std_ratio * getattr(module, mean_name))
+        log_std = torch.log(self._std_ratio * getattr(module, mean_name).abs())
         vi_init.fixed_(getattr(module, log_std_name), log_std)
