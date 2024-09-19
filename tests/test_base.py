@@ -7,7 +7,7 @@ import torch
 from torch import Tensor
 from torch.nn import Module
 
-from vi import VIBaseModule, VIModule
+from vi import VIBaseModule, VILinear, VIModule
 from vi.priors import Prior
 from vi.variational_distributions import VariationalDistribution
 
@@ -234,15 +234,13 @@ def test_get_log_probs() -> None:
 
 def test_log_prob_setting() -> None:
     """Test setting of _return_log_probs with VIModule.return_log_probs."""
-    from vi import VILinear
-
     in_features = 3
     out_features = 5
 
     class Test(VIModule):
         def __init__(self, d_in: int, d_out: int) -> None:
             super().__init__()
-            self.module = VILinear(d_in, d_out)
+            self.module = VILinear(d_in, d_out)  # type: ignore [call-arg,arg-type]
 
         def forward(self, x: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
             return self.module(x)

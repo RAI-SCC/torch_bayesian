@@ -312,7 +312,14 @@ class VIBaseModule(VIModule):
         dtype: Optional[torch.dtype] = None,
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
-        super().__init__()
+        try:
+            super().__init__()
+        except TypeError as e:
+            if not str(e).startswith("__init__() missing"):
+                raise e  # pragma: no cover
+            warnings.warn(
+                f"{self.__class__.__name__} skipped super().__init__() due to required arguments"
+            )
 
         if isinstance(variational_distribution, List):
             assert (
@@ -357,9 +364,14 @@ class VIBaseModule(VIModule):
                     Parameter(torch.empty(shape, **factory_kwargs)),
                 )
 
-        self.reset_parameters()
+        self._reset_parameters()
 
-    def reset_parameters(self) -> None:
+    def __post_init__(self) -> None:
+        """Overwrite reset_parameters with own implementation after initialization."""
+        super().__post_init__()
+        self.reset_parameters = self._reset_parameters
+
+    def _reset_parameters(self) -> None:
         """Reset or initialize the parameters of the Module."""
         weight_name = self.variational_parameter_name(
             self.random_variables[0],
