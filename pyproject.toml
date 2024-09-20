@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = [
     "vi",
-    "vi.predicitve_distributions",
+    "vi.predictive_distributions",
     "vi.priors",
     "vi.variational_distributions"
 ]
