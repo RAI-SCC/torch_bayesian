@@ -52,7 +52,7 @@ def test_log_prob() -> None:
 
 def test_reset_parameters() -> None:
     """Test BasicQuietPrior.reset_parameters()."""
-    param_shape = (50, 40)
+    param_shape = (500, 400)
 
     class ModuleDummy(Module):
         def __init__(self) -> None:

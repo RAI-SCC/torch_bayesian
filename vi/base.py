@@ -1,4 +1,5 @@
 import warnings
+from copy import deepcopy
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import torch
@@ -320,9 +321,9 @@ class VIBaseModule(VIModule):
             ), "Provide either exactly one variational distribution or exactly one for each random variable"
             self.variational_distribution = variational_distribution
         else:
-            self.variational_distribution = [variational_distribution] * len(
-                self.random_variables
-            )
+            self.variational_distribution = [
+                deepcopy(variational_distribution) for _ in self.random_variables
+            ]
 
         if isinstance(prior, List):
             assert (
@@ -330,7 +331,7 @@ class VIBaseModule(VIModule):
             ), "Provide either exactly one prior distribution or exactly one for each random variable"
             self.prior = prior
         else:
-            self.prior = [prior] * len(self.random_variables)
+            self.prior = [deepcopy(prior) for _ in self.random_variables]
 
         if rescale_prior:
             shape_dummy = torch.zeros(variable_shapes[self.random_variables[0]])

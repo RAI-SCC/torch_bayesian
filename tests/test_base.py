@@ -150,6 +150,7 @@ def test_vibasemodule() -> None:
 
     _ = VIBaseModule(var_dict1, [TestDistribution()] * 2, [TestPrior()] * 2)
 
+    filterwarnings("error")
     module = VIBaseModule(
         var_dict1, TestDistribution(), TestPrior(), rescale_prior=True
     )

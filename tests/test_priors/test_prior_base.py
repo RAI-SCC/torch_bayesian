@@ -152,7 +152,8 @@ def test_kaiming_rescale() -> None:
     assert test.ff == ref["ff"]
 
     # Test second rescale does nothing
-    test.kaiming_rescale(1, 9)
+    with pytest.warns(UserWarning, match="Test has already been rescaled.*"):
+        test.kaiming_rescale(1, 9)
     assert test.mean == ref["mean"] / scale
     assert test.log_std == ref["log_std"] + log(1 / scale + 1e-5)
     assert test.skew == ref["skew"] / scale

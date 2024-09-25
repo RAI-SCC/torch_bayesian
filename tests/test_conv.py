@@ -75,8 +75,8 @@ def test_viconvnd() -> None:
         if key == "bias":
             continue
         if key == "variational_distribution" or key == "prior":
-            assert test1.__dict__[key][0] is args[key]
-            assert test1.__dict__[key][1] is args[key]
+            assert isinstance(test1.__dict__[key][0], type(args[key]))
+            assert isinstance(test1.__dict__[key][1], type(args[key]))
         else:
             assert test1.__dict__[key] is args[key]
 
@@ -147,7 +147,7 @@ def test_viconv1d() -> None:
             "padding",
             "dilation",
         ]:
-            assert test1.__dict__[key][0] is args[key]
+            assert isinstance(test1.__dict__[key][0], type(args[key]))
             assert len(test1.__dict__[key]) == 1
         else:
             assert test1.__dict__[key] is args[key]
@@ -194,10 +194,11 @@ def test_viconv2d() -> None:
             "padding",
             "dilation",
         ]:
-            assert test1.__dict__[key][0] is args[key]
             if key in ["variational_distribution", "prior"]:
+                assert isinstance(test1.__dict__[key][0], type(args[key]))
                 assert len(test1.__dict__[key]) == 1
             else:
+                assert test1.__dict__[key][0] is args[key]
                 assert len(test1.__dict__[key]) == 2
         else:
             assert test1.__dict__[key] is args[key]
@@ -244,10 +245,11 @@ def test_viconv3d() -> None:
             "padding",
             "dilation",
         ]:
-            assert test1.__dict__[key][0] is args[key]
             if key in ["variational_distribution", "prior"]:
+                assert isinstance(test1.__dict__[key][0], type(args[key]))
                 assert len(test1.__dict__[key]) == 1
             else:
+                assert test1.__dict__[key][0] is args[key]
                 assert len(test1.__dict__[key]) == 3
         else:
             assert test1.__dict__[key] is args[key]

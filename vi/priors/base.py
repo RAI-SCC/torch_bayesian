@@ -55,6 +55,9 @@ class Prior(metaclass=PostInitCallMeta):
     def kaiming_rescale(self, fan_in: int, eps: float = 1e-5) -> None:
         """Rescale prior based on layer width, for normalization."""
         if self._rescaled:
+            warn(
+                f"{type(self).__name__} has already been rescaled. Ignoring rescaling."
+            )
             pass
         else:
             self._rescaled = True
