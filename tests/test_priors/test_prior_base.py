@@ -145,18 +145,18 @@ def test_kaiming_rescale() -> None:
     fan_in = 4
     test.kaiming_rescale(fan_in)
 
-    scale = sqrt(fan_in)
-    assert test.mean == ref["mean"] / scale
-    assert test.log_std == ref["log_std"] + log(1 / scale + 1e-5)
-    assert test.skew == ref["skew"] / scale
+    scale = 1 / sqrt(3 * fan_in)
+    assert test.mean == ref["mean"] * scale
+    assert test.log_std == ref["log_std"] + log(scale + 1e-5)
+    assert test.skew == ref["skew"] * scale
     assert test.ff == ref["ff"]
 
     # Test second rescale does nothing
     with pytest.warns(UserWarning, match="Test has already been rescaled.*"):
         test.kaiming_rescale(1, 9)
-    assert test.mean == ref["mean"] / scale
-    assert test.log_std == ref["log_std"] + log(1 / scale + 1e-5)
-    assert test.skew == ref["skew"] / scale
+    assert test.mean == ref["mean"] * scale
+    assert test.log_std == ref["log_std"] + log(1 * scale + 1e-5)
+    assert test.skew == ref["skew"] * scale
     assert test.ff == ref["ff"]
 
     # Test matrix rescale
@@ -165,10 +165,10 @@ def test_kaiming_rescale() -> None:
     eps = 1e-8
     test1.kaiming_rescale(fan_in, eps=eps)
 
-    scale = sqrt(fan_in)
-    assert test1.mean == ref["mean"] / scale
-    assert test1.log_std == ref["log_std"] + log(1 / scale + eps)
-    assert test1.skew == ref["skew"] / scale
+    scale = 1 / sqrt(3 * fan_in)
+    assert test1.mean == ref["mean"] * scale
+    assert test1.log_std == ref["log_std"] + log(scale + eps)
+    assert test1.skew == ref["skew"] * scale
     assert test1.ff == ref["ff"]
 
     # Test 0 fan_in

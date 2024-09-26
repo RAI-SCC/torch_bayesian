@@ -61,7 +61,7 @@ class Prior(metaclass=PostInitCallMeta):
             pass
         else:
             self._rescaled = True
-            scale = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            scale = 1 / math.sqrt(3 * fan_in) if fan_in > 0 else 0
 
             for parameter in self._scaling_parameters:
                 param = getattr(self, parameter)

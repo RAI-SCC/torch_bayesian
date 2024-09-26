@@ -113,10 +113,10 @@ def test_vibasemodule() -> None:
             assert hasattr(module, param_name)
             if param != "mean":
                 # kaiming_init scales with sqrt(fan_in=3)
-                scale = math.sqrt(3)  # if var == "bias" else 3
+                scale = 1 / math.sqrt(3)
                 index = var_params.index(param)
                 default = default_params[index]
-                assert (getattr(module, param_name) == default / scale).all()
+                assert (getattr(module, param_name) == default * scale).all()
 
     # Check that reset_mean randomizes the means
     weight_mean = module._weight_mean.clone()
@@ -155,8 +155,8 @@ def test_vibasemodule() -> None:
         var_dict1, TestDistribution(), TestPrior(), rescale_prior=True
     )
     for prior in module.prior:
-        assert prior.mean == 1 / math.sqrt(3)  # type: ignore [attr-defined]
-        assert prior.std == 2 / math.sqrt(3)  # type: ignore [attr-defined]
+        assert prior.mean == 1 / math.sqrt(3 * 3)  # type: ignore [attr-defined]
+        assert prior.std == 2 / math.sqrt(3 * 3)  # type: ignore [attr-defined]
 
 
 def test_get_variational_parameters() -> None:
