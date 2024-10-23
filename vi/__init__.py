@@ -5,6 +5,7 @@ from .conv import VIConv1d, VIConv2d, VIConv3d
 from .kl_loss import KullbackLeiblerLoss
 from .linear import VILinear
 from .sequential import VIResidualConnection, VISequential
+from .mse_loss import MeanSquaredErrorLoss
 
 __all__ = [
     "VIModule",
@@ -16,4 +17,5 @@ __all__ = [
     "VIConv2d",
     "VIConv3d",
     "VIResidualConnection",
+    "MeanSquaredErrorLoss",
 ]
