@@ -46,6 +46,63 @@ class AlternativeTimeseriesDataset(Dataset):
         return (self.raw[start:start+self.input_length],
                 self.raw[start+self.input_length:start+self.input_length+self.output_length])
 
+def plot_samples(model: VIModule, dataloader: DataLoader):
+    num_batches = len(dataloader)
+    random_batch = int(torch.randint(low = 0, high= num_batches-1, size = (1,)))
+    model.eval()
+    with torch.no_grad():
+        n = 0
+        for x, y  in dataloader:
+            if n < random_batch:
+                n += 1
+            else:
+                break
+
+        samples = model(x)
+        mean_samples = samples.mean(dim=0)
+        std_samples = torch.std(samples, dim=0)
+        num_samples = y.shape[0]
+        random_sample =int(torch.randint(low=0, high=num_samples - 1, size=(1,)))
+        mean = mean_samples[random_sample]
+        std = std_samples[random_sample]
+        real = y[random_sample]
+        in_mod = x[random_sample]
+        input_length = in_mod.shape[0]
+        output_length = real.shape[0]
+
+    plt.clf()
+    plt.plot(in_mod.numpy(), color="blue", label="inputs")
+    # plot outputs and ground truth behind input sequence
+    plt.plot(
+        range(input_length, input_length + output_length),
+        mean.numpy(),
+        color="orange",
+        label="outputs",
+    )
+    plt.plot(
+        range(input_length, input_length + output_length),
+        real.numpy(),
+        color="green",
+        label="ground truth",
+    )
+    plt.legend()
+    plt.xticks(range(0, input_length + output_length, 2))
+    plt.fill_between(
+        range(input_length, input_length + output_length),
+        (torch.add(mean, std, alpha=1)).numpy(),
+        (torch.add(mean, std, alpha=-1)).numpy(),
+        color="orange",
+        alpha=0.1,
+    )
+    file_name = 'res.png'
+    plt.savefig(file_name)
+    # plt.plot(range(input_length, input_length + output_length), (torch.add(v_outputs[i, :], voutput_std[i, :], alpha=1)).numpy(), color='orange', alpha=.3, label="upper conf bound")
+    # plt.plot(range(input_length, input_length + output_length), (torch.add(v_outputs[i, :], voutput_std[i, :], alpha=-1)).numpy(), color='orange', alpha=.3, label="lower conf bound")
+    #plt.show()
+    # time.sleep(5)
+
+
+
 def sigma_weight_plot(weights, sigmas, base_name):
     # Creates scatter plot for a layer's sigma values and weights
     final_weights = (torch.flatten(weights)).tolist()
@@ -172,11 +229,7 @@ def torch_tutorial_MCD() -> None:
             f"Test Error: Avg loss: {test_loss:>8f} \n"
         )
 
-    epochs = 5
-    for name, param in model.named_parameters():
-        if param.requires_grad:
-            print(name)
-            print(param)
+    epochs = 25
 
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
@@ -185,13 +238,13 @@ def torch_tutorial_MCD() -> None:
     print("Done!")
     for name, param in model.named_parameters():
         if param.requires_grad:
-            print(name)
-            print(param)
             if "log_std" in name:
                 base = name.removesuffix('log_std')
                 weight_layer_name = base + "mean"
                 weight_param = dict(model.named_parameters())[weight_layer_name]
                 sigma_weight_plot(weight_param, param, base)
+
+    plot_samples(model, test_dataloader)
 
 if __name__ == "__main__":
     torch_tutorial_MCD()
