@@ -10,6 +10,14 @@ from vi import VIModule
 from vi.predictive_distributions import CategoricalPredictiveDistribution
 
 import polars as pl
+import matplotlib.pyplot as plt
+
+kit_green = (0, 150/255, 130/255)
+kit_blue = (70/255, 100/255, 170/255)
+kit_red = (162/255, 34/255, 35/255)
+kit_green_50 = (0.5, 0.7941, 0.7549)
+kit_blue_50 = (0.6373, 0.6961, 0.8333)
+kit_red_50 = (0.8176, 0.5667, 0.5686)
 
 class TimeseriesDataset(Dataset):
     def __init__(self, raw, input_length, output_length):
@@ -37,6 +45,31 @@ class AlternativeTimeseriesDataset(Dataset):
         start = index * (self.input_length + self.output_length)
         return (self.raw[start:start+self.input_length],
                 self.raw[start+self.input_length:start+self.input_length+self.output_length])
+
+def sigma_weight_plot(weights, sigmas, base_name):
+    # Creates scatter plot for a layer's sigma values and weights
+    final_weights = (torch.flatten(weights)).tolist()
+    final_sigma = (torch.abs(torch.flatten(sigmas))).tolist()
+
+    x1 = final_sigma
+
+    y1 = final_weights
+
+    plt.figure(figsize=(10, 8))
+    plt.scatter(x1, y1, c=kit_blue_50,
+                linewidths=2,
+                marker="s",
+                edgecolor=kit_blue,
+                s=50)
+    # plt.xlim(0, 1)
+    # plt.ylim(-0.5, 0.5)
+
+    plt.xlabel("Sigma Values", fontsize=18)
+    plt.ylabel("Weights", fontsize=18)
+
+    file_name = base_name + '-sigma-values.png'
+    plt.savefig(file_name)
+    #plt.show()
 
 def torch_tutorial_MCD() -> None:
     input_length = 150
@@ -140,11 +173,25 @@ def torch_tutorial_MCD() -> None:
         )
 
     epochs = 5
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(name)
+            print(param)
+
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
         train(train_dataloader, model, loss_fn, optimizer)
         test(test_dataloader, model, loss_fn)
     print("Done!")
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(name)
+            print(param)
+            if "log_std" in name:
+                base = name.removesuffix('log_std')
+                weight_layer_name = base + "mean"
+                weight_param = dict(model.named_parameters())[weight_layer_name]
+                sigma_weight_plot(weight_param, param, base)
 
 if __name__ == "__main__":
     torch_tutorial_MCD()
