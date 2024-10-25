@@ -5,15 +5,17 @@ from .conv import VIConv1d, VIConv2d, VIConv3d
 from .kl_loss import KullbackLeiblerLoss
 from .linear import VILinear
 from .sequential import VIResidualConnection, VISequential
+from .transformer import VIMultiheadAttention
 
 __all__ = [
-    "VIModule",
-    "VIBaseModule",
-    "VILinear",
-    "VISequential",
     "KullbackLeiblerLoss",
+    "VIBaseModule",
     "VIConv1d",
     "VIConv2d",
     "VIConv3d",
+    "VILinear",
+    "VIModule",
+    "VIMultiheadAttention",
     "VIResidualConnection",
+    "VISequential",
 ]
