@@ -21,6 +21,12 @@ def test_vilinear() -> None:
     assert out.shape == (10, 4, out_features)
     out.sum().backward()
 
+    # test gradient resence
+    for attr in ["_weight_mean", "_bias_mean", "_weight_log_std", "_bias_log_std"]:
+        assert hasattr(module1, attr)
+        assert getattr(module1, attr).requires_grad
+        assert getattr(module1, attr).grad is not None
+
     module1._has_sampling_responsibility = False
     out = module1(sample1)
     assert out.shape == (4, out_features)
