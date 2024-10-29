@@ -8,6 +8,7 @@ from torch.utils.data import Dataset
 import vi
 from vi import VIModule
 from vi.predictive_distributions import MeanFieldNormalPredictiveDistribution
+from vi.variational_distributions import MeanFieldNormalVarDist
 
 import polars as pl
 import matplotlib.pyplot as plt
@@ -165,15 +166,15 @@ def torch_tutorial_MCD() -> None:
 
     # Define model
     class NeuralNetwork(vi.VIModule):
-        def __init__(self) -> None:
+        def __init__(self, variational_distribution=MeanFieldNormalVarDist()) -> None:
             super().__init__()
             self.flatten = nn.Flatten()
             self.linear_relu_stack = vi.VISequential(
-                vi.VILinear(150, 150),
+                vi.VILinear(150, 150, variational_distribution=variational_distribution),
                 nn.ReLU(),
-                vi.VILinear(150, 100),
+                vi.VILinear(150, 100, variational_distribution=variational_distribution),
                 nn.ReLU(),
-                vi.VILinear(100, 50),
+                vi.VILinear(100, 50, variational_distribution=variational_distribution),
             )
 
         def forward(self, x_: Tensor) -> Tensor:
@@ -181,7 +182,7 @@ def torch_tutorial_MCD() -> None:
             logits = self.linear_relu_stack(x_)
             return logits
 
-    model = NeuralNetwork().to(device)
+    model = NeuralNetwork(variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
     model.return_log_probs(False)
     print(model)
 
@@ -190,8 +191,8 @@ def torch_tutorial_MCD() -> None:
     #    predictive_distribution, dataset_size=len(dataset_train)
     #)
     loss_fn = vi.MeanSquaredErrorLoss()
-    #optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
-    optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=0)
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
+    #optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=0)
 
     def train(
         dataloader: DataLoader,
@@ -233,7 +234,7 @@ def torch_tutorial_MCD() -> None:
             f"Test Error: Avg loss: {test_loss:>8f} \n"
         )
 
-    epochs = 3
+    epochs = 1
 
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
