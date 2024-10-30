@@ -1,13 +1,16 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 import torch
 from torch import Tensor
+from torch.nn import LayerNorm, Module, ReLU
 from torch.nn import functional as F  # noqa: N812
 
-from .base import VIBaseModule
-from .priors import MeanFieldNormalPrior
-from .utils.common_types import VIReturn, _prior_any_t, _vardist_any_t
-from .variational_distributions import MeanFieldNormalVarDist
+from .base import VIBaseModule, VIModule
+from .linear import VILinear
+from .priors import MeanFieldNormalPrior, Prior
+from .sequential import VIResidualConnection
+from .utils.common_types import VIReturn, _prior_any_t, _vardist_any_t, _VIkwargs
+from .variational_distributions import MeanFieldNormalVarDist, VariationalDistribution
 
 
 class VIMultiheadAttention(VIBaseModule):
@@ -31,15 +34,15 @@ class VIMultiheadAttention(VIBaseModule):
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
-        factory_kwargs = {"device": device, "dtype": dtype}
-        vikwargs = dict(
+        vikwargs: _VIkwargs = dict(
             variational_distribution=variational_distribution,
             prior=prior,
             prior_initialization=prior_initialization,
             rescale_prior=rescale_prior,
             return_log_probs=return_log_probs,
+            device=device,
+            dtype=dtype,
         )
-        allkwargs = {**vikwargs, **factory_kwargs}
 
         self.embed_dim = embed_dim
         self.kdim = kdim if kdim is not None else embed_dim
@@ -80,7 +83,7 @@ class VIMultiheadAttention(VIBaseModule):
         self.add_zero_attn = add_zero_attn
         self.bias = bias
 
-        super().__init__(variables, **allkwargs)
+        super().__init__(variables, **vikwargs)
 
     def forward(
         self,
@@ -209,3 +212,118 @@ class VIMultiheadAttention(VIBaseModule):
             return (attn_output, attn_output_weights), log_probs
         else:
             return attn_output, attn_output_weights
+
+
+class VITransformerDecoderLayer(VIModule):
+    """Alpha implementation of VITransformerDecoderLayer."""
+
+    def __init__(
+        self,
+        d_model: int,
+        nhead: int,
+        dim_feedforward: int = 512,
+        activation: Module = ReLU(),
+        layer_norm_eps: float = 1e-5,
+        norm_first: bool = False,
+        batch_first: bool = True,
+        bias: bool = True,
+        variational_distribution: VariationalDistribution = MeanFieldNormalVarDist(),
+        prior: Prior = MeanFieldNormalPrior(),
+        prior_initialization: bool = False,
+        rescale_prior: bool = True,
+        return_log_probs: bool = True,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
+    ) -> None:
+        factory_kwargs = {"device": device, "dtype": dtype}
+        vikwargs: _VIkwargs = dict(
+            variational_distribution=variational_distribution,
+            prior=prior,
+            prior_initialization=prior_initialization,
+            rescale_prior=rescale_prior,
+            return_log_probs=return_log_probs,
+            device=device,
+            dtype=dtype,
+        )
+
+        super().__init__()
+        self.self_attn = VIMultiheadAttention(
+            d_model,
+            nhead,
+            batch_first=batch_first,
+            bias=bias,
+            **vikwargs,
+        )
+        self.multihead_attn = VIMultiheadAttention(
+            d_model,
+            nhead,
+            batch_first=batch_first,
+            bias=bias,
+            **vikwargs,
+        )
+        # Feedforward model
+        self._ff_block = VIResidualConnection(
+            VILinear(d_model, dim_feedforward, bias=bias, **vikwargs),
+            activation,
+            VILinear(dim_feedforward, d_model, bias=bias, **vikwargs),
+        )
+
+        # layer norms are treated non-Bayesian
+        self.norm_first = norm_first
+        self.norm1 = LayerNorm(d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs)
+        self.norm2 = LayerNorm(d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs)
+        self.norm3 = LayerNorm(d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs)
+
+    def forward(
+        self,
+        tgt: Tensor,
+        memory: Tensor,
+        tgt_mask: Optional[Tensor] = None,
+        memory_mask: Optional[Tensor] = None,
+    ) -> VIReturn[Tensor]:
+        """Forward computation."""
+        x = tgt
+        if self._return_log_probs and self.norm_first:
+            (x1, _), lps1 = self._sa_block(self.norm1(x), tgt_mask)
+            x = x + x1
+            (x2, _), lps2 = self._mha_block(self.norm2(x), memory, memory_mask)
+            x = x + x2
+            x3, lps3 = self._ff_block(self.norm3(x))
+            x = x + x3
+
+            lps1, lps2, lps3 = cast(Tuple[Tensor, Tensor, Tensor], (lps1, lps2, lps3))
+            log_probs = lps1 + lps2 + lps3
+            return x, log_probs
+        elif self._return_log_probs:
+            (x1, _), lps1 = self._sa_block(x, tgt_mask)
+            x = self.norm1(x + x1)
+            (x2, _), lps2 = self._mha_block(x, memory, memory_mask)
+            x = self.norm2(x + x2)
+            x3, lps3 = self._ff_block(x)
+            x = self.norm3(x + x3)
+
+            lps1, lps2, lps3 = cast(Tuple[Tensor, Tensor, Tensor], (lps1, lps2, lps3))
+            log_probs = lps1 + lps2 + lps3
+            return x, log_probs
+        elif self.norm_first:
+            x = x + self._sa_block(self.norm1(x), tgt_mask)[0]
+            x = x + self._mha_block(self.norm2(x), memory, memory_mask)[0]
+            x = x + self._ff_block(self.norm3(x))
+            return x
+        else:
+            x = self.norm1(x + self._sa_block(x, tgt_mask)[0])
+            x = self.norm2(x + self._mha_block(x, memory, memory_mask)[0])
+            x = self.norm3(x + self._ff_block(x))
+            return x
+
+    def _sa_block(
+        self, x: Tensor, attn_mask: Optional[Tensor] = None
+    ) -> VIReturn[Tuple[Tensor, Optional[Tensor]]]:
+        x = self.self_attn(x, x, x, attn_mask=attn_mask)
+        return x
+
+    def _mha_block(
+        self, x: Tensor, mem: Tensor, attn_mask: Optional[Tensor] = None
+    ) -> VIReturn[Tuple[Tensor, Optional[Tensor]]]:
+        x = self.multihead_attn(x, mem, mem, attn_mask=attn_mask)
+        return x

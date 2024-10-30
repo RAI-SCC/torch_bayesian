@@ -1,8 +1,9 @@
 import torch
 from pytest import raises
+from torch import nn
 from torch.nn import functional as F  # noqa: N812
 
-from vi import VIMultiheadAttention
+from vi import VIMultiheadAttention, VITransformerDecoderLayer
 from vi.variational_distributions import MeanFieldNormalVarDist
 
 
@@ -279,3 +280,103 @@ def test_multiheadattention() -> None:
     assert torch.allclose(attn_weights, weights.mean(dim=0), atol=2e-8)
     assert out.mean(dim=0).shape == ref.shape
     assert torch.allclose(out.mean(dim=0), ref)
+
+
+def test_decoder_layer() -> None:
+    """Test VITransformerDecoderLayer."""
+    d_model = 8
+    nhead = 2
+
+    module1 = VITransformerDecoderLayer(d_model, nhead)
+    assert not module1.norm_first
+    assert module1.self_attn.embed_dim == d_model
+    assert module1.self_attn.num_heads == nhead
+    assert module1.self_attn.bias
+    assert module1.self_attn.batch_first
+    assert module1.multihead_attn.embed_dim == d_model
+    assert module1.multihead_attn.num_heads == nhead
+    assert module1.multihead_attn.bias
+    assert module1.multihead_attn.batch_first
+    assert isinstance(module1._ff_block[1], nn.ReLU)
+    assert module1.norm1.eps == 1e-5
+    assert module1.norm2.eps == 1e-5
+    assert module1.norm3.eps == 1e-5
+    assert module1.norm1.bias is not None
+    assert module1.norm2.bias is not None
+    assert module1.norm3.bias is not None
+
+    module2 = VITransformerDecoderLayer(
+        d_model,
+        nhead,
+        variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
+        activation=nn.GELU(),
+        layer_norm_eps=1e-3,
+        norm_first=True,
+        bias=False,
+        batch_first=False,
+    )
+    assert module2.norm_first
+    assert module2.self_attn.embed_dim == d_model
+    assert module2.self_attn.num_heads == nhead
+    assert not module2.self_attn.bias
+    assert not module2.self_attn.batch_first
+    assert module2.multihead_attn.embed_dim == d_model
+    assert module2.multihead_attn.num_heads == nhead
+    assert not module2.multihead_attn.bias
+    assert not module2.multihead_attn.batch_first
+    assert isinstance(module2._ff_block[1], nn.GELU)
+    assert module2.norm1.eps == 1e-3
+    assert module2.norm2.eps == 1e-3
+    assert module2.norm3.eps == 1e-3
+    assert module2.norm1.bias is None
+    assert module2.norm2.bias is None
+    assert module2.norm3.bias is None
+
+    module3 = VITransformerDecoderLayer(
+        d_model,
+        nhead,
+        variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
+        norm_first=False,
+        bias=False,
+    )
+
+    tgt = torch.rand((7, 4, d_model))
+    mem = torch.rand((7, 4, d_model))
+
+    (sa_out, sa_weights), sa_lps = module2._sa_block(tgt)
+    (sa_ref, sa_rweight), sa_rlp = module2.self_attn(tgt, tgt, tgt)
+    assert sa_out.shape == sa_ref.shape
+    assert torch.allclose(sa_out, sa_ref)
+    assert torch.allclose(sa_weights, sa_rweight)
+    assert torch.allclose(sa_lps, sa_rlp)
+
+    (mha_out, mha_weights), mha_lps = module2._mha_block(tgt, mem)
+    (mha_ref, mha_rweight), mha_rlp = module2.multihead_attn(tgt, mem, mem)
+    assert mha_out.shape == mha_ref.shape
+    assert torch.allclose(mha_out, mha_ref)
+    assert torch.allclose(mha_weights, mha_rweight)
+    assert torch.allclose(mha_lps, mha_rlp)
+
+    # check norm_first=True
+    module2.return_log_probs(False)
+    out1 = module2(tgt, mem)
+    ref1 = tgt + module2._sa_block(module2.norm1(tgt))[0]
+    ref1 = ref1 + module2._mha_block(module2.norm2(ref1), mem)[0]
+    ref1 = ref1 + module2._ff_block(module2.norm3(ref1))
+    assert torch.allclose(out1, ref1)
+
+    module2.return_log_probs(True)
+    out2, _ = module2(tgt, mem)
+    assert torch.allclose(out1, out2)
+
+    # check norm_first=False
+    module3.return_log_probs(False)
+    out3 = module3(tgt, mem)
+    ref2 = module3.norm1(tgt + module3._sa_block(tgt)[0])
+    ref2 = module3.norm2(ref2 + module3._mha_block(ref2, mem)[0])
+    ref2 = module3.norm3(ref2 + module3._ff_block(ref2))
+    assert torch.allclose(out3, ref2)
+
+    module3.return_log_probs(True)
+    out4, _ = module3(tgt, mem)
+    assert torch.allclose(out3, out4)

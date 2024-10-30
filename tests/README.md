@@ -22,6 +22,7 @@
 
 ### To include tests
 
-| directory   | file       | target       | dependency      |
-|-------------|------------|--------------|-----------------|
-|             |            |              | ?               |
+| directory | file             | target      | dependency                                                                      |
+|-----------|------------------|-------------|---------------------------------------------------------------------------------|
+| .         | test_transformer | transformer | test_base; test_linear; test_normal_prior; test_normal_vardist; test_sequential |
+|           |                  |             | ?                                                                               |
