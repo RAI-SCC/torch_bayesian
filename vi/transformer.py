@@ -214,6 +214,100 @@ class VIMultiheadAttention(VIBaseModule):
             return attn_output, attn_output_weights
 
 
+class VITransformerEncoderLayer(VIModule):
+    """Alpha implementation of VITransformerEncoderLayer."""
+
+    def __init__(
+        self,
+        d_model: int,
+        nhead: int,
+        dim_feedforward: int = 512,
+        activation: Module = ReLU(),
+        layer_norm_eps: float = 1e-5,
+        norm_first: bool = False,
+        batch_first: bool = True,
+        bias: bool = True,
+        variational_distribution: VariationalDistribution = MeanFieldNormalVarDist(),
+        prior: Prior = MeanFieldNormalPrior(),
+        prior_initialization: bool = False,
+        rescale_prior: bool = True,
+        return_log_probs: bool = True,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
+    ) -> None:
+        factory_kwargs = {"device": device, "dtype": dtype}
+        vikwargs: _VIkwargs = dict(
+            variational_distribution=variational_distribution,
+            prior=prior,
+            prior_initialization=prior_initialization,
+            rescale_prior=rescale_prior,
+            return_log_probs=return_log_probs,
+            device=device,
+            dtype=dtype,
+        )
+        super().__init__()
+        self.self_attn = VIMultiheadAttention(
+            d_model, nhead, batch_first=batch_first, bias=bias, **vikwargs
+        )
+        # Feedforward model
+        self._ff_block = VIResidualConnection(
+            VILinear(d_model, dim_feedforward, bias=bias, **vikwargs),
+            activation,
+            VILinear(dim_feedforward, d_model, bias=bias, **vikwargs),
+        )
+
+        # layer norms are treated non-Bayesian
+        self.norm_first = norm_first
+        self.norm1 = LayerNorm(d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs)
+        self.norm2 = LayerNorm(d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs)
+
+    def forward(
+        self, src: Tensor, src_mask: Optional[Tensor] = None
+    ) -> VIReturn[Tensor]:
+        """Forward computation."""
+        src_mask = F._canonical_mask(
+            mask=src_mask,
+            mask_name="src_mask",
+            other_type=None,
+            other_name="",
+            target_type=src.dtype,
+            check_other=False,
+        )
+        x = src
+        if self._return_log_probs and self.norm_first:
+            (x1, _), lps1 = self._sa_block(self.norm1(x), src_mask)
+            x = x + x1
+            x2, lps2 = self._ff_block(self.norm2(x))
+            x = x2
+
+            lps1, lps2 = cast(Tuple[Tensor, Tensor], (lps1, lps2))
+            log_probs = lps1 + lps2
+            return x, log_probs
+        elif self._return_log_probs:
+            (x1, _), lps1 = self._sa_block(x, src_mask)
+            x = x + x1
+            x2, lps2 = self._ff_block(self.norm1(x))
+            x = self.norm2(x2)
+
+            lps1, lps2 = cast(Tuple[Tensor, Tensor], (lps1, lps2))
+            log_probs = lps1 + lps2
+            return x, log_probs
+        elif self.norm_first:
+            x = x + self._sa_block(self.norm1(x), src_mask)[0]
+            x = self._ff_block(self.norm2(x))
+            return x
+        else:
+            x = self.norm1(x + self._sa_block(x, src_mask)[0])
+            x = self.norm2(self._ff_block(x))
+            return x
+
+    def _sa_block(
+        self, x: Tensor, attn_mask: Optional[Tensor] = None
+    ) -> VIReturn[Tuple[Tensor, Optional[Tensor]]]:
+        x = self.self_attn(x, x, x, attn_mask=attn_mask)
+        return x
+
+
 class VITransformerDecoderLayer(VIModule):
     """Alpha implementation of VITransformerDecoderLayer."""
 
@@ -283,13 +377,14 @@ class VITransformerDecoderLayer(VIModule):
     ) -> VIReturn[Tensor]:
         """Forward computation."""
         x = tgt
+        # _ff_block already includes residual connection
         if self._return_log_probs and self.norm_first:
             (x1, _), lps1 = self._sa_block(self.norm1(x), tgt_mask)
             x = x + x1
             (x2, _), lps2 = self._mha_block(self.norm2(x), memory, memory_mask)
             x = x + x2
             x3, lps3 = self._ff_block(self.norm3(x))
-            x = x + x3
+            x = x3
 
             lps1, lps2, lps3 = cast(Tuple[Tensor, Tensor, Tensor], (lps1, lps2, lps3))
             log_probs = lps1 + lps2 + lps3
@@ -300,7 +395,7 @@ class VITransformerDecoderLayer(VIModule):
             (x2, _), lps2 = self._mha_block(x, memory, memory_mask)
             x = self.norm2(x + x2)
             x3, lps3 = self._ff_block(x)
-            x = self.norm3(x + x3)
+            x = self.norm3(x3)
 
             lps1, lps2, lps3 = cast(Tuple[Tensor, Tensor, Tensor], (lps1, lps2, lps3))
             log_probs = lps1 + lps2 + lps3
@@ -308,12 +403,12 @@ class VITransformerDecoderLayer(VIModule):
         elif self.norm_first:
             x = x + self._sa_block(self.norm1(x), tgt_mask)[0]
             x = x + self._mha_block(self.norm2(x), memory, memory_mask)[0]
-            x = x + self._ff_block(self.norm3(x))
+            x = self._ff_block(self.norm3(x))
             return x
         else:
             x = self.norm1(x + self._sa_block(x, tgt_mask)[0])
             x = self.norm2(x + self._mha_block(x, memory, memory_mask)[0])
-            x = self.norm3(x + self._ff_block(x))
+            x = self.norm3(self._ff_block(x))
             return x
 
     def _sa_block(
