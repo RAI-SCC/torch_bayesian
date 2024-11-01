@@ -1,8 +1,9 @@
+import copy
 from typing import Dict, List, Optional, Tuple, cast
 
 import torch
 from torch import Tensor
-from torch.nn import LayerNorm, Module, ReLU
+from torch.nn import LayerNorm, Module, ModuleList, ReLU
 from torch.nn import functional as F  # noqa: N812
 
 from .base import VIBaseModule, VIModule
@@ -274,6 +275,7 @@ class VITransformerEncoderLayer(VIModule):
             check_other=False,
         )
         x = src
+        # _ff_block already includes residual connection
         if self._return_log_probs and self.norm_first:
             (x1, _), lps1 = self._sa_block(self.norm1(x), src_mask)
             x = x + x1
@@ -422,3 +424,46 @@ class VITransformerDecoderLayer(VIModule):
     ) -> VIReturn[Tuple[Tensor, Optional[Tensor]]]:
         x = self.multihead_attn(x, mem, mem, attn_mask=attn_mask)
         return x
+
+
+class VITransformerDecoder(VIModule):
+    """Alpha implementation of VITransformerDecoder."""
+
+    def __init__(
+        self,
+        decoder_layer: "VITransformerDecoderLayer",
+        num_layers: int,
+        norm: Optional[Module] = None,
+    ) -> None:
+        super().__init__()
+        self.layers = ModuleList(
+            [copy.deepcopy(decoder_layer) for _ in range(num_layers)]
+        )
+        self.norm = norm
+        self.num_layers = num_layers
+
+    def forward(
+        self,
+        tgt: Tensor,
+        memory: Tensor,
+        tgt_mask: Optional[Tensor] = None,
+        memory_mask: Optional[Tensor] = None,
+    ) -> VIReturn[Tensor]:
+        """Forward computation."""
+        output = tgt
+        if self._return_log_probs:
+            log_probs = torch.zeros(2)
+            for mod in self.layers:
+                output, lps = mod(
+                    output, memory, tgt_mask=tgt_mask, memory_mask=memory_mask
+                )
+                log_probs = log_probs + lps
+            if self.norm is not None:
+                output = self.norm(output)
+            return output, log_probs
+        else:
+            for mod in self.layers:
+                output = mod(output, memory, tgt_mask=tgt_mask, memory_mask=memory_mask)
+            if self.norm is not None:
+                output = self.norm(output)
+            return output

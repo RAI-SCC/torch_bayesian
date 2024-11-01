@@ -5,6 +5,7 @@ from torch.nn import functional as F  # noqa: N812
 
 from vi import (
     VIMultiheadAttention,
+    VITransformerDecoder,
     VITransformerDecoderLayer,
     VITransformerEncoderLayer,
 )
@@ -301,7 +302,11 @@ def test_decoder_layer() -> None:
     assert module1.multihead_attn.num_heads == nhead
     assert module1.multihead_attn.bias
     assert module1.multihead_attn.batch_first
+    assert module1._ff_block[0].in_features == d_model
+    assert module1._ff_block[0].out_features == 512
     assert isinstance(module1._ff_block[1], nn.ReLU)
+    assert module1._ff_block[2].in_features == 512
+    assert module1._ff_block[2].out_features == d_model
     assert module1.norm1.eps == 1e-5
     assert module1.norm2.eps == 1e-5
     assert module1.norm3.eps == 1e-5
@@ -312,6 +317,7 @@ def test_decoder_layer() -> None:
     module2 = VITransformerDecoderLayer(
         d_model,
         nhead,
+        dim_feedforward=128,
         variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
         activation=nn.GELU(),
         layer_norm_eps=1e-3,
@@ -328,7 +334,11 @@ def test_decoder_layer() -> None:
     assert module2.multihead_attn.num_heads == nhead
     assert not module2.multihead_attn.bias
     assert not module2.multihead_attn.batch_first
+    assert module2._ff_block[0].in_features == d_model
+    assert module2._ff_block[0].out_features == 128
     assert isinstance(module2._ff_block[1], nn.GELU)
+    assert module2._ff_block[2].in_features == 128
+    assert module2._ff_block[2].out_features == d_model
     assert module2.norm1.eps == 1e-3
     assert module2.norm2.eps == 1e-3
     assert module2.norm3.eps == 1e-3
@@ -397,7 +407,11 @@ def test_encoder_layer() -> None:
     assert module1.self_attn.num_heads == nhead
     assert module1.self_attn.bias
     assert module1.self_attn.batch_first
+    assert module1._ff_block[0].in_features == d_model
+    assert module1._ff_block[0].out_features == 512
     assert isinstance(module1._ff_block[1], nn.ReLU)
+    assert module1._ff_block[2].in_features == 512
+    assert module1._ff_block[2].out_features == d_model
     assert module1.norm1.eps == 1e-5
     assert module1.norm2.eps == 1e-5
     assert module1.norm1.bias is not None
@@ -406,6 +420,7 @@ def test_encoder_layer() -> None:
     module2 = VITransformerEncoderLayer(
         d_model,
         nhead,
+        dim_feedforward=128,
         variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
         activation=nn.GELU(),
         layer_norm_eps=1e-3,
@@ -418,7 +433,11 @@ def test_encoder_layer() -> None:
     assert module2.self_attn.num_heads == nhead
     assert not module2.self_attn.bias
     assert not module2.self_attn.batch_first
+    assert module2._ff_block[0].in_features == d_model
+    assert module2._ff_block[0].out_features == 128
     assert isinstance(module2._ff_block[1], nn.GELU)
+    assert module2._ff_block[2].in_features == 128
+    assert module2._ff_block[2].out_features == d_model
     assert module2.norm1.eps == 1e-3
     assert module2.norm2.eps == 1e-3
     assert module2.norm1.bias is None
@@ -461,4 +480,66 @@ def test_encoder_layer() -> None:
 
     module3.return_log_probs(True)
     out4, _ = module3(src)
+    assert torch.allclose(out3, out4)
+
+
+def test_decoder() -> None:
+    """Test VITransformerDecoder."""
+    d_model = 8
+    nhead = 2
+    num_layers = 3
+
+    layer = VITransformerDecoderLayer(
+        d_model,
+        nhead,
+        variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
+    )
+    module1 = VITransformerDecoder(layer, num_layers)
+
+    assert len(module1.layers) == num_layers
+    assert module1.norm is None
+    assert module1.num_layers == num_layers
+
+    for lay in module1.layers:
+        assert isinstance(lay, VITransformerDecoderLayer)
+        assert lay.self_attn.embed_dim == d_model
+        assert lay.self_attn.num_heads == nhead
+        assert lay is not layer
+    assert module1.layers[0] is not module1.layers[1]
+
+    tgt = torch.rand((9, 5, d_model))
+    memory = torch.rand((9, 5, d_model))
+
+    module1.return_log_probs(False)
+    out1 = module1(tgt, memory)
+    ref = tgt
+    for mod in module1.layers:
+        ref = mod(ref, memory)
+
+    assert out1.shape == (10, 9, 5, d_model)
+    assert out1.shape[1:] == ref.shape
+    assert torch.allclose(out1[0], ref, atol=1e-6)
+
+    module1.return_log_probs(True)
+    out2, _ = module1(tgt, memory)
+    assert out1.shape == out2.shape
+    assert torch.allclose(out1, out2)
+
+    module2 = VITransformerDecoder(layer, num_layers, norm=nn.LayerNorm(d_model))
+    assert isinstance(module2.norm, nn.LayerNorm)
+
+    module2.return_log_probs(False)
+    out3 = module2(tgt, memory)
+    ref2 = tgt
+    for mod in module2.layers:
+        ref2 = mod(ref2, memory)
+    ref2 = module2.norm(ref2)
+
+    assert out3.shape == (10, 9, 5, d_model)
+    assert out3.shape[1:] == ref2.shape
+    assert torch.allclose(out3[0], ref2, atol=1e-6)
+
+    module2.return_log_probs(True)
+    out4, _ = module2(tgt, memory)
+    assert out3.shape == out4.shape
     assert torch.allclose(out3, out4)

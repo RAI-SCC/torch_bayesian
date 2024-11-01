@@ -7,6 +7,7 @@ from .linear import VILinear
 from .sequential import VIResidualConnection, VISequential
 from .transformer import (
     VIMultiheadAttention,
+    VITransformerDecoder,
     VITransformerDecoderLayer,
     VITransformerEncoderLayer,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "VIMultiheadAttention",
     "VIResidualConnection",
     "VISequential",
+    "VITransformerDecoder",
     "VITransformerDecoderLayer",
     "VITransformerEncoderLayer",
 ]
