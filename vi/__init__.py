@@ -9,6 +9,7 @@ from .transformer import (
     VIMultiheadAttention,
     VITransformerDecoder,
     VITransformerDecoderLayer,
+    VITransformerEncoder,
     VITransformerEncoderLayer,
 )
 
@@ -25,5 +26,6 @@ __all__ = [
     "VISequential",
     "VITransformerDecoder",
     "VITransformerDecoderLayer",
+    "VITransformerEncoder",
     "VITransformerEncoderLayer",
 ]

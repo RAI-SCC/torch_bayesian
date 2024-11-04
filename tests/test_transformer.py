@@ -7,6 +7,7 @@ from vi import (
     VIMultiheadAttention,
     VITransformerDecoder,
     VITransformerDecoderLayer,
+    VITransformerEncoder,
     VITransformerEncoderLayer,
 )
 from vi.variational_distributions import MeanFieldNormalVarDist
@@ -541,5 +542,66 @@ def test_decoder() -> None:
 
     module2.return_log_probs(True)
     out4, _ = module2(tgt, memory)
+    assert out3.shape == out4.shape
+    assert torch.allclose(out3, out4)
+
+
+def test_encoder() -> None:
+    """Test VITransformerEncoder."""
+    d_model = 8
+    nhead = 2
+    num_layers = 3
+
+    layer = VITransformerEncoderLayer(
+        d_model,
+        nhead,
+        variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
+    )
+    module1 = VITransformerEncoder(layer, num_layers)
+
+    assert len(module1.layers) == num_layers
+    assert module1.norm is None
+    assert module1.num_layers == num_layers
+
+    for lay in module1.layers:
+        assert isinstance(lay, VITransformerEncoderLayer)
+        assert lay.self_attn.embed_dim == d_model
+        assert lay.self_attn.num_heads == nhead
+        assert lay is not layer
+    assert module1.layers[0] is not module1.layers[1]
+
+    src = torch.rand((9, 5, d_model))
+
+    module1.return_log_probs(False)
+    out1 = module1(src)
+    ref = src
+    for mod in module1.layers:
+        ref = mod(ref)
+
+    assert out1.shape == (10, 9, 5, d_model)
+    assert out1.shape[1:] == ref.shape
+    assert torch.allclose(out1[0], ref, atol=1e-6)
+
+    module1.return_log_probs(True)
+    out2, _ = module1(src)
+    assert out1.shape == out2.shape
+    assert torch.allclose(out1, out2)
+
+    module2 = VITransformerEncoder(layer, num_layers, norm=nn.LayerNorm(d_model))
+    assert isinstance(module2.norm, nn.LayerNorm)
+
+    module2.return_log_probs(False)
+    out3 = module2(src)
+    ref2 = src
+    for mod in module2.layers:
+        ref2 = mod(ref2)
+    ref2 = module2.norm(ref2)
+
+    assert out3.shape == (10, 9, 5, d_model)
+    assert out3.shape[1:] == ref2.shape
+    assert torch.allclose(out3[0], ref2, atol=1e-6)
+
+    module2.return_log_probs(True)
+    out4, _ = module2(src)
     assert out3.shape == out4.shape
     assert torch.allclose(out3, out4)

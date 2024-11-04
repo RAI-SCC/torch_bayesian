@@ -467,3 +467,38 @@ class VITransformerDecoder(VIModule):
             if self.norm is not None:
                 output = self.norm(output)
             return output
+
+
+class VITransformerEncoder(VIModule):
+    """Alpha implementation of VITransformerEncoder."""
+
+    def __init__(
+        self,
+        encoder_layer: "VITransformerEncoderLayer",
+        num_layers: int,
+        norm: Optional[Module] = None,
+    ) -> None:
+        super().__init__()
+        self.layers = ModuleList(
+            [copy.deepcopy(encoder_layer) for _ in range(num_layers)]
+        )
+        self.norm = norm
+        self.num_layers = num_layers
+
+    def forward(self, src: Tensor, mask: Optional[Tensor] = None) -> VIReturn[Tensor]:
+        """Forward computation."""
+        output = src
+        if self._return_log_probs:
+            log_probs = torch.zeros(2)
+            for mod in self.layers:
+                output, lps = mod(output, src_mask=mask)
+                log_probs = log_probs + lps
+            if self.norm is not None:
+                output = self.norm(output)
+            return output, log_probs
+        else:
+            for mod in self.layers:
+                output = mod(output, src_mask=mask)
+            if self.norm is not None:
+                output = self.norm(output)
+            return output
