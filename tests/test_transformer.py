@@ -1,16 +1,22 @@
+from typing import Optional
+
 import torch
-from pytest import raises
+from pytest import mark, raises
 from torch import nn
 from torch.nn import functional as F  # noqa: N812
 
 from vi import (
+    VIBaseModule,
+    VILinear,
     VIMultiheadAttention,
+    VITransformer,
     VITransformerDecoder,
     VITransformerDecoderLayer,
     VITransformerEncoder,
     VITransformerEncoderLayer,
 )
-from vi.variational_distributions import MeanFieldNormalVarDist
+from vi.priors import MeanFieldNormalPrior, Prior
+from vi.variational_distributions import MeanFieldNormalVarDist, VariationalDistribution
 
 
 def test_multiheadattention() -> None:
@@ -605,3 +611,167 @@ def test_encoder() -> None:
     out4, _ = module2(src)
     assert out3.shape == out4.shape
     assert torch.allclose(out3, out4)
+
+
+@mark.parametrize(
+    "d_model,nhead,num_encoder_layers,num_decoder_layers,dim_feedforward,activation,"
+    "custom_coders,layer_norm_eps,batch_first,norm_first,bias,variational_distribution,"
+    "prior,prior_initialization,rescale_prior,return_log_probs,device,dtype",
+    [
+        (
+            32,
+            1,
+            1,
+            1,
+            256,
+            nn.ReLU(),
+            False,
+            1e-5,
+            False,
+            False,
+            True,
+            MeanFieldNormalVarDist(initial_std=1e-20),
+            MeanFieldNormalPrior(),
+            False,
+            True,
+            True,
+            None,
+            None,
+        ),
+        (
+            27,
+            3,
+            2,
+            3,
+            56,
+            nn.GELU(),
+            False,
+            1e-7,
+            True,
+            True,
+            False,
+            MeanFieldNormalVarDist(initial_std=1e-20),
+            MeanFieldNormalPrior(),
+            True,
+            False,
+            False,
+            torch.device("cpu"),
+            torch.float16,
+        ),
+        (
+            32,
+            1,
+            1,
+            1,
+            256,
+            nn.ReLU(),
+            True,
+            1e-5,
+            False,
+            False,
+            True,
+            MeanFieldNormalVarDist(initial_std=1e-20),
+            MeanFieldNormalPrior(),
+            False,
+            True,
+            True,
+            None,
+            None,
+        ),
+    ],
+)
+def test_transformer(
+    d_model: int,
+    nhead: int,
+    num_encoder_layers: int,
+    num_decoder_layers: int,
+    dim_feedforward: int,
+    activation: nn.Module,
+    custom_coders: bool,
+    layer_norm_eps: float,
+    batch_first: bool,
+    norm_first: bool,
+    bias: bool,
+    variational_distribution: VariationalDistribution,
+    prior: Prior,
+    prior_initialization: bool,
+    rescale_prior: bool,
+    return_log_probs: bool,
+    device: Optional[torch.device],
+    dtype: Optional[torch.dtype],
+    num_samples: int = 7,
+    batch_size: int = 3,
+    sequnece_length: int = 5,
+) -> None:
+    """Test VITransformer."""
+    if custom_coders:
+        encoder = nn.Linear(d_model, d_model)
+        decoder = nn.Linear(d_model, d_model)
+        module = VITransformer(custom_encoder=encoder, custom_decoder=decoder)
+        assert module.encoder is encoder
+        assert module.decoder is decoder
+    else:
+        module = VITransformer(
+            d_model,
+            nhead,
+            num_encoder_layers,
+            num_decoder_layers,
+            dim_feedforward,
+            activation,
+            None,
+            None,
+            layer_norm_eps,
+            batch_first,
+            norm_first,
+            bias,
+            variational_distribution,
+            prior,
+            prior_initialization,
+            rescale_prior,
+            return_log_probs,
+            device,
+            dtype,
+        )
+
+        # Set default device and dtype
+        device = device or torch.device("cpu")
+        dtype = dtype or torch.float32
+
+        assert len(module.encoder.layers) == num_encoder_layers
+        assert len(module.decoder.layers) == num_decoder_layers
+
+        for name, param in module.named_parameters():
+            assert param.device == device
+            if not param.dtype == dtype:
+                print(name)
+            assert param.dtype == dtype, f"{name}"
+
+        for layer in module.encoder.layers:
+            assert layer.self_attn.embed_dim == d_model
+            assert layer.self_attn.num_heads == nhead
+            assert layer.self_attn.bias == bias
+            assert layer.self_attn.batch_first == batch_first
+
+        for layer in module.decoder.layers:
+            assert layer.self_attn.embed_dim == d_model
+            assert layer.self_attn.num_heads == nhead
+            assert layer.self_attn.bias == bias
+            assert layer.self_attn.batch_first == batch_first
+            assert layer.multihead_attn.embed_dim == d_model
+            assert layer.multihead_attn.num_heads == nhead
+            assert layer.multihead_attn.bias == bias
+            assert layer.multihead_attn.batch_first == batch_first
+
+        for layer in module.modules():
+            if isinstance(layer, VIBaseModule):
+                assert layer._return_log_probs == return_log_probs
+                for var_dist, prior in zip(layer.variational_distribution, layer.prior):
+                    assert isinstance(var_dist, type(variational_distribution))
+                    assert isinstance(prior, type(prior))
+                if isinstance(layer, VILinear):
+                    raise NotImplementedError
+                else:
+                    assert layer.bias == bias
+
+            if isinstance(layer, nn.LayerNorm):
+                assert layer.eps == layer_norm_eps

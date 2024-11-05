@@ -1,5 +1,5 @@
 import copy
-from typing import Dict, List, Optional, Tuple, cast
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import torch
 from torch import Tensor
@@ -501,4 +501,100 @@ class VITransformerEncoder(VIModule):
                 output = mod(output, src_mask=mask)
             if self.norm is not None:
                 output = self.norm(output)
+            return output
+
+
+class VITransformer(VIModule):
+    """Alpha implementation of VITransformer."""
+
+    def __init__(
+        self,
+        d_model: int = 32,
+        nhead: int = 1,
+        num_encoder_layers: int = 1,
+        num_decoder_layers: int = 1,
+        dim_feedforward: int = 256,
+        activation: Module = ReLU(),
+        custom_encoder: Optional[Any] = None,
+        custom_decoder: Optional[Any] = None,
+        layer_norm_eps: float = 1e-5,
+        batch_first: bool = False,
+        norm_first: bool = False,
+        bias: bool = True,
+        variational_distribution: VariationalDistribution = MeanFieldNormalVarDist(),
+        prior: Prior = MeanFieldNormalPrior(),
+        prior_initialization: bool = False,
+        rescale_prior: bool = True,
+        return_log_probs: bool = True,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
+    ) -> None:
+        super().__init__()
+        factory_kwargs = {"device": device, "dtype": dtype}
+        vikwargs: _VIkwargs = dict(
+            variational_distribution=variational_distribution,
+            prior=prior,
+            prior_initialization=prior_initialization,
+            rescale_prior=rescale_prior,
+            return_log_probs=return_log_probs,
+            device=device,
+            dtype=dtype,
+        )
+
+        if custom_encoder is not None:
+            self.encoder = custom_encoder
+        else:
+            encoder_layer = VITransformerEncoderLayer(
+                d_model,
+                nhead,
+                dim_feedforward,
+                activation,
+                layer_norm_eps,
+                norm_first,
+                batch_first,
+                bias,
+                **vikwargs,
+            )
+            encoder_norm = LayerNorm(
+                d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs
+            )
+            self.encoder = VITransformerEncoder(
+                encoder_layer, num_encoder_layers, encoder_norm
+            )
+
+        if custom_decoder is not None:
+            self.decoder = custom_decoder
+        else:
+            decoder_layer = VITransformerDecoderLayer(
+                d_model,
+                nhead,
+                dim_feedforward,
+                activation,
+                layer_norm_eps,
+                norm_first,
+                batch_first,
+                bias,
+                **vikwargs,
+            )
+            decoder_norm = LayerNorm(
+                d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs
+            )
+            self.decoder = VITransformerDecoder(
+                decoder_layer, num_decoder_layers, decoder_norm
+            )
+
+        self.d_model = d_model
+        self.nhead = nhead
+        self.return_log_probs(return_log_probs)
+
+    def forward(self, src: Tensor, tgt: Tensor) -> VIReturn[Tensor]:
+        """Forward computation."""
+        if self._return_log_probs:
+            memory, encoder_log_probs = self.encoder(src)
+            output, decoder_log_probs = self.decoder(tgt, memory)
+            log_probs = encoder_log_probs + decoder_log_probs
+            return output, log_probs
+        else:
+            memory = self.encoder(src)
+            output = self.decoder(tgt, memory)
             return output
