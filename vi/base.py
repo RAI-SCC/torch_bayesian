@@ -1,6 +1,6 @@
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
 import torch.utils.hooks as hooks
@@ -388,10 +388,11 @@ class VIBaseModule(VIModule):
             for param in vardist.variational_parameters
         ]
 
-    def get_log_probs(self, sampled_params: Iterable[Tensor]) -> Tensor:
+    def get_log_probs(self, sampled_params: List[Tensor]) -> Tensor:
         """Get prior and variational log prob of the sampled parameters."""
-        variational_log_prob = torch.tensor([0.0])
-        prior_log_prob = torch.tensor([0.0])
+        device = sampled_params[0].device
+        variational_log_prob = torch.tensor([0.0], device=device)
+        prior_log_prob = torch.tensor([0.0], device=device)
         for sample, variable, vardist, prior in zip(
             sampled_params,
             self.random_variables,

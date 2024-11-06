@@ -52,7 +52,7 @@ class VISequential(VIModule, Sequential):
             Only returned if return_log_probs.
         """
         if self._return_log_probs:
-            total_log_probs = torch.tensor([0.0, 0.0])
+            total_log_probs = torch.tensor([0.0, 0.0], device=input_.device)
             for module in self:
                 if isinstance(module, VIModule):
                     input_, log_probs = module(input_)
