@@ -57,6 +57,7 @@ This Quickstart guide assumes basic familiarity with [pytorch](https://pytorch.o
 and knowledge of how to implement the intended model in it. For a (potentially familiar)
 example see `scripts/pytorch_tutorial.py`, which contains a copy of the pytorch
 [Quickstart tutorial](https://pytorch.org/tutorials/beginner/basics/quickstart_tutorial.html)
+>>>>>>> main
 modified to train a BNN with variational inference.
 Three levels are introduced:
 - [Level 1](#level-1): Simple sequential layer stacks
@@ -247,3 +248,4 @@ Creating custom `VIModules` with parameters goes beyond the scope of this guide.
 
 - Check if log params should be set to `-inf` if `fan_in` is 0
 - BasicQuietPrior might need an eps to avoid infinity for mean = 0
+- Revisit eps in CategoricalPredictiveDistribution or set all eps to 1e-10?

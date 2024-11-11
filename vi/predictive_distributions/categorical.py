@@ -14,24 +14,25 @@ class CategoricalPredictiveDistribution(PredictiveDistribution):
         assert input_type in ["logits", "probs"], "input_type must be logits or probs"
         self._in_logits = input_type == "logits"
 
-    def predictive_parameters_from_samples(
-        self, samples: Tensor, eps: float = 1e-5
-    ) -> Tensor:
+    def predictive_parameters_from_samples(self, samples: Tensor) -> Tensor:
         """Calculate predictive probabilities or logits from samples."""
         if self._in_logits:
-            return F.softmax(samples + eps, -1).mean(dim=0)
+            return F.softmax(samples, -1).mean(dim=0)
         else:
             normalized = samples / samples.sum(dim=-1, keepdim=True)
             return normalized.mean(dim=0)
 
     @staticmethod
-    def log_prob_from_parameters(reference: Tensor, parameters: Tensor) -> Tensor:
+    def log_prob_from_parameters(
+        reference: Tensor, parameters: Tensor, eps: float = 1e-10
+    ) -> Tensor:
         """
         Calculate log probability from parameters.
 
-        Assumes reference and parameters are logits or probs, based on output_type.
+        Assumes reference and parameters are probs.
+        Offsets the parameters by eps in order to avoid infinities.
         """
-        parameters = torch.log(parameters)
+        parameters = (parameters + eps).log()
         value = reference.long().unsqueeze(-1)
         value, log_pmf = torch.broadcast_tensors(value, parameters)
         value = value[..., :1]
