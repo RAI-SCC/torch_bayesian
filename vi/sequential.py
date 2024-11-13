@@ -24,12 +24,33 @@ class VISequential(VIModule, Sequential):
 
     def __init__(self, *args) -> None:  # type: ignore
         super().__init__()
+        log_prob_set = False
         if len(args) == 1 and isinstance(args[0], OrderedDict):
             for key, module in args[0].items():
+                if hasattr(module, "_return_log_probs"):
+                    if not log_prob_set:
+                        self._return_log_probs = module._return_log_probs
+                        log_prob_set = True
+                    else:
+                        assert (
+                            self._return_log_probs == module._return_log_probs
+                        ), "return_log_probs has to be equal for all Modules"
                 self.add_module(key, module)
         else:
             for idx, module in enumerate(args):
+                if hasattr(module, "_return_log_probs"):
+                    if not log_prob_set:
+                        self._return_log_probs = module._return_log_probs
+                        log_prob_set = True
+                    else:
+                        assert (
+                            self._return_log_probs == module._return_log_probs
+                        ), "return_log_probs has to be equal for all Modules"
                 self.add_module(str(idx), module)
+
+        # if no module is a VIModule return_log_probs is turned off
+        if not log_prob_set:
+            self._return_log_probs = False
 
     def forward(self, input_):  # type: ignore
         """

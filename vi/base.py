@@ -54,7 +54,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         return input_.expand(samples, *input_.shape)
 
     def sampled_forward(
-        self, *input_: Optional[Tensor], samples: int = 10
+        self, *input_: Optional[Tensor], samples: int = 10, **kwargs: Any
     ) -> VIReturn[_tensor_list_t]:
         """
         Forward pass of the module evaluating multiple weight samples.
@@ -65,6 +65,8 @@ class VIModule(Module, metaclass=PostInitCallMeta):
             Any number of input Tensors
         samples : int
             Number of weight samples to evaluate
+        kwargs: Any
+            Any additional keyword arguments
 
         Returns
         -------
@@ -72,7 +74,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
             One or multiple Tensors
         """
         expanded = [self._expand_to_samples(x, samples=samples) for x in input_]
-        return torch.vmap(self.forward, randomness="different")(*expanded)
+        return torch.vmap(self.forward, randomness="different")(*expanded, **kwargs)
 
     def return_log_probs(self, mode: bool = True) -> None:
         """
