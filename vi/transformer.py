@@ -262,6 +262,8 @@ class VITransformerEncoderLayer(VIModule):
         self.norm1 = LayerNorm(d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs)
         self.norm2 = LayerNorm(d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs)
 
+        self._return_log_probs = return_log_probs
+
     def forward(
         self, src: Tensor, src_mask: Optional[Tensor] = None
     ) -> VIReturn[Tensor]:
@@ -370,6 +372,8 @@ class VITransformerDecoderLayer(VIModule):
         self.norm2 = LayerNorm(d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs)
         self.norm3 = LayerNorm(d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs)
 
+        self._return_log_probs = return_log_probs
+
     def forward(
         self,
         tgt: Tensor,
@@ -434,6 +438,7 @@ class VITransformerDecoder(VIModule):
         decoder_layer: "VITransformerDecoderLayer",
         num_layers: int,
         norm: Optional[Module] = None,
+        return_log_probs: bool = True,
     ) -> None:
         super().__init__()
         self.layers = ModuleList(
@@ -441,6 +446,7 @@ class VITransformerDecoder(VIModule):
         )
         self.norm = norm
         self.num_layers = num_layers
+        self._return_log_probs = return_log_probs
 
     def forward(
         self,
@@ -477,6 +483,7 @@ class VITransformerEncoder(VIModule):
         encoder_layer: "VITransformerEncoderLayer",
         num_layers: int,
         norm: Optional[Module] = None,
+        return_log_probs: bool = True,
     ) -> None:
         super().__init__()
         self.layers = ModuleList(
@@ -484,6 +491,7 @@ class VITransformerEncoder(VIModule):
         )
         self.norm = norm
         self.num_layers = num_layers
+        self._return_log_probs = return_log_probs
 
     def forward(self, src: Tensor, mask: Optional[Tensor] = None) -> VIReturn[Tensor]:
         """Forward computation."""
@@ -559,7 +567,7 @@ class VITransformer(VIModule):
                 d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs
             )
             self.encoder = VITransformerEncoder(
-                encoder_layer, num_encoder_layers, encoder_norm
+                encoder_layer, num_encoder_layers, encoder_norm, return_log_probs
             )
 
         if custom_decoder is not None:
@@ -580,12 +588,12 @@ class VITransformer(VIModule):
                 d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs
             )
             self.decoder = VITransformerDecoder(
-                decoder_layer, num_decoder_layers, decoder_norm
+                decoder_layer, num_decoder_layers, decoder_norm, return_log_probs
             )
 
         self.d_model = d_model
         self.nhead = nhead
-        self.return_log_probs(return_log_probs)
+        self._return_log_probs = return_log_probs
 
     def forward(self, src: Tensor, tgt: Tensor) -> VIReturn[Tensor]:
         """Forward computation."""

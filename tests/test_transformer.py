@@ -8,6 +8,7 @@ from torch.nn import functional as F  # noqa: N812
 from vi import (
     VIBaseModule,
     VILinear,
+    VIModule,
     VIMultiheadAttention,
     VITransformer,
     VITransformerDecoder,
@@ -674,7 +675,7 @@ def test_encoder() -> None:
             MeanFieldNormalPrior(),
             False,
             True,
-            True,
+            False,
             None,
             None,
         ),
@@ -701,13 +702,50 @@ def test_transformer(
     dtype: Optional[torch.dtype],
     num_samples: int = 7,
     batch_size: int = 3,
-    sequnece_length: int = 5,
+    src_length: int = 5,
+    tgt_length: int = 4,
 ) -> None:
     """Test VITransformer."""
     if custom_coders:
-        encoder = nn.Linear(d_model, d_model)
-        decoder = nn.Linear(d_model, d_model)
-        module = VITransformer(custom_encoder=encoder, custom_decoder=decoder)
+        encoder = nn.Linear(d_model, d_model, bias=bias, device=device, dtype=dtype)
+        decoder = VITransformerDecoderLayer(
+            d_model,
+            nhead,
+            dim_feedforward,
+            activation,
+            layer_norm_eps,
+            norm_first,
+            batch_first,
+            bias,
+            variational_distribution,
+            prior,
+            prior_initialization,
+            rescale_prior,
+            return_log_probs,
+            device,
+            dtype,
+        )
+        module = VITransformer(
+            d_model,
+            nhead,
+            num_encoder_layers,
+            num_decoder_layers,
+            dim_feedforward,
+            activation,
+            encoder,
+            decoder,
+            layer_norm_eps,
+            batch_first,
+            norm_first,
+            bias,
+            variational_distribution,
+            prior,
+            prior_initialization,
+            rescale_prior,
+            return_log_probs,
+            device,
+            dtype,
+        )
         assert module.encoder is encoder
         assert module.decoder is decoder
     else:
@@ -742,9 +780,7 @@ def test_transformer(
 
         for name, param in module.named_parameters():
             assert param.device == device
-            if not param.dtype == dtype:
-                print(name)
-            assert param.dtype == dtype, f"{name}"
+            assert param.dtype == dtype
 
         for layer in module.encoder.layers:
             assert layer.self_attn.embed_dim == d_model
@@ -763,15 +799,49 @@ def test_transformer(
             assert layer.multihead_attn.batch_first == batch_first
 
         for layer in module.modules():
+            if isinstance(layer, VIModule):
+                if not layer._return_log_probs == return_log_probs:
+                    print(f"{layer.__class__.__name__}")
+                assert (
+                    layer._return_log_probs == return_log_probs
+                ), f"{layer.__class__.__name__}"
             if isinstance(layer, VIBaseModule):
-                assert layer._return_log_probs == return_log_probs
+                # Check vardist and prior propagate to all VIBaseLayers
                 for var_dist, prior in zip(layer.variational_distribution, layer.prior):
                     assert isinstance(var_dist, type(variational_distribution))
                     assert isinstance(prior, type(prior))
+                # Check bias propagates to all VIBaseLayers
                 if isinstance(layer, VILinear):
-                    raise NotImplementedError
+                    bias_mean_name = layer.variational_parameter_name("bias", "mean")
+                    bias_log_std_name = layer.variational_parameter_name(
+                        "bias", "log_std"
+                    )
+                    assert hasattr(layer, bias_mean_name) == bias
+                    assert hasattr(layer, bias_log_std_name) == bias
                 else:
                     assert layer.bias == bias
 
             if isinstance(layer, nn.LayerNorm):
                 assert layer.eps == layer_norm_eps
+                assert (layer.bias is not None) == bias
+
+    sample_src = torch.rand(
+        [batch_size, src_length, d_model], dtype=dtype, device=device
+    )
+    sample_tgt = torch.rand(
+        [batch_size, tgt_length, d_model], dtype=dtype, device=device
+    )
+    output_shape = (num_samples, batch_size, tgt_length, d_model)
+
+    if not batch_first:
+        sample_src = sample_src.transpose(0, 1)
+        sample_tgt = sample_tgt.transpose(0, 1)
+        output_shape = (num_samples, tgt_length, batch_size, d_model)
+
+    sample_output = module(sample_src, sample_tgt, samples=num_samples)
+
+    if return_log_probs:
+        sample_output, log_probs = sample_output
+        assert log_probs.shape == (num_samples, 2)
+
+    assert sample_output.shape == output_shape

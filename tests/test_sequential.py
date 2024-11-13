@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from typing import Tuple, Union
 
+import pytest
 import torch
 from torch import Tensor
 from torch.nn import ReLU
@@ -14,16 +15,31 @@ def test_sequential() -> None:
     hidden_features = 4
     out_features = 3
 
+    broke_module_dict = OrderedDict(
+        module1=VILinear(in_features, hidden_features, return_log_probs=False),
+        activation=ReLU(),
+        module2=VILinear(hidden_features, out_features),
+    )
+
+    with pytest.raises(AssertionError, match="return_log_probs *"):
+        _ = VISequential(broke_module_dict)
+
     module_dict = OrderedDict(
         module1=VILinear(in_features, hidden_features),
         activation=ReLU(),
         module2=VILinear(hidden_features, out_features),
     )
 
-    module_list = list(module_dict.values())
-
     model1 = VISequential(module_dict)
+    assert model1._return_log_probs
+
+    module_list = list(module_dict.values())
+    module_list[0].return_log_probs(False)
+    module_list[2].return_log_probs(False)
+
     model2 = VISequential(*module_list)
+    assert not model2._return_log_probs
+
     for m1, m2 in zip(model1.modules(), model2.modules()):
         if isinstance(m1, VISequential) or isinstance(m1, ReLU):
             continue
@@ -44,6 +60,9 @@ def test_sequential() -> None:
     out2 = model2(sample, samples=4)
     assert out1.shape == (4, 2, out_features)
     assert out2.shape == (4, 2, out_features)
+
+    module3 = VISequential(ReLU(), ReLU())
+    assert not module3._return_log_probs
 
 
 def test_residual_connection() -> None:
