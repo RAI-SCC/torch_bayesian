@@ -25,13 +25,15 @@ class CategoricalPredictiveDistribution(PredictiveDistribution):
             return normalized.mean(dim=0)
 
     @staticmethod
-    def log_prob_from_parameters(reference: Tensor, parameters: Tensor) -> Tensor:
+    def log_prob_from_parameters(
+        reference: Tensor, parameters: Tensor, eps: float = 1e-5
+    ) -> Tensor:
         """
         Calculate log probability from parameters.
 
         Assumes reference and parameters are logits or probs, based on output_type.
         """
-        parameters = torch.log(parameters)
+        parameters = torch.log(parameters + eps)
         value = reference.long().unsqueeze(-1)
         value, log_pmf = torch.broadcast_tensors(value, parameters)
         value = value[..., :1]

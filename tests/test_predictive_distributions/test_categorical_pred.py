@@ -24,11 +24,15 @@ def test_categorical_predictive_distribution() -> None:
     ref_dist1 = Categorical(probs=probs)
     assert torch.allclose(p1, ref_dist1.probs.mean(dim=0))
 
-    ref_dist2 = Categorical(probs=ref_dist1.probs.mean(dim=0))
-    target_log_prob = ref_dist2.log_prob(target)
+    ref_dist2 = Categorical(probs=ref_dist1.probs.mean(dim=0), validate_args=False)
+    ref_dist2.probs = ref_dist2.probs + 1e-5
+    target_log_prob1 = ref_dist2.log_prob(target)
+
+    ref_dist3 = Categorical(probs=ref_dist1.probs.mean(dim=0), validate_args=False)
+    target_log_prob2 = ref_dist3.log_prob(target)
 
     log_prob1 = predictive_dist.log_prob_from_parameters(target, p1)
-    log_prob2 = predictive_dist.log_prob_from_parameters(target, p2)
+    log_prob2 = predictive_dist.log_prob_from_parameters(target, p2, eps=0.0)
     assert log_prob1.shape == (batch,)
-    assert torch.allclose(log_prob1, target_log_prob)
-    assert torch.allclose(log_prob2, target_log_prob)
+    assert torch.allclose(log_prob1, target_log_prob1)
+    assert torch.allclose(log_prob2, target_log_prob2)
