@@ -10,8 +10,10 @@ from vi import VIModule
 from vi.variational_distributions import MeanFieldNormalVarDist
 from mean_std_plot import sigma_weight_plot
 from random_sample_plot import plot_random_samples
+import time
 
 def torch_tutorial_MCD(input_length, hidden1, hidden2, output_length, batch_size, epochs) -> None:
+    start_time = time.time()
 
     df = pl.read_csv("data/ENTSOEEnergyLoads/de.csv",
         dtypes={"start": pl.Datetime, "end": pl.Datetime, "load": pl.Float32},
@@ -28,10 +30,12 @@ def torch_tutorial_MCD(input_length, hidden1, hidden2, output_length, batch_size
     train_dataloader = DataLoader(dataset=dataset_train, batch_size=batch_size, shuffle=True)
     test_dataloader = DataLoader(dataset=dataset_test, batch_size=batch_size, shuffle=True)
 
-    for x, y in test_dataloader:
-        print(f"Shape of X [N, H]: {x.shape}")
-        print(f"Shape of y [N, F]: {y.shape} {y.dtype}")
-        break
+    data_time = time.time() - start_time
+
+    #for x, y in test_dataloader:
+    #    print(f"Shape of X [N, H]: {x.shape}")
+    #    print(f"Shape of y [N, F]: {y.shape} {y.dtype}")
+    #    break
 
     # Get cpu, gpu or mps device for training.
     device = (
@@ -73,29 +77,38 @@ def torch_tutorial_MCD(input_length, hidden1, hidden2, output_length, batch_size
     #optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
     optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=0)
 
+    creation_model_time = time.time() - (start_time + data_time)
     def train(
         dataloader: DataLoader,
         model: VIModule,
         loss_fn: Callable,
         optimizer: torch.optim.Optimizer,
-    ) -> None:
+        forward_time: list,
+        backward_time: list,
+    ):
         size = len(dataloader.dataset)
         model.train()
         for batch, (x, y) in enumerate(dataloader):
             x, y = x.to(device), y.to(device)
 
+            stamp = time.time()
             # Compute prediction error
             pred = model(x)
+            forward_time.append(time.time() - stamp)
+            stamp = time.time()
+
             loss = loss_fn(pred, y)
 
             # Backpropagation
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
+            backward_time.append(time.time() - stamp)
 
             if batch % 100 == 0:
                 loss, current = loss.item(), (batch + 1) * len(x)
                 print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+        return forward_time, backward_time
 
     def test(dataloader: DataLoader, model: VIModule, loss_fn: Callable) -> None:
         size = len(dataloader.dataset)
@@ -113,11 +126,27 @@ def torch_tutorial_MCD(input_length, hidden1, hidden2, output_length, batch_size
             f"Test Error: Avg loss: {test_loss:>8f} \n"
         )
 
+    train_time = []
+    test_time = []
+    forward_time = []
+    backward_time = []
+    stamp = time.time()
+
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
-        train(train_dataloader, model, loss_fn, optimizer)
+        forward_time, backward_time = train(train_dataloader, model, loss_fn, optimizer, forward_time, backward_time)
+        train_time.append(time.time() - stamp)
+        stamp = time.time()
         test(test_dataloader, model, loss_fn)
+        test_time.append(time.time() - stamp)
+        stamp = time.time()
     print("Done!")
+    print("Data Preprocessing Time: " + str(data_time))
+    print("Model Creation Time: " + str(creation_model_time))
+    print("Total Training Time: " + str(sum(train_time)))
+    print("Training Time - Forward Pass: " + str(sum(forward_time)))
+    print("Training Time - Backward Pass: " + str(sum(backward_time)))
+    print("Total Test Time: " + str(sum(test_time)))
     for name, param in model.named_parameters():
         if param.requires_grad:
             if "log_std" in name:

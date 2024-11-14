@@ -3,7 +3,7 @@ import torch
 from vi import VIModule
 from torch.utils.data import DataLoader
 
-def plot_random_samples(model: VIModule, dataloader: DataLoader):
+def plot_random_samples(model, dataloader: DataLoader):
     num_batches = len(dataloader)
     random_batch = int(torch.randint(low = 0, high= num_batches-1, size = (1,)))
     model.eval()
@@ -15,6 +15,9 @@ def plot_random_samples(model: VIModule, dataloader: DataLoader):
             else:
                 break
 
+        #expanded = x.expand(10, *x.shape)
+        #forward_call = torch.vmap(model.forward, randomness="different")
+        #samples = forward_call(expanded)
         samples = model(x)
         mean_samples = samples.mean(dim=0)
         std_samples = torch.std(samples, dim=0)
