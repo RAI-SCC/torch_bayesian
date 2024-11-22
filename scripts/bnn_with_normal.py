@@ -10,8 +10,8 @@ from statsmodels.distributions.empirical_distribution import ECDF
 import os
 import vi
 from vi import VIModule
-from vi.priors import LaplacePrior, UniformPrior, MeanFieldNormalPrior, BasicQuietPrior, MixtureGaussianPrior
-from vi.variational_distributions import MeanFieldNormalVarDist, MixtureGaussianVarDist
+from vi.priors import UniformPrior, MeanFieldNormalPrior, BasicQuietPrior
+from vi.variational_distributions import MeanFieldNormalVarDist
 from vi.predictive_distributions import MeanFieldNormalPredictiveDistribution, StudentTwithDOFPredictiveDistribution, SkewNormalPredictiveDistribution
 from data_generator import CustomDataset, data_generator
 from statistics import mean
@@ -25,16 +25,16 @@ def set_all_seeds(seed):
 def bnn_with_normal() -> None:
     """Reimplement the pytorch quickstart tutorial with BNNs."""
     # Download training data from open datasets.
-    x_true, y_true, error_dist = data_generator(x_lims=[-20, 20], dist="student_t",  width=1.5, size=200000)
+    x_true, y_true, error_dist = data_generator(x_lims=[-20, 20], dist="gamma",  width=1.5, size=200000)
 
     dataset = CustomDataset(x_true, y_true)
-    x_train, y_train = dataset.__getitem__(10000, data_interval=[-18, 18])
+    x_train, y_train = dataset.__getitem__(100000, data_interval=[-18, 18])
     train_data = TensorDataset(x_train, y_train)
 
     x_test, y_test = dataset.__getitem__(1000, data_interval=[-20, 20])
     test_data = TensorDataset(x_test, y_test)
 
-    batch_size = 8
+    batch_size = 64
 
     # Create data loaders.
     train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True)
@@ -64,15 +64,15 @@ def bnn_with_normal() -> None:
             super().__init__()
 
             self.linear_relu_stack = vi.VISequential(
-                vi.VILinear(1, 2, prior=prior,
+                vi.VILinear(1, 32, prior=prior,
                             prior_initialization=prior_initialization, rescale_prior=rescale_prior,
                             variational_distribution=variational_distribution),
                 nn.ReLU(),
-                vi.VILinear(2, 2, prior=prior,
+                vi.VILinear(32, 32, prior=prior,
                             prior_initialization=prior_initialization, rescale_prior=rescale_prior,
                             variational_distribution=variational_distribution),
                 nn.ReLU(),
-                vi.VILinear(2, 1, prior=prior,
+                vi.VILinear(32, 1, prior=prior,
                             prior_initialization=prior_initialization, rescale_prior=rescale_prior,
                             variational_distribution=variational_distribution),
             )
@@ -92,7 +92,7 @@ def bnn_with_normal() -> None:
     #plt.show()
     print(model)
 
-    predictive_distribution = MeanFieldNormalPredictiveDistribution()
+    predictive_distribution = SkewNormalPredictiveDistribution()
     loss_fn = vi.KullbackLeiblerLoss(
         predictive_distribution, dataset_size=len(train_data)#, heat=0.1
     )
@@ -196,20 +196,38 @@ def bnn_with_normal() -> None:
     #plt.yscale('log')
     #plt.title("Loss")
     #plt.show()
-    #plt.scatter(x_train.detach().numpy(), y_train.detach().numpy(), s=7)
     y_pred = model(x_test.unsqueeze_(-1))
+    x_test = torch.squeeze(x_test)
+    x_test_sorted, indices = torch.sort(x_test)
 
-    #plt.scatter(x_test.detach().numpy(), y_pred[0].quantile(0.025, dim=0).detach().numpy(), alpha=0.5, s=3, c="y")
-    #plt.scatter(x_test.detach().numpy(), y_pred[0].quantile(0.975, dim=0).detach().numpy(), alpha=0.5, s=3, c="y")
-    #plt.scatter(x_test.detach().numpy(), y_pred[0].mean(dim=0).detach().numpy(), s=5, c="r")
-    #plt.plot([],[], label="prediction", color="r")
-    #plt.plot([], [], label="confidence interval", color="y")
-    #plt.legend(prop={'size': 15})
-    #plt.show()
+    x_test_sorted = x_test_sorted.detach().numpy()
+    y_pred_lower = np.squeeze(np.squeeze(y_pred[0].quantile(0.025, dim=0))[indices].detach().numpy())
+
+    #y_pred_lower = np.squeeze(y_pred_lower.detach().numpy())
+    y_pred_upper = np.squeeze(np.squeeze(y_pred[0].quantile(0.975, dim=0))[indices].detach().numpy())
+
+    plt.scatter(x_train.detach().numpy(), y_train.detach().numpy(), s=3, color='#1f77b4')
+
+    plt.plot(x_test_sorted, y_pred_lower, c='#bcbd22')
+    plt.plot(x_test_sorted, y_pred_upper, c='#bcbd22')
+    plt.fill_between(x_test_sorted, y_pred_lower, y_pred_upper, alpha=0.7, color='#bcbd22')
+
+    plt.scatter(x_test.detach().numpy(), y_pred[0].mean(dim=0).detach().numpy(), s=5, c='#d62728')
+    plt.scatter([], [], color='#1f77b4', s=20, label="training data")
+    plt.plot([],[], label="prediction", color='#d62728')
+    plt.plot([], [], label="confidence interval", color='#bcbd22')
+
+    plt.legend(prop={'size': 18})
+    plt.show()
     print("Done!")
+    return x_train, y_train, x_test, y_pred
 
 
 if __name__ == "__main__":
     # Set seeds for reproducibility
     set_all_seeds(1)
-    bnn_with_normal()
+    x_train, y_train, x_test, y_pred = bnn_with_normal()
+    #torch.save(x_train, "x_train.pt")
+    #torch.save(y_train, "y_train.pt")
+    #torch.save(x_test, "x_test.pt")
+    #torch.save(y_pred, "y_pred.pt")
