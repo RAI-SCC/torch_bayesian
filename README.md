@@ -17,7 +17,7 @@ We heavily recommend installing ``torch_bayesian`` in a dedicated `Python3.8+`
 ``torch_bayesian`` directly from the GitHub repository via:
 
 ```console
-$ pip install git+https://github.com/RAI-SCC/vi
+$ pip install git+https://github.com/RAI-SCC/torch_bayesian
 ```
 
 Alternatively, you can install ``torch_bayesian`` locally. To achieve this, there are two steps you
@@ -26,7 +26,7 @@ need to follow:
 1. Clone the repository
 
 ```console
-$ git clone https://github.com/RAI-SCC/vi
+$ git clone https://github.com/RAI-SCC/torch_bayesian
 ```
 
 2. Install the code locally
