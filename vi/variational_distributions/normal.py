@@ -9,7 +9,7 @@ from .base import VariationalDistribution
 class MeanFieldNormalVarDist(VariationalDistribution):
     """Variational distribution with uncorrelated, normal distributions."""
 
-    def __init__(self, initial_std: float = 0.05) -> None:
+    def __init__(self, initial_std: float = 1.0) -> None:
         super().__init__()
         self.variational_parameters = ("mean", "log_std")
         self._default_variational_parameters = (0.0, log(initial_std))
