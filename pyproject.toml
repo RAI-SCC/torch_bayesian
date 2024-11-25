@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = [
+    "torch_bayesian",
     "torch_bayesian.vi",
     "torch_bayesian.vi.predictive_distributions",
     "torch_bayesian.vi.priors",
@@ -43,7 +44,7 @@ scripts = [
 
 [tool.mypy]
 python_version = "3.8"
-modules = ["vi"]
+modules = ["torch_bayesian"]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 files = [
