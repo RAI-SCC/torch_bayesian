@@ -1,7 +1,7 @@
 import torch
 from torch.nn import Module, Parameter
 
-from vi.utils import init
+from torch_bayesian.vi.utils import init
 
 
 def test_fixed() -> None:

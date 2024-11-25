@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 from torch.nn import Linear, Module, Parameter
 
-from vi.variational_distributions import VariationalDistribution
+from torch_bayesian.vi.variational_distributions import VariationalDistribution
 
 
 def test_parameter_checking() -> None:

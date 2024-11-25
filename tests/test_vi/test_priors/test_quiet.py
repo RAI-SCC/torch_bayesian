@@ -3,7 +3,7 @@ from math import log
 import torch
 from torch.nn import Module, Parameter
 
-from vi.priors import BasicQuietPrior
+from torch_bayesian.vi.priors import BasicQuietPrior
 
 
 def test_log_prob() -> None:

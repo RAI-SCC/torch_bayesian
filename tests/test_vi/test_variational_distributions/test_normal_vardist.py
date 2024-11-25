@@ -1,7 +1,7 @@
 import torch
 from torch.distributions import Normal
 
-from vi.variational_distributions import MeanFieldNormalVarDist
+from torch_bayesian.vi.variational_distributions import MeanFieldNormalVarDist
 
 
 def test_normal_sample() -> None:

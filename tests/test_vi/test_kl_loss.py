@@ -2,8 +2,10 @@ from warnings import filterwarnings
 
 import torch
 
-from vi import KullbackLeiblerLoss
-from vi.predictive_distributions import MeanFieldNormalPredictiveDistribution
+from torch_bayesian.vi import KullbackLeiblerLoss
+from torch_bayesian.vi.predictive_distributions import (
+    MeanFieldNormalPredictiveDistribution,
+)
 
 
 def test_kl_loss() -> None:

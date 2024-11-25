@@ -3,7 +3,7 @@ from typing import Tuple
 import torch
 from torch import Tensor
 
-from vi.predictive_distributions import PredictiveDistribution
+from torch_bayesian.vi.predictive_distributions import PredictiveDistribution
 
 
 def test_parameter_checking() -> None:

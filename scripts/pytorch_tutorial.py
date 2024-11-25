@@ -6,9 +6,9 @@ from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 
-import vi
-from vi import VIModule
-from vi.predictive_distributions import CategoricalPredictiveDistribution
+from torch_bayesian import vi
+from torch_bayesian.vi import VIModule
+from torch_bayesian.vi.predictive_distributions import CategoricalPredictiveDistribution
 
 
 def torch_tutorial() -> None:

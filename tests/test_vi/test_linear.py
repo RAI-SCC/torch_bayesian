@@ -3,8 +3,8 @@ from math import exp
 import torch
 from torch import Tensor
 
-from vi import VILinear
-from vi.priors import MeanFieldNormalPrior
+from torch_bayesian.vi import VILinear
+from torch_bayesian.vi.priors import MeanFieldNormalPrior
 
 
 def test_vilinear() -> None:

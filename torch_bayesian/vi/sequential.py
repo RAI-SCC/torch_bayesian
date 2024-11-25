@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 from torch.nn import Module, Sequential
 
-from vi import VIModule
+from .base import VIModule
 
 
 class VISequential(VIModule, Sequential):

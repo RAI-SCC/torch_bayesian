@@ -2,8 +2,10 @@ import torch
 from matplotlib import pyplot as plt
 from torch.optim import Adam
 
-from vi import KullbackLeiblerLoss, VILinear
-from vi.predictive_distributions import MeanFieldNormalPredictiveDistribution
+from torch_bayesian.vi import KullbackLeiblerLoss, VILinear
+from torch_bayesian.vi.predictive_distributions import (
+    MeanFieldNormalPredictiveDistribution,
+)
 
 
 def test_overfitting() -> None:

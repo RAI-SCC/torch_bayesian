@@ -4,20 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = [
-    "vi",
-    "vi.predictive_distributions",
-    "vi.priors",
-    "vi.utils",
-    "vi.variational_distributions"
+    "torch_bayesian.vi",
+    "torch_bayesian.vi.predictive_distributions",
+    "torch_bayesian.vi.priors",
+    "torch_bayesian.vi.utils",
+    "torch_bayesian.vi.variational_distributions"
 ]
 
 [project]
-name = "vi"
+name = "torch_bayesian"
 version = "0.0.1"
 authors = [
   { name="RAI", email="rai@kit.edu"},
 ]
-description = "Library for BNNs trained with Variational Inference"
+description = "Library for BNNs"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [

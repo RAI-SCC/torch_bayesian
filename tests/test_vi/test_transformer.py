@@ -5,7 +5,7 @@ from pytest import mark, raises
 from torch import nn
 from torch.nn import functional as F  # noqa: N812
 
-from vi import (
+from torch_bayesian.vi import (
     VIBaseModule,
     VILinear,
     VIModule,
@@ -16,8 +16,11 @@ from vi import (
     VITransformerEncoder,
     VITransformerEncoderLayer,
 )
-from vi.priors import MeanFieldNormalPrior, Prior
-from vi.variational_distributions import MeanFieldNormalVarDist, VariationalDistribution
+from torch_bayesian.vi.priors import MeanFieldNormalPrior, Prior
+from torch_bayesian.vi.variational_distributions import (
+    MeanFieldNormalVarDist,
+    VariationalDistribution,
+)
 
 
 def test_multiheadattention() -> None:

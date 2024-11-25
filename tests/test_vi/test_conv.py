@@ -1,9 +1,9 @@
 import torch
 
-from vi import VIConv1d, VIConv2d, VIConv3d
-from vi.conv import _VIConvNd
-from vi.priors import MeanFieldNormalPrior
-from vi.variational_distributions import MeanFieldNormalVarDist
+from torch_bayesian.vi import VIConv1d, VIConv2d, VIConv3d
+from torch_bayesian.vi.conv import _VIConvNd
+from torch_bayesian.vi.priors import MeanFieldNormalPrior
+from torch_bayesian.vi.variational_distributions import MeanFieldNormalVarDist
 
 
 # Since these are basically copied from torch 2.4 testing is limited

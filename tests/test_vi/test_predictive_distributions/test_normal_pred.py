@@ -1,7 +1,9 @@
 import torch
 from torch.distributions import Normal
 
-from vi.predictive_distributions import MeanFieldNormalPredictiveDistribution
+from torch_bayesian.vi.predictive_distributions import (
+    MeanFieldNormalPredictiveDistribution,
+)
 
 
 def test_normal_predictive_distribution() -> None:

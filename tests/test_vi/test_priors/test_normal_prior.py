@@ -4,7 +4,7 @@ import torch
 from torch.distributions import Normal
 from torch.nn import Module, Parameter
 
-from vi.priors import MeanFieldNormalPrior
+from torch_bayesian.vi.priors import MeanFieldNormalPrior
 
 
 def test_log_prob() -> None:

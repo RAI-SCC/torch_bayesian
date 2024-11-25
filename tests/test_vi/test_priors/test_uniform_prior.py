@@ -1,6 +1,6 @@
 import torch
 
-from vi.priors import UniformPrior
+from torch_bayesian.vi.priors import UniformPrior
 
 
 def test_log_prob() -> None:

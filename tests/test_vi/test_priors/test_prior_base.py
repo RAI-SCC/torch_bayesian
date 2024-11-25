@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from vi.priors import Prior
+from torch_bayesian.vi.priors import Prior
 
 
 def test_parameter_checking() -> None:

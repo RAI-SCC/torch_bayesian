@@ -7,9 +7,9 @@ import torch
 from torch import Tensor
 from torch.nn import Module
 
-from vi import VIBaseModule, VIModule
-from vi.priors import Prior
-from vi.variational_distributions import VariationalDistribution
+from torch_bayesian.vi import VIBaseModule, VIModule
+from torch_bayesian.vi.priors import Prior
+from torch_bayesian.vi.variational_distributions import VariationalDistribution
 
 
 def test_expand_to_samples() -> None:
@@ -235,7 +235,7 @@ def test_get_log_probs() -> None:
 
 def test_log_prob_setting() -> None:
     """Test setting of _return_log_probs with VIModule.return_log_probs."""
-    from vi import VILinear
+    from torch_bayesian.vi import VILinear
 
     in_features = 3
     out_features = 5

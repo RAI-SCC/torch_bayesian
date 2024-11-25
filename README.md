@@ -1,6 +1,4 @@
-from vi import VIModule
-
-# vi - Easy Variational Inference
+# torch_bayesian - Easy Variational Inference
 
 This package provides a simple way for non-expert users to implement and train Bayesian
 Neural Networks (BNNs) with Variational Inference (VI). To make this as easy as possible
@@ -14,15 +12,15 @@ most components mirror components from [pytorch](https://pytorch.org/docs/stable
 
 ## Installation
 
-We heavily recommend installing ``vi`` in a dedicated `Python3.8+`
+We heavily recommend installing ``torch_bayesian`` in a dedicated `Python3.8+`
 [virtual environment](https://docs.python.org/3/library/venv.html). You can install
-``vi`` directly from the GitHub repository via:
+``torch_bayesian`` directly from the GitHub repository via:
 
 ```console
 $ pip install git+https://github.com/RAI-SCC/vi
 ```
 
-Alternatively, you can install ``vi`` locally. To achieve this, there are two steps you
+Alternatively, you can install ``torch_bayesian`` locally. To achieve this, there are two steps you
 need to follow:
 
 1. Clone the repository
@@ -51,7 +49,7 @@ $ pip install -e .[scripts]
 ```
 
 
-## Quickstart
+## Quickstart to `torch_bayesian.vi`
 
 This Quickstart guide assumes basic familiarity with [pytorch](https://pytorch.org/docs/stable/index.html)
 and knowledge of how to implement the intended model in it. For a (potentially familiar)
@@ -161,8 +159,8 @@ returning log probs you can just add them. Generally, this will follow the patte
 ```python
 from torch import Tensor
 
-from vi import VIModule
-from vi.utils.common_types import VIReturn
+from torch_bayesian.vi import VIModule
+from torch_bayesian.vi.utils.common_types import VIReturn
 
 
 class VINetwork(VIModule):

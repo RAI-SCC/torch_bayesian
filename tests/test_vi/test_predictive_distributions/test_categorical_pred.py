@@ -1,7 +1,7 @@
 import torch
 from torch.distributions import Categorical
 
-from vi.predictive_distributions import CategoricalPredictiveDistribution
+from torch_bayesian.vi.predictive_distributions import CategoricalPredictiveDistribution
 
 
 def test_categorical_predictive_distribution() -> None:
