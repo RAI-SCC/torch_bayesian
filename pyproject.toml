@@ -36,6 +36,9 @@ dev = [
     "pytest",
     "coverage",
 ]
+plotting = [
+    "matplotlib",
+]
 scripts = [
     "matplotlib",
     "torchvision",

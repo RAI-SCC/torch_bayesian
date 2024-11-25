@@ -1,6 +1,7 @@
 from typing import Callable
 
 import torch
+from matplotlib import pyplot as plt
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from torchvision import datasets
@@ -9,6 +10,7 @@ from torchvision.transforms import ToTensor
 import vi
 from vi import VIModule
 from vi.predictive_distributions import CategoricalPredictiveDistribution
+from vi.utils.weight_plots import aggregate_by_variable_and_parameter, plot_weights
 
 
 def torch_tutorial() -> None:
@@ -90,7 +92,7 @@ def torch_tutorial() -> None:
             x, y = x.to(device), y.to(device)
 
             # Compute prediction error
-            pred = model(x)
+            pred = model(x, samples=3)
             loss = loss_fn(pred, y)
 
             # Backpropagation
@@ -126,6 +128,9 @@ def torch_tutorial() -> None:
     epochs = 5
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
+        weight_dict = aggregate_by_variable_and_parameter(model.state_dict())
+        fig, _ = plot_weights(weight_dict)
+        plt.show()
         train(train_dataloader, model, loss_fn, optimizer)
         test(test_dataloader, model, loss_fn)
     print("Done!")
