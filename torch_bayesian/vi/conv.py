@@ -8,7 +8,7 @@ from torch.nn.modules.utils import _pair, _reverse_repeat_tuple, _single, _tripl
 
 from .base import VIBaseModule
 from .priors import MeanFieldNormalPrior
-from .utils.common_types import VIReturn, _prior_any_t, _vardist_any_t
+from .utils.common_types import VIReturn, _prior_any_t, _vardist_any_t, _VIkwargs
 from .variational_distributions import MeanFieldNormalVarDist
 
 
@@ -61,12 +61,23 @@ class _VIConvNd(VIBaseModule):
         variational_distribution: _vardist_any_t,
         prior: _prior_any_t,
         rescale_prior: bool = False,
+        kaiming_initialization: bool = True,
         prior_initialization: bool = False,
         return_log_probs: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
-        factory_kwargs = {"device": device, "dtype": dtype}
+        vikwargs: _VIkwargs = dict(
+            variational_distribution=variational_distribution,
+            prior=prior,
+            rescale_prior=rescale_prior,
+            kaiming_initialization=kaiming_initialization,
+            prior_initialization=prior_initialization,
+            return_log_probs=return_log_probs,
+            device=device,
+            dtype=dtype,
+        )
+
         if groups <= 0:
             raise ValueError("groups must be a positive integer")
         if in_channels % groups != 0:
@@ -136,15 +147,7 @@ class _VIConvNd(VIBaseModule):
         else:
             self.random_variables = ("weight",)
 
-        super().__init__(
-            variable_shapes=variable_shapes,
-            variational_distribution=variational_distribution,
-            prior=prior,
-            rescale_prior=rescale_prior,
-            prior_initialization=prior_initialization,
-            return_log_probs=return_log_probs,
-            **factory_kwargs,
-        )
+        super().__init__(variable_shapes=variable_shapes, **vikwargs)
 
     def __setstate__(self, state: Any) -> None:
         super().__setstate__(state)
@@ -196,12 +199,22 @@ class VIConv1d(_VIConvNd):
         variational_distribution: _vardist_any_t = MeanFieldNormalVarDist(),
         prior: _prior_any_t = MeanFieldNormalPrior(),
         rescale_prior: bool = False,
+        kaiming_initialization: bool = True,
         prior_initialization: bool = False,
         return_log_probs: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
-        factory_kwargs = {"device": device, "dtype": dtype}
+        vikwargs: _VIkwargs = dict(
+            variational_distribution=variational_distribution,
+            prior=prior,
+            rescale_prior=rescale_prior,
+            kaiming_initialization=kaiming_initialization,
+            prior_initialization=prior_initialization,
+            return_log_probs=return_log_probs,
+            device=device,
+            dtype=dtype,
+        )
         # we create new variables below to make mypy happy since kernel_size has
         # type Union[int, Tuple[int]] and kernel_size_ has type Tuple[int]
         kernel_size_ = _single(kernel_size)
@@ -220,12 +233,7 @@ class VIConv1d(_VIConvNd):
             groups,
             bias,
             padding_mode,
-            variational_distribution,
-            prior,
-            rescale_prior,
-            prior_initialization,
-            return_log_probs,
-            **factory_kwargs,
+            **vikwargs,
         )
 
     def _conv_forward(
@@ -328,12 +336,22 @@ class VIConv2d(_VIConvNd):
         variational_distribution: _vardist_any_t = MeanFieldNormalVarDist(),
         prior: _prior_any_t = MeanFieldNormalPrior(),
         rescale_prior: bool = False,
+        kaiming_initialization: bool = True,
         prior_initialization: bool = False,
         return_log_probs: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
-        factory_kwargs = {"device": device, "dtype": dtype}
+        vikwargs: _VIkwargs = dict(
+            variational_distribution=variational_distribution,
+            prior=prior,
+            rescale_prior=rescale_prior,
+            kaiming_initialization=kaiming_initialization,
+            prior_initialization=prior_initialization,
+            return_log_probs=return_log_probs,
+            device=device,
+            dtype=dtype,
+        )
         kernel_size_ = _pair(kernel_size)
         stride_ = _pair(stride)
         padding_ = padding if isinstance(padding, str) else _pair(padding)
@@ -350,12 +368,7 @@ class VIConv2d(_VIConvNd):
             groups,
             bias,
             padding_mode,
-            variational_distribution,
-            prior,
-            rescale_prior,
-            prior_initialization,
-            return_log_probs,
-            **factory_kwargs,
+            **vikwargs,
         )
 
     def _conv_forward(
@@ -458,12 +471,22 @@ class VIConv3d(_VIConvNd):
         variational_distribution: _vardist_any_t = MeanFieldNormalVarDist(),
         prior: _prior_any_t = MeanFieldNormalPrior(),
         rescale_prior: bool = False,
+        kaiming_initialization: bool = True,
         prior_initialization: bool = False,
         return_log_probs: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
-        factory_kwargs = {"device": device, "dtype": dtype}
+        vikwargs: _VIkwargs = dict(
+            variational_distribution=variational_distribution,
+            prior=prior,
+            rescale_prior=rescale_prior,
+            kaiming_initialization=kaiming_initialization,
+            prior_initialization=prior_initialization,
+            return_log_probs=return_log_probs,
+            device=device,
+            dtype=dtype,
+        )
         kernel_size_ = _triple(kernel_size)
         stride_ = _triple(stride)
         padding_ = padding if isinstance(padding, str) else _triple(padding)
@@ -480,12 +503,7 @@ class VIConv3d(_VIConvNd):
             groups,
             bias,
             padding_mode,
-            variational_distribution,
-            prior,
-            rescale_prior,
-            prior_initialization,
-            return_log_probs,
-            **factory_kwargs,
+            **vikwargs,
         )
 
     def _conv_forward(

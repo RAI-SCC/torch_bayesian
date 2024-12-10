@@ -6,7 +6,7 @@ from torch.nn import functional as F  # noqa: N812
 
 from .base import VIBaseModule
 from .priors import MeanFieldNormalPrior
-from .utils.common_types import VIReturn, _prior_any_t, _vardist_any_t
+from .utils.common_types import VIReturn, _prior_any_t, _vardist_any_t, _VIkwargs
 from .variational_distributions import MeanFieldNormalVarDist
 
 
@@ -52,12 +52,22 @@ class VILinear(VIBaseModule):
         prior: _prior_any_t = MeanFieldNormalPrior(),
         bias: bool = True,
         rescale_prior: bool = False,
+        kaiming_initialization: bool = True,
         prior_initialization: bool = False,
         return_log_probs: bool = True,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
-        factory_kwargs = {"device": device, "dtype": dtype}
+        vikwargs: _VIkwargs = dict(
+            variational_distribution=variational_distribution,
+            prior=prior,
+            rescale_prior=rescale_prior,
+            kaiming_initialization=kaiming_initialization,
+            prior_initialization=prior_initialization,
+            return_log_probs=return_log_probs,
+            device=device,
+            dtype=dtype,
+        )
         self.in_features = in_features
         self.out_features = out_features
 
@@ -71,15 +81,7 @@ class VILinear(VIBaseModule):
             bias=(out_features,),
         )
 
-        super().__init__(
-            variable_shapes=variable_shapes,
-            variational_distribution=variational_distribution,
-            prior=prior,
-            rescale_prior=rescale_prior,
-            prior_initialization=prior_initialization,
-            return_log_probs=return_log_probs,
-            **factory_kwargs,
-        )
+        super().__init__(variable_shapes=variable_shapes, **vikwargs)
 
     def forward(self, input_: Tensor) -> VIReturn[Tensor]:
         """

@@ -309,6 +309,7 @@ class VIBaseModule(VIModule):
         variational_distribution: _vardist_any_t,
         prior: _prior_any_t,
         rescale_prior: bool = False,
+        kaiming_initialization: bool = True,
         prior_initialization: bool = False,
         return_log_probs: bool = True,
         device: Optional[torch.device] = None,
@@ -341,6 +342,7 @@ class VIBaseModule(VIModule):
             for prior in self.prior:
                 prior.kaiming_rescale(fan_in)
 
+        self._kaiming_init = kaiming_initialization
         self._rescale_prior = rescale_prior
         self._prior_init = prior_initialization
         self._return_log_probs = return_log_probs
@@ -372,7 +374,7 @@ class VIBaseModule(VIModule):
         for variable, vardist, prior in zip(
             self.random_variables, self.variational_distribution, self.prior
         ):
-            vardist.reset_parameters(self, variable, fan_in)
+            vardist.reset_parameters(self, variable, fan_in, self._kaiming_init)
             if self._prior_init:
                 prior.reset_parameters(self, variable)
 

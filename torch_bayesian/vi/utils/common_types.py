@@ -20,8 +20,9 @@ VIReturn = Union[T, _log_prob_return_format[T]]
 class _VIkwargs(TypedDict):
     variational_distribution: _vardist_any_t
     prior: _prior_any_t
-    prior_initialization: bool
     rescale_prior: bool
+    kaiming_initialization: bool
+    prior_initialization: bool
     return_log_probs: bool
     device: Optional[torch.device]
     dtype: Optional[torch.dtype]
