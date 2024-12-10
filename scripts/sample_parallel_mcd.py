@@ -13,6 +13,9 @@ from random_sample_plot import plot_random_samples
 from mpi4py import MPI
 import numpy as np
 sampling_state = None
+train_loss_list = []
+test_loss_list = []
+import matplotlib.pyplot as plt
 
 def check_variable_consistency(value, want_difference):
     comm = MPI.COMM_WORLD
@@ -45,15 +48,17 @@ def test_same_current_model(model):
         check_variable_consistency(param, False)
     return
 
-
-
 def sample_parallel_mcd(input_length, hidden1, hidden2, output_length, batch_size, epochs) -> None:
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     world_size = comm.Get_size()
-    enable_tests = True
+    enable_tests = False
 
     global sampling_state
+    global train_loss_list
+    global test_loss_list
+    train_loss_list = []
+    test_loss_list = []
     sampling_state = None
 
     df = pl.read_csv("data/ENTSOEEnergyLoads/de.csv",
@@ -115,6 +120,7 @@ def sample_parallel_mcd(input_length, hidden1, hidden2, output_length, batch_siz
         optimizer: torch.optim.Optimizer,
     ):
         global sampling_state
+        global train_loss_list
         #size = len(dataloader.dataset)
         model.train()
         for batch, (x, y) in enumerate(dataloader):
@@ -158,6 +164,8 @@ def sample_parallel_mcd(input_length, hidden1, hidden2, output_length, batch_siz
             optimizer.step()
             optimizer.zero_grad()
 
+        train_loss_list.append(loss.item())
+
 
            # if batch % 100 == 0:
            #     loss, current = loss.item(), (batch + 1) * len(x)
@@ -169,6 +177,7 @@ def sample_parallel_mcd(input_length, hidden1, hidden2, output_length, batch_siz
         model.eval()
         test_loss = 0.0
         global sampling_state
+        global test_loss_list
         with torch.no_grad():
             for x, y in dataloader:
                 if enable_tests:
@@ -200,26 +209,116 @@ def sample_parallel_mcd(input_length, hidden1, hidden2, output_length, batch_siz
                 test_loss += loss_fn(samples, y).item()
 
         test_loss /= num_batches
+        test_loss_list.append(test_loss)
         print(
             f"Test Error: Avg loss: {test_loss:>8f} \n"
         )
 
+    def random_plot(dataloader: DataLoader, model: VIModule) -> None:
+        global sampling_state
+        num_batches = len(dataloader)
+        random_batch = int(torch.randint(low=0, high=num_batches - 1, size=(1,)))
+        model.eval()
+        with torch.no_grad():
+            n = 0
+            for x, y in dataloader:
+                if n < random_batch:
+                    n += 1
+                else:
+                    break
+            if enable_tests:
+                test_same_data_load(x, y)
+            x, y = x.to(device), y.to(device)
+            regular_state = torch.get_rng_state()
+            if sampling_state == None:
+                torch.manual_seed(rank)
+            else:
+                torch.set_rng_state(sampling_state)
+            if enable_tests:
+                test_same_current_model(model)
+            samples = model(x)
+            if enable_tests:
+                test_different_samples(samples)
+            sampling_state = torch.get_rng_state()
+            torch.set_rng_state(regular_state)
+
+            samples_sq = torch.mean(samples,0)
+            samples_numpy = samples_sq.numpy()
+
+            # Create an array to hold the averaged gradients
+            samples_global = np.zeros_like(samples_numpy)
+            comm.Allreduce(samples_numpy, samples_global, op=MPI.SUM)
+
+            mean_samples = samples_global/world_size
+            squared_diff = (samples_numpy-mean_samples) ** 2
+            squared_diff_global = np.zeros_like(squared_diff)
+            comm.Allreduce(squared_diff, squared_diff_global, op=MPI.SUM)
+            variance = squared_diff_global / world_size
+            std_samples = np.sqrt(variance)
+
+            num_samples = y.shape[0]
+            random_sample = int(torch.randint(low=0, high=num_samples - 1, size=(1,)))
+            mean = mean_samples[random_sample]
+            std = std_samples[random_sample]
+            real = y[random_sample]
+            in_mod = x[random_sample]
+            input_length = in_mod.shape[0]
+            output_length = real.shape[0]
+
+        if rank == 0:
+            plt.clf()
+            plt.plot(in_mod.numpy(), color="blue", label="inputs")
+            # plot outputs and ground truth behind input sequence
+            plt.plot(
+                range(input_length, input_length + output_length),
+                mean,
+                color="orange",
+                label="outputs",
+            )
+            plt.plot(
+                range(input_length, input_length + output_length),
+                real.numpy(),
+                color="green",
+                label="ground truth",
+            )
+            plt.legend()
+            plt.xticks(range(0, input_length + output_length, 2))
+            plt.fill_between(
+                range(input_length, input_length + output_length),
+                (torch.add(torch.from_numpy(mean), torch.from_numpy(std), alpha=1)).numpy(),
+                (torch.add(torch.from_numpy(mean), torch.from_numpy(std), alpha=-1)).numpy(),
+                color="orange",
+                alpha=0.1,
+            )
+            file_name = 'random_sample.png'
+            plt.savefig(file_name)
+
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
         train(train_dataloader, model, loss_fn, optimizer)
-
         test(test_dataloader, model, loss_fn)
 
+    random_plot(test_dataloader, model)
+
+    if rank == 0:
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                if "log_std" in name:
+                    #print(name)
+                    base = name.removesuffix('log_std')
+                    weight_layer_name = base + "mean"
+                    weight_param = dict(model.named_parameters())[weight_layer_name]
+                    sigma_weight_plot(weight_param, param, base)
+        plt.clf()
+        plt.plot(train_loss_list,
+        color="orange",
+        label="train loss",)
+        plt.plot(test_loss_list,
+        color="blue",
+        label="test loss",)
+        plt.xlabel("Epochs", fontsize=18)
+        plt.ylabel("MSE Loss", fontsize=18)
+        plt.legend()
+        plt.savefig("loss_curve.png")
+
     print("Done!")
-
-'''
-    for name, param in model.named_parameters():
-        if param.requires_grad:
-            if "log_std" in name:
-                base = name.removesuffix('log_std')
-                weight_layer_name = base + "mean"
-                weight_param = dict(model.named_parameters())[weight_layer_name]
-                sigma_weight_plot(weight_param, param, base)
-
-    plot_random_samples(model, test_dataloader)
-'''
