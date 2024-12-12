@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Dict, List, Optional
 from warnings import warn
 
 from torch import Tensor
@@ -27,6 +27,16 @@ class KullbackLeiblerLoss(Module):
         it must be provided to the forward method.
     heat: float
         Temperature in the sense of the Cold Posterior effect. Default: 1.
+    track: bool
+        Set True to track the loss components. The log is stored as a dictionary in
+        `self.log`. Loss history is stored for three components as lists accessible via
+        the respective keys:
+            data_fitting: data log likelihood
+            prior_matching: the Kullback-Leibler divergence of prior anc variational
+                distribution
+            log_probs: the raw prior and variational distribution log probabilities of
+                the sampled weights.
+        Default: False.
     """
 
     def __init__(
@@ -34,11 +44,35 @@ class KullbackLeiblerLoss(Module):
         predictive_distribution: PredictiveDistribution,
         dataset_size: Optional[int] = None,
         heat: float = 1.0,
+        track: bool = False,
     ) -> None:
         super().__init__()
         self.predictive_distribution = predictive_distribution
         self.dataset_size = dataset_size
         self.heat = heat
+        self._track = track
+
+        self.log: Optional[Dict[str, List[Tensor]]] = None
+        if self._track:
+            self._init_log()
+
+    def track(self, mode: bool = True) -> None:
+        """
+        Enable or disable loss tracking.
+
+        Any existing loss history is kept and continued if tracking is reenabled.
+
+        Parameters
+        ----------
+        mode: bool
+            If `True`, enable loss tracking if `False` disable it. Default: True.
+        """
+        if mode and self.log is None:
+            self._init_log()
+        self._track = mode
+
+    def _init_log(self) -> None:
+        self.log = dict(data_fitting=[], prior_matching=[], log_probs=[])
 
     def forward(
         self,
@@ -76,9 +110,10 @@ class KullbackLeiblerLoss(Module):
         mean_log_probs = log_probs.mean(dim=0)
         prior_matching = mean_log_probs[1] - mean_log_probs[0]
         # Sample average for predictive log prob is already done
-        data_fitting = self.predictive_distribution.log_prob_from_samples(
-            target, samples
-        ).sum()
+        data_fitting = (
+            -1
+            * self.predictive_distribution.log_prob_from_samples(target, samples).sum()
+        )
 
         if (dataset_size is None) and (self.dataset_size is None):
             warn(
@@ -88,4 +123,11 @@ class KullbackLeiblerLoss(Module):
         else:
             n_data = dataset_size or self.dataset_size
 
-        return -data_fitting + self.heat * prior_matching / n_data
+        prior_matching = self.heat * prior_matching / n_data
+
+        if self._track and self.log is not None:
+            self.log["data_fitting"].append(data_fitting)
+            self.log["prior_matching"].append(prior_matching)
+            self.log["log_probs"].append(mean_log_probs)
+
+        return data_fitting + prior_matching

@@ -31,6 +31,8 @@ def test_kl_loss() -> None:
 
     out1 = loss1(model_return, target, dataset_size=sample_nr)
     assert out1.shape == ()
+    assert loss1.log is None
+    assert not loss1._track
 
     loss2 = KullbackLeiblerLoss(
         MeanFieldNormalPredictiveDistribution(), dataset_size=sample_nr
@@ -56,3 +58,31 @@ def test_kl_loss() -> None:
     filterwarnings("ignore", category=UserWarning)
     out6 = loss1(model_return, target)
     assert out1 == out6
+
+    loss5 = KullbackLeiblerLoss(
+        MeanFieldNormalPredictiveDistribution(), dataset_size=sample_nr, track=True
+    )
+
+    assert loss5.log is not None
+    assert loss5._track
+
+    loss1.track()
+    assert loss1.log is not None
+    assert loss1._track
+
+    for key in ["data_fitting", "prior_matching", "log_probs"]:
+        assert loss1.log[key] == []
+        assert loss5.log[key] == []
+
+    loss1(model_return, target, dataset_size=sample_nr)
+    loss5(model_return, target, dataset_size=sample_nr)
+
+    for key in ["data_fitting", "prior_matching", "log_probs"]:
+        assert len(loss1.log[key]) == 1
+        assert len(loss5.log[key]) == 1
+        assert (loss1.log[key][0] == loss5.log[key][0]).all()
+
+    assert (
+        loss1.log["log_probs"][0][1] - loss1.log["log_probs"][0][0]
+    ) / sample_nr == loss1.log["prior_matching"][0]
+    assert loss1.log["data_fitting"][0] + loss1.log["prior_matching"][0] == out1
