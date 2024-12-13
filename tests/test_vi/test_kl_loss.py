@@ -85,7 +85,11 @@ def test_kl_loss() -> None:
     for key in ["data_fitting", "prior_matching", "log_probs"]:
         assert len(loss1.log[key]) == 1
         assert len(loss5.log[key]) == 1
-        assert (loss1.log[key][0] == loss5.log[key][0]).all()
+        comp = loss1.log[key][0] == loss5.log[key][0]
+        if isinstance(comp, bool):
+            assert comp
+        else:
+            assert comp.all()
 
     assert loss1.log["log_probs"][0][1] - loss1.log["log_probs"][0][0] == ref_kl_term
     assert loss1.log["data_fitting"][0] + loss1.log["prior_matching"][0] == out1

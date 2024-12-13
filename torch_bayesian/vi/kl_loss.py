@@ -127,8 +127,8 @@ class KullbackLeiblerLoss(Module):
         )
 
         if self._track and self.log is not None:
-            self.log["data_fitting"].append(data_fitting)
-            self.log["prior_matching"].append(prior_matching)
-            self.log["log_probs"].append(mean_log_probs)
+            self.log["data_fitting"].append(data_fitting.item())
+            self.log["prior_matching"].append(prior_matching.item())
+            self.log["log_probs"].append(mean_log_probs.clone().detach())
 
         return data_fitting + prior_matching
