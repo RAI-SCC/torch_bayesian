@@ -108,12 +108,6 @@ class KullbackLeiblerLoss(Module):
         samples, log_probs = model_output
         # Average log probs separately and calculate prior matching term
         mean_log_probs = log_probs.mean(dim=0)
-        prior_matching = mean_log_probs[1] - mean_log_probs[0]
-        # Sample average for predictive log prob is already done
-        data_fitting = (
-            -1
-            * self.predictive_distribution.log_prob_from_samples(target, samples).sum()
-        )
 
         if (dataset_size is None) and (self.dataset_size is None):
             warn(
@@ -123,7 +117,14 @@ class KullbackLeiblerLoss(Module):
         else:
             n_data = dataset_size or self.dataset_size
 
-        prior_matching = self.heat * prior_matching / n_data
+        prior_matching = self.heat * (mean_log_probs[1] - mean_log_probs[0])
+        # Sample average for predictive log prob is already done
+        data_fitting = (
+            -n_data
+            * self.predictive_distribution.log_prob_from_samples(target, samples)
+            .mean(0)
+            .sum()
+        )
 
         if self._track and self.log is not None:
             self.log["data_fitting"].append(data_fitting)

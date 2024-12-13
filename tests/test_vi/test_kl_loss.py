@@ -1,6 +1,7 @@
 from warnings import filterwarnings
 
 import torch
+from pytest import warns
 
 from torch_bayesian.vi import KullbackLeiblerLoss
 from torch_bayesian.vi.predictive_distributions import (
@@ -11,7 +12,7 @@ from torch_bayesian.vi.predictive_distributions import (
 def test_kl_loss() -> None:
     """Test Kullback-LeiblerLoss."""
     sample_nr = 8
-    sample_shape = (5,)
+    sample_shape = (5, 3)
     samples = torch.randn((sample_nr, *sample_shape))
     log_probs = torch.randn((sample_nr, 2))
     target = torch.randn(sample_shape)
@@ -19,17 +20,21 @@ def test_kl_loss() -> None:
     model_return = samples, log_probs
 
     loss1 = KullbackLeiblerLoss(MeanFieldNormalPredictiveDistribution())
-    filterwarnings("error")
-    try:
+    with warns(
+        UserWarning,
+        match=f"No dataset_size is provided. Number of samples \({sample_nr}\) is used instead.",
+    ):
         _ = loss1(model_return, target)
-        raise AssertionError
-    except UserWarning as e:
-        assert (
-            str(e)
-            == f"No dataset_size is provided. Number of samples ({sample_nr}) is used instead."
-        )
 
     out1 = loss1(model_return, target, dataset_size=sample_nr)
+    ref_data_fit = (
+        -sample_nr
+        * loss1.predictive_distribution.log_prob_from_samples(target, samples)
+        .mean(0)
+        .sum()
+    )
+    ref_kl_term = log_probs.mean(0)[1] - log_probs.mean(0)[0]
+    assert out1 == ref_data_fit + ref_kl_term
     assert out1.shape == ()
     assert loss1.log is None
     assert not loss1._track
@@ -82,7 +87,5 @@ def test_kl_loss() -> None:
         assert len(loss5.log[key]) == 1
         assert (loss1.log[key][0] == loss5.log[key][0]).all()
 
-    assert (
-        loss1.log["log_probs"][0][1] - loss1.log["log_probs"][0][0]
-    ) / sample_nr == loss1.log["prior_matching"][0]
+    assert loss1.log["log_probs"][0][1] - loss1.log["log_probs"][0][0] == ref_kl_term
     assert loss1.log["data_fitting"][0] + loss1.log["prior_matching"][0] == out1
