@@ -12,12 +12,15 @@ from torch_bayesian.vi.predictive_distributions import (
 def test_kl_loss() -> None:
     """Test Kullback-LeiblerLoss."""
     sample_nr = 8
+    batch_size = 4
     sample_shape = (5, 3)
-    samples = torch.randn((sample_nr, *sample_shape))
+    samples = torch.randn((sample_nr, batch_size, *sample_shape))
     log_probs = torch.randn((sample_nr, 2))
-    target = torch.randn(sample_shape)
+    target = torch.randn([batch_size, *sample_shape])
 
     model_return = samples, log_probs
+    double_return = torch.cat([samples] * 2, dim=1), log_probs
+    double_target = torch.cat([target] * 2, dim=0)
 
     loss1 = KullbackLeiblerLoss(MeanFieldNormalPredictiveDistribution())
     with warns(
@@ -34,7 +37,7 @@ def test_kl_loss() -> None:
         .sum()
     )
     ref_kl_term = log_probs.mean(0)[1] - log_probs.mean(0)[0]
-    assert out1 == ref_data_fit + ref_kl_term
+    assert out1 == (ref_data_fit + ref_kl_term)
     assert out1.shape == ()
     assert loss1.log is None
     assert not loss1._track
@@ -93,3 +96,6 @@ def test_kl_loss() -> None:
 
     assert loss1.log["log_probs"][0][1] - loss1.log["log_probs"][0][0] == ref_kl_term
     assert loss1.log["data_fitting"][0] + loss1.log["prior_matching"][0] == out1
+
+    double_out = loss1(double_return, double_target, dataset_size=sample_nr)
+    assert double_out == out1
