@@ -1,14 +1,19 @@
 from math import log
 
 import torch
+from pytest import mark
 from torch.distributions import Normal
 from torch.nn import Module, Parameter
 
 from torch_bayesian.vi.priors import MeanFieldNormalPrior
+from torch_bayesian.vi.utils import use_norm_constants
 
 
-def test_log_prob() -> None:
+@mark.parametrize("norm_constants", [True, False])
+def test_log_prob(norm_constants: bool) -> None:
     """Test MeanFieldNormalPrior.log_prob."""
+    use_norm_constants(norm_constants)
+
     mean = 0.0
     std = 1.0
     prior = MeanFieldNormalPrior()
@@ -17,6 +22,9 @@ def test_log_prob() -> None:
     shape1 = (3, 4)
     sample = ref_dist.sample(shape1)
     ref1 = ref_dist.log_prob(sample)
+    if not norm_constants:
+        norm_const = torch.full(shape1, 2 * torch.pi).log() / 2
+        ref1 += norm_const
     log_prob1 = prior.log_prob(sample)
     assert (torch.isclose(ref1, log_prob1)).all()
 
@@ -28,6 +36,9 @@ def test_log_prob() -> None:
     shape2 = (6,)
     sample = ref_dist.sample(shape2)
     ref2 = ref_dist.log_prob(sample)
+    if not norm_constants:
+        norm_const = torch.full(shape2, 2 * torch.pi).log() / 2
+        ref2 += norm_const
     log_prob2 = prior.log_prob(sample)
     assert (torch.isclose(ref2, log_prob2)).all()
 

@@ -1,7 +1,10 @@
+from math import log
 from typing import Tuple
 
 import torch
 from torch import Tensor
+
+from torch_bayesian.vi import _globals
 
 from .base import PredictiveDistribution
 
@@ -26,5 +29,7 @@ class MeanFieldNormalPredictiveDistribution(PredictiveDistribution):
         mean, std = parameters
         variance = std**2
         data_fitting = (reference - mean) ** 2 / variance
-        normalization = torch.log(2 * torch.pi * variance)
+        normalization = torch.log(variance)
+        if _globals._USE_NORM_CONSTANTS:
+            normalization = normalization + log(2 * torch.pi)
         return -0.5 * (data_fitting + normalization)

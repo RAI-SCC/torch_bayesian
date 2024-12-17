@@ -1,20 +1,29 @@
 import torch
+from pytest import mark
 from torch.distributions import Normal
 
 from torch_bayesian.vi.predictive_distributions import (
     MeanFieldNormalPredictiveDistribution,
 )
+from torch_bayesian.vi.utils import use_norm_constants
 
 
-def test_normal_predictive_distribution() -> None:
+@mark.parametrize("norm_constants", [True, False])
+def test_normal_predictive_distribution(norm_constants: bool) -> None:
     """Test MeanFieldNormalPredictiveDistribution."""
     predictive_dist = MeanFieldNormalPredictiveDistribution()
+    use_norm_constants(norm_constants)
 
-    samples = torch.randn((7, 5, 3))
-    reference = torch.randn((5, 3))
+    nr_samples = 7
+    sample_shape = (5, 3)
+    samples = torch.randn((nr_samples, *sample_shape))
+    reference = torch.randn(sample_shape)
     target_mean = samples.mean(dim=0)
     target_std = samples.std(dim=0)
     target_log_prob = Normal(target_mean, target_std).log_prob(reference)
+    if not norm_constants:
+        norm_const = torch.full_like(target_mean, 2 * torch.pi).log() / 2
+        target_log_prob += norm_const
 
     test_mean, test_std = predictive_dist.predictive_parameters_from_samples(samples)
     assert torch.allclose(test_mean, target_mean)

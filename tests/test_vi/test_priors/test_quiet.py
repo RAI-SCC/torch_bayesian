@@ -1,13 +1,18 @@
 from math import log
 
 import torch
+from pytest import mark
 from torch.nn import Module, Parameter
 
 from torch_bayesian.vi.priors import BasicQuietPrior
+from torch_bayesian.vi.utils import use_norm_constants
 
 
-def test_log_prob() -> None:
+@mark.parametrize("norm_constants", [True, False])
+def test_log_prob(norm_constants: bool) -> None:
     """Test BasicQuietPrior.log_prob()."""
+    use_norm_constants(norm_constants)
+
     std_ratio1 = 0.5
     mean_mean1 = 0.1
     mean_std1 = 0.4
@@ -42,10 +47,16 @@ def test_log_prob() -> None:
         - 0.5 * variance.log()
         - log(2 * torch.pi)
     )
+    if not norm_constants:
+        norm_const = torch.full_like(mean, 2 * torch.pi).log()
+        ref1 += norm_const
     log_prob1 = prior2.log_prob(sample1, mean)
     assert torch.allclose(log_prob1, ref1)
 
     ref2 = -0.5 * mean**2 - 0.5 * variance.log() - log(2 * torch.pi)
+    if not norm_constants:
+        norm_const = torch.full_like(mean, 2 * torch.pi).log()
+        ref2 += norm_const
     log_prob2 = prior2.log_prob(sample2, mean)
     assert torch.allclose(log_prob2, ref2)
 
