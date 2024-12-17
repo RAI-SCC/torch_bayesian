@@ -55,17 +55,21 @@ def torch_tutorial() -> None:
     )
     print(f"Using {device} device")
 
+    from torch_bayesian.vi.priors import BasicQuietPrior
+
+    prior = BasicQuietPrior(std_ratio=0.1)
+
     # Define model
     class NeuralNetwork(vi.VIModule):
         def __init__(self) -> None:
             super().__init__()
             self.flatten = nn.Flatten()
             self.linear_relu_stack = vi.VISequential(
-                vi.VILinear(28 * 28, 512),
+                vi.VILinear(28 * 28, 512, prior=prior),
                 nn.ReLU(),
-                vi.VILinear(512, 512),
+                vi.VILinear(512, 512, prior=prior),
                 nn.ReLU(),
-                vi.VILinear(512, 10),
+                vi.VILinear(512, 10, prior=prior),
             )
 
         def forward(self, x_: Tensor) -> Tensor:
@@ -81,7 +85,7 @@ def torch_tutorial() -> None:
     loss_fn = vi.KullbackLeiblerLoss(
         predictive_distribution, dataset_size=len(training_data)
     )
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-6)
 
     def train(
         dataloader: DataLoader,
@@ -95,7 +99,7 @@ def torch_tutorial() -> None:
             x, y = x.to(device), y.to(device)
 
             # Compute prediction error
-            pred = model(x)
+            pred = model(x, samples=1)
             loss = loss_fn(pred, y)
 
             # Backpropagation
