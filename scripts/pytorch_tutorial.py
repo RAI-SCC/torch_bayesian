@@ -7,10 +7,13 @@ from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 
-import vi
-from vi import VIModule
-from vi.predictive_distributions import CategoricalPredictiveDistribution
-from vi.utils.weight_plots import aggregate_by_variable_and_parameter, plot_weights
+from torch_bayesian import vi
+from torch_bayesian.vi import VIModule
+from torch_bayesian.vi.predictive_distributions import CategoricalPredictiveDistribution
+from torch_bayesian.vi.utils.weight_plots import (
+    aggregate_by_variable_and_parameter,
+    plot_weights,
+)
 
 
 def torch_tutorial() -> None:
@@ -92,7 +95,7 @@ def torch_tutorial() -> None:
             x, y = x.to(device), y.to(device)
 
             # Compute prediction error
-            pred = model(x, samples=3)
+            pred = model(x)
             loss = loss_fn(pred, y)
 
             # Backpropagation
