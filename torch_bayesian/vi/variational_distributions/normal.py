@@ -3,6 +3,8 @@ from math import log
 import torch
 from torch import Tensor
 
+from torch_bayesian.vi import _globals
+
 from .base import VariationalDistribution
 
 
@@ -23,7 +25,9 @@ class MeanFieldNormalVarDist(VariationalDistribution):
         """Compute the log probability of sample based on a normal distribution."""
         variance = torch.exp(log_std) ** 2
         data_fitting = (sample - mean) ** 2 / variance
-        normalization = 2 * log_std + log(2 * torch.pi)
+        normalization = 2 * log_std
+        if _globals._USE_NORM_CONSTANTS:
+            normalization = normalization + log(2 * torch.pi)
         return -0.5 * (data_fitting + normalization)
 
     @staticmethod

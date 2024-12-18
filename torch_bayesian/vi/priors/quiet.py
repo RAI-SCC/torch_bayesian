@@ -5,6 +5,8 @@ import torch
 from torch import Tensor
 from torch.nn import init
 
+from torch_bayesian.vi import _globals
+
 from ..utils import init as vi_init
 from .base import Prior
 
@@ -36,7 +38,9 @@ class BasicQuietPrior(Prior):
         variance = (self._std_ratio * mean) ** 2 + self.eps
         data_fitting = (sample - mean) ** 2 / variance
         mean_decay = (mean - self.mean_mean) ** 2 / (self.mean_std**2)
-        normalization = variance.log() + 2 * log(self.mean_std) + 2 * log(2 * torch.pi)
+        normalization = variance.log() + 2 * log(self.mean_std)
+        if _globals._USE_NORM_CONSTANTS:
+            normalization = normalization + 2 * log(2 * torch.pi)
         return -0.5 * (data_fitting + mean_decay + normalization)
 
     def reset_parameters(self, module: "VIBaseModule", variable: str) -> None:
