@@ -22,7 +22,7 @@ class BasicQuietPrior(Prior):
         std_ratio: float = 1.0,
         mean_mean: float = 0.0,
         mean_std: float = 1.0,
-        eps: float = 1e-5,
+        eps: float = 1e-10,
     ) -> None:
         super().__init__()
         self.distribution_parameters = ("mean", "log_std")

@@ -16,11 +16,12 @@ if TYPE_CHECKING:
 class MeanFieldNormalPrior(Prior):
     """Prior assuming uncorrelated, normal distributed parameters."""
 
-    def __init__(self, mean: float = 0.0, std: float = 1.0) -> None:
+    def __init__(self, mean: float = 0.0, std: float = 1.0, eps: float = 1e-10) -> None:
         super().__init__()
         self.distribution_parameters = ("mean", "log_std")
         self.mean = mean
         self.log_std = log(std)
+        self.eps = eps
 
     @property
     def std(self) -> float:
@@ -29,7 +30,7 @@ class MeanFieldNormalPrior(Prior):
 
     def log_prob(self, sample: Tensor) -> Tensor:
         """Compute the log probability of sample based on the prior."""
-        variance = self.std**2
+        variance = self.std**2 + self.eps
         data_fitting = (sample - self.mean) ** 2 / variance
         normalization = 2 * self.log_std
         if _globals._USE_NORM_CONSTANTS:
