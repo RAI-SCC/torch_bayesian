@@ -29,7 +29,7 @@ def test_log_prob(norm_constants: bool) -> None:
     std_ratio2 = 1.0
     mean_mean2 = 0.0
     mean_std2 = 1.0
-    eps2 = 1e-5
+    eps2 = 1e-10
     prior2 = BasicQuietPrior()
     assert prior2._std_ratio == std_ratio2
     assert prior2.mean_mean == mean_mean2

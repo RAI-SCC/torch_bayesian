@@ -30,15 +30,16 @@ def test_log_prob(norm_constants: bool) -> None:
 
     mean = 0.7
     std = 0.3
-    prior = MeanFieldNormalPrior(mean, std)
+    eps = 1e-3
+    prior = MeanFieldNormalPrior(mean, std, eps=eps)
     assert prior.std == std
     ref_dist = Normal(mean, std)
     shape2 = (6,)
     sample = ref_dist.sample(shape2)
-    ref2 = ref_dist.log_prob(sample)
-    if not norm_constants:
+    ref2 = -0.5 * (2 * log(std) + (sample - mean) ** 2 / (std**2 + eps))
+    if norm_constants:
         norm_const = torch.full(shape2, 2 * torch.pi).log() / 2
-        ref2 += norm_const
+        ref2 -= norm_const
     log_prob2 = prior.log_prob(sample)
     assert (torch.isclose(ref2, log_prob2)).all()
 
