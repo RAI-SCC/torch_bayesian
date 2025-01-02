@@ -5,9 +5,7 @@ from entsoe_data_load import TimeseriesDataset
 from torch.utils.data import DataLoader
 import polars as pl
 from typing import Callable
-import vi
-from vi import VIModule
-from vi.variational_distributions import MeanFieldNormalVarDist
+
 from mean_std_plot import sigma_weight_plot
 from random_sample_plot import plot_random_samples
 import numpy as np
@@ -20,16 +18,16 @@ import torch.nn.functional as F
 
 
 # Define model
-class NeuralNetwork(vi.VIModule):
-    def __init__(self, input_length, hidden1, hidden2, output_length, variational_distribution=MeanFieldNormalVarDist()) -> None:
+class NeuralNetwork(nn.Module):
+    def __init__(self, input_length, hidden1, hidden2, output_length) -> None:
         super().__init__()
         self.flatten = nn.Flatten()
-        self.linear_relu_stack = vi.VISequential(
-            vi.VILinear(input_length, hidden1, variational_distribution=variational_distribution),
+        self.linear_relu_stack = nn.Sequential(
+            nn.Linear(input_length, hidden1),
             nn.ReLU(),
-            vi.VILinear(hidden1, hidden2, variational_distribution=variational_distribution),
+            nn.Linear(hidden1, hidden2),
             nn.ReLU(),
-            vi.VILinear(hidden2, output_length, variational_distribution=variational_distribution),
+            nn.Linear(hidden2, output_length),
         )
 
     def forward(self, x_: Tensor) -> Tensor:
@@ -39,10 +37,9 @@ class NeuralNetwork(vi.VIModule):
 
 def train(
     dataloader: DataLoader,
-    model: VIModule,
+    model: nn.Module,
     loss_fn: Callable,
     optimizer: torch.optim.Optimizer,
-    sample_num,
     train_loss_list,
     device,
     isClassification
@@ -54,7 +51,7 @@ def train(
         x, y = x.to(device), y.to(device)
 
         # Get predictions
-        pred = model(x, samples = sample_num)
+        pred = model(x)
 
         if isClassification:
             mean_model_output = pred.mean(dim=0)
@@ -70,9 +67,8 @@ def train(
     return model, train_loss_list
 
 def test(dataloader: DataLoader,
-    model: VIModule,
+    model: nn.Module,
     loss_fn: Callable,
-    sample_num,
     test_loss_list,
     device,
     isClassification
@@ -85,7 +81,7 @@ def test(dataloader: DataLoader,
     with torch.no_grad():
         for x, y in dataloader:
             x, y = x.to(device), y.to(device)
-            samples = model(x, samples = sample_num)
+            samples = model(x)
 
             if isClassification:
                 mean_model_output = torch.tensor(samples, dtype=samples.dtype).mean(dim=0)
@@ -107,7 +103,8 @@ def test(dataloader: DataLoader,
         )
     return test_loss_list
 
-def random_plot(dataloader: DataLoader, model: VIModule, sample_num, device) -> None:
+def random_plot(dataloader: DataLoader, model: nn.Module, device) -> None:
+    # Communication variables
     num_batches = len(dataloader)
     random_batch = int(torch.randint(low=0, high=num_batches - 1, size=(1,)))
     model.eval()
@@ -119,17 +116,12 @@ def random_plot(dataloader: DataLoader, model: VIModule, sample_num, device) -> 
             else:
                 break
         x, y = x.to(device), y.to(device)
-        samples = model(x, samples=sample_num)
-
-        mean_samples = torch.mean(samples,0)
-        std_samples = torch.std(samples,0)
-
+        samples = model(x)
         # Create an array to hold the averaged gradients
 
         num_samples = y.shape[0]
         random_sample = int(torch.randint(low=0, high=num_samples - 1, size=(1,)))
-        mean = mean_samples[random_sample]
-        std = std_samples[random_sample]
+        chosen = samples[random_sample]
         real = y[random_sample]
         in_mod = x[random_sample]
         input_length = in_mod.shape[0]
@@ -140,7 +132,7 @@ def random_plot(dataloader: DataLoader, model: VIModule, sample_num, device) -> 
     # plot outputs and ground truth behind input sequence
     plt.plot(
         range(input_length, input_length + output_length),
-        mean,
+        chosen,
         color="orange",
         label="outputs",
     )
@@ -152,17 +144,10 @@ def random_plot(dataloader: DataLoader, model: VIModule, sample_num, device) -> 
     )
     plt.legend()
     plt.xticks(range(0, input_length + output_length, 2))
-    plt.fill_between(
-        range(input_length, input_length + output_length),
-        (torch.add(mean, std, alpha=1)).numpy(),
-        (torch.add(mean, std, alpha=-1)).numpy(),
-        color="orange",
-        alpha=0.1,
-    )
     file_name = 'random_sample.png'
     plt.savefig(file_name)
 
-def regular_mcd(input_length, hidden1, hidden2, output_length, batch_size, epochs, all_sample_num) -> None:
+def regular_linear(input_length, hidden1, hidden2, output_length, batch_size, epochs) -> None:
     global train_loss_list
     global test_loss_list
     train_loss_list = []
@@ -192,32 +177,21 @@ def regular_mcd(input_length, hidden1, hidden2, output_length, batch_size, epoch
         else "cpu"
     )
 
-    model = NeuralNetwork(input_length, hidden1, hidden2, output_length,variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
-    model.return_log_probs(False)
+    model = NeuralNetwork(input_length, hidden1, hidden2, output_length).to(device)
 
     print(f"Using {device} device")
     print(model)
-    loss_fn = vi.MeanSquaredErrorLoss()
+    loss_fn = MSELoss()
     optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=0)
 
-    sample_num = all_sample_num
     for t in range(epochs):
 
         print(f"Epoch {t + 1}\n-------------------------------")
-        train(train_dataloader, model, loss_fn, optimizer, sample_num, train_loss_list, device, isClassification=False)
-        test(test_dataloader, model, loss_fn, sample_num, test_loss_list, device, isClassification=False)
+        train(train_dataloader, model, loss_fn, optimizer, train_loss_list, device, isClassification=False)
+        test(test_dataloader, model, loss_fn, test_loss_list, device, isClassification=False)
 
-    random_plot(test_dataloader, model, sample_num, device)
+    random_plot(test_dataloader, model, device)
 
-
-    for name, param in model.named_parameters():
-        if param.requires_grad:
-            if "log_std" in name:
-                # print(name)
-                base = name.removesuffix('log_std')
-                weight_layer_name = base + "mean"
-                weight_param = dict(model.named_parameters())[weight_layer_name]
-                sigma_weight_plot(weight_param, param, base)
     plt.clf()
     plt.plot(train_loss_list,
              color="orange",
@@ -232,7 +206,7 @@ def regular_mcd(input_length, hidden1, hidden2, output_length, batch_size, epoch
 
     print("Done!")
 
-def mnist_regular_mcd(hidden1=512, hidden2=256, batch_size=256, epochs=5, all_sample_num=50) -> None:
+def mnist_regular_linear(hidden1=512, hidden2=256, batch_size=256, epochs=5) -> None:
     global train_loss_list
     global test_loss_list
     train_loss_list = []
@@ -265,28 +239,18 @@ def mnist_regular_mcd(hidden1=512, hidden2=256, batch_size=256, epochs=5, all_sa
         else "cpu"
     )
 
-    model = NeuralNetwork(28*28, hidden1, hidden2, 10, variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
-    model.return_log_probs(False)
+    model = NeuralNetwork(28*28, hidden1, hidden2, 10).to(device)
 
     print(model)
 
     loss_fn = F.cross_entropy
     optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=0)
-    sample_num = all_sample_num
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
-        train(train_dataloader, model, loss_fn, optimizer, sample_num, train_loss_list, device,
+        train(train_dataloader, model, loss_fn, optimizer, train_loss_list, device,
               isClassification=True)
-        test(test_dataloader, model, loss_fn, sample_num, test_loss_list, device, isClassification=True)
+        test(test_dataloader, model, loss_fn, test_loss_list, device, isClassification=True)
 
-    for name, param in model.named_parameters():
-        if param.requires_grad:
-            if "log_std" in name:
-                # print(name)
-                base = name.removesuffix('log_std')
-                weight_layer_name = base + "mean"
-                weight_param = dict(model.named_parameters())[weight_layer_name]
-                sigma_weight_plot(weight_param, param, base)
     plt.clf()
     plt.plot(train_loss_list,
              color="orange",
