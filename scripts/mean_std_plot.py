@@ -17,6 +17,7 @@ def sigma_weight_plot(weights, sigmas, base_name):
 
     y1 = final_weights
 
+    plt.clf()
     plt.figure(figsize=(10, 8))
     plt.scatter(x1, y1, c=kit_blue_50,
                 linewidths=2,

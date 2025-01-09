@@ -17,7 +17,8 @@ import matplotlib.pyplot as plt
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 import torch.nn.functional as F
-
+from uncertainty_correlation import uncertainty_correlaion_plot
+import copy
 
 # Define model
 class NeuralNetwork(vi.VIModule):
@@ -67,7 +68,7 @@ def train(
         optimizer.step()
         optimizer.zero_grad()
     train_loss_list.append(loss.item())
-    return model, train_loss_list
+    return model
 
 def test(dataloader: DataLoader,
     model: VIModule,
@@ -105,9 +106,12 @@ def test(dataloader: DataLoader,
         print(
             f"Test Error: Avg loss: {test_loss:>8f} \n"
         )
-    return test_loss_list
+    return
 
-def random_plot(dataloader: DataLoader, model: VIModule, sample_num, device) -> None:
+def random_plot(dataloader: DataLoader, model: VIModule, sample_num, data_mean, data_std,device) -> None:
+    kit_green = (0, 150 / 255, 130 / 255)
+    kit_blue = (70 / 255, 100 / 255, 170 / 255)
+    kit_red = (162 / 255, 34 / 255, 35 / 255)
     num_batches = len(dataloader)
     random_batch = int(torch.randint(low=0, high=num_batches - 1, size=(1,)))
     model.eval()
@@ -129,50 +133,63 @@ def random_plot(dataloader: DataLoader, model: VIModule, sample_num, device) -> 
         num_samples = y.shape[0]
         random_sample = int(torch.randint(low=0, high=num_samples - 1, size=(1,)))
         mean = mean_samples[random_sample]
+        mean = (mean * data_std) + data_mean
         std = std_samples[random_sample]
+        std = (std * data_std)
         real = y[random_sample]
+        real = (real * data_std) + data_mean
         in_mod = x[random_sample]
+        in_mod = (in_mod * data_std) + data_mean
         input_length = in_mod.shape[0]
         output_length = real.shape[0]
+        mean = torch.cat((torch.unsqueeze(in_mod[-1], dim=0), mean), 0)
+        std = torch.cat((torch.zeros([1]), std), 0)
+        real = torch.cat((torch.unsqueeze(in_mod[-1], dim=0), real), 0)
 
     plt.clf()
-    plt.plot(in_mod.numpy(), color="blue", label="inputs")
+    plt.plot(in_mod.numpy(), color=kit_blue, label="inputs")
     # plot outputs and ground truth behind input sequence
     plt.plot(
-        range(input_length, input_length + output_length),
+        range(input_length-1, input_length + output_length),
         mean,
-        color="orange",
+        color=kit_red,
         label="outputs",
     )
     plt.plot(
-        range(input_length, input_length + output_length),
-        real.numpy(),
-        color="green",
+        range(input_length-1, input_length + output_length),
+        real,
+        color=kit_green,
         label="ground truth",
     )
     plt.legend()
-    plt.xticks(range(0, input_length + output_length, 2))
+    plt.xlabel("15 Minute Time Steps")
+    plt.ylabel("Energy Consumption in Germany in Megawatts")
+    plt.xticks(range(0, input_length + output_length, 10))
     plt.fill_between(
-        range(input_length, input_length + output_length),
+        range(input_length-1, input_length + output_length),
         (torch.add(mean, std, alpha=1)).numpy(),
         (torch.add(mean, std, alpha=-1)).numpy(),
-        color="orange",
+        color=kit_red,
         alpha=0.1,
     )
-    file_name = 'random_sample.png'
+    file_name = 'random_sample_59.png'
     plt.savefig(file_name)
 
-def regular_mcd(input_length, hidden1, hidden2, output_length, batch_size, epochs, all_sample_num) -> None:
+def regular_mcd(input_length, hidden1, hidden2, output_length, batch_size, epochs, all_sample_num, init_std) -> None:
     global train_loss_list
     global test_loss_list
     train_loss_list = []
     test_loss_list = []
+    best_loss = float('inf')
+    patience = 5
 
     df = pl.read_csv("data/ENTSOEEnergyLoads/de.csv",
         dtypes={"start": pl.Datetime, "end": pl.Datetime, "load": pl.Float32},
     )
     x = df["load"]
     x = x.fill_null(strategy="backward")
+    data_mean = x.mean()
+    data_std = x.std()
     normalized_x = (x - x.mean()) / x.std()
     x_tensor = normalized_x.to_torch()
     data_train, data_test = x_tensor[: int(len(x) * 0.7)], x_tensor[int(len(x) * 0.7):]
@@ -192,7 +209,7 @@ def regular_mcd(input_length, hidden1, hidden2, output_length, batch_size, epoch
         else "cpu"
     )
 
-    model = NeuralNetwork(input_length, hidden1, hidden2, output_length,variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
+    model = NeuralNetwork(input_length, hidden1, hidden2, output_length,variational_distribution=MeanFieldNormalVarDist(initial_std=init_std)).to(device)
     model.return_log_probs(False)
 
     print(f"Using {device} device")
@@ -201,14 +218,23 @@ def regular_mcd(input_length, hidden1, hidden2, output_length, batch_size, epoch
     optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=0)
 
     sample_num = all_sample_num
-    for t in range(epochs):
+    for t in range(40):
 
         print(f"Epoch {t + 1}\n-------------------------------")
-        train(train_dataloader, model, loss_fn, optimizer, sample_num, train_loss_list, device, isClassification=False)
+        model = train(train_dataloader, model, loss_fn, optimizer, sample_num, train_loss_list, device, isClassification=False)
         test(test_dataloader, model, loss_fn, sample_num, test_loss_list, device, isClassification=False)
-
-    random_plot(test_dataloader, model, sample_num, device)
-
+        if test_loss_list[-1]<best_loss:
+            best_loss = test_loss_list[-1]
+            best_model = copy.deepcopy(model)  # Deep copy here
+            patience = 5  # Reset patience counter
+        else:
+            patience -= 1
+            if patience == 0:
+                break
+    test(test_dataloader, best_model, loss_fn, sample_num, test_loss_list, device, isClassification=False)
+    '''
+    random_plot(test_dataloader, model, all_sample_num, data_mean, data_std, device)
+    
 
     for name, param in model.named_parameters():
         if param.requires_grad:
@@ -229,8 +255,12 @@ def regular_mcd(input_length, hidden1, hidden2, output_length, batch_size, epoch
     plt.ylabel("MSE Loss", fontsize=18)
     plt.legend()
     plt.savefig("loss_curve.png")
+    #single_dataloader = DataLoader(dataset=dataset_train, batch_size=1, shuffle=True)
+    #uncertainty_correlaion_plot(single_dataloader, model, loss_fn, sample_num, device)
+    '''
 
     print("Done!")
+    return #best_model, best_loss, t
 
 def mnist_regular_mcd(hidden1=512, hidden2=256, batch_size=256, epochs=5, all_sample_num=50) -> None:
     global train_loss_list
@@ -238,7 +268,7 @@ def mnist_regular_mcd(hidden1=512, hidden2=256, batch_size=256, epochs=5, all_sa
     train_loss_list = []
     test_loss_list = []
 
-    training_data = datasets.FashionMNIST(
+    training_data = datasets.MNIST(
         root="data",
         train=True,
         download=True,
@@ -246,7 +276,7 @@ def mnist_regular_mcd(hidden1=512, hidden2=256, batch_size=256, epochs=5, all_sa
     )
 
     # Download test data from open datasets.
-    test_data = datasets.FashionMNIST(
+    test_data = datasets.MNIST(
         root="data",
         train=False,
         download=True,
@@ -275,7 +305,7 @@ def mnist_regular_mcd(hidden1=512, hidden2=256, batch_size=256, epochs=5, all_sa
     sample_num = all_sample_num
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
-        train(train_dataloader, model, loss_fn, optimizer, sample_num, train_loss_list, device,
+        model = train(train_dataloader, model, loss_fn, optimizer, sample_num, train_loss_list, device,
               isClassification=True)
         test(test_dataloader, model, loss_fn, sample_num, test_loss_list, device, isClassification=True)
 

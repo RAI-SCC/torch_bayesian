@@ -1,20 +1,16 @@
 import torch
 from torch import Tensor, nn
-from torch.nn import MSELoss
 from entsoe_data_load import TimeseriesDataset
 from torch.utils.data import DataLoader
 import polars as pl
 from typing import Callable
-
-from mean_std_plot import sigma_weight_plot
-from random_sample_plot import plot_random_samples
-import numpy as np
 train_loss_list = []
 test_loss_list = []
 import matplotlib.pyplot as plt
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 import torch.nn.functional as F
+import copy
 
 
 # Define model
@@ -54,8 +50,7 @@ def train(
         pred = model(x)
 
         if isClassification:
-            mean_model_output = pred.mean(dim=0)
-            probs = F.softmax(mean_model_output, dim=1)
+            probs = F.softmax(pred, dim=1)
             loss = loss_fn(probs, y)
         else:
             loss = loss_fn(pred, y)
@@ -64,7 +59,7 @@ def train(
         optimizer.step()
         optimizer.zero_grad()
     train_loss_list.append(loss.item())
-    return model, train_loss_list
+    return model
 
 def test(dataloader: DataLoader,
     model: nn.Module,
@@ -84,8 +79,7 @@ def test(dataloader: DataLoader,
             samples = model(x)
 
             if isClassification:
-                mean_model_output = torch.tensor(samples, dtype=samples.dtype).mean(dim=0)
-                samples = F.softmax(mean_model_output, dim=1)
+                samples = F.softmax(samples, dim=1)
                 correct += (samples.argmax(1) == y).type(torch.float).sum().item()
 
             test_loss += loss_fn(samples, y).item()
@@ -101,12 +95,16 @@ def test(dataloader: DataLoader,
         print(
             f"Test Error: Avg loss: {test_loss:>8f} \n"
         )
-    return test_loss_list
+    return
 
-def random_plot(dataloader: DataLoader, model: nn.Module, device) -> None:
-    # Communication variables
+def random_plot(dataloader: DataLoader, model: nn.Module, data_mean, data_std, device) -> None:
+    kit_green = (0, 150 / 255, 130 / 255)
+    kit_blue = (70 / 255, 100 / 255, 170 / 255)
+    kit_red = (162 / 255, 34 / 255, 35 / 255)
     num_batches = len(dataloader)
     random_batch = int(torch.randint(low=0, high=num_batches - 1, size=(1,)))
+    print("random batch:")
+    print(random_batch)
     model.eval()
     with (torch.no_grad()):
         n = 0
@@ -121,43 +119,58 @@ def random_plot(dataloader: DataLoader, model: nn.Module, device) -> None:
 
         num_samples = y.shape[0]
         random_sample = int(torch.randint(low=0, high=num_samples - 1, size=(1,)))
+        print("random sample:")
+        print(random_sample)
         chosen = samples[random_sample]
         real = y[random_sample]
+        chosen = (chosen*data_std) + data_mean
+        real = (real * data_std) + data_mean
         in_mod = x[random_sample]
+        in_mod = (in_mod * data_std) + data_mean
         input_length = in_mod.shape[0]
         output_length = real.shape[0]
+        chosen = list(chosen)
+        real = list(real)
+        chosen.insert(0, in_mod[-1])
+        real.insert(0, in_mod[-1])
 
     plt.clf()
-    plt.plot(in_mod.numpy(), color="blue", label="inputs")
+    plt.plot(in_mod.numpy(), color=kit_blue, label="inputs")
     # plot outputs and ground truth behind input sequence
     plt.plot(
-        range(input_length, input_length + output_length),
+        range(input_length-1, input_length + output_length),
         chosen,
-        color="orange",
+        color=kit_red,
         label="outputs",
     )
     plt.plot(
-        range(input_length, input_length + output_length),
-        real.numpy(),
-        color="green",
+        range(input_length-1, input_length + output_length),
+        real,
+        color=kit_green,
         label="ground truth",
     )
     plt.legend()
-    plt.xticks(range(0, input_length + output_length, 2))
-    file_name = 'random_sample.png'
+    plt.xlabel("15 Minute Time Steps")
+    plt.ylabel("Energy Consumption in Germany in Megawatts")
+    plt.xticks(range(0, input_length + output_length, 10))
+    file_name = 'random_sample_no_mcd_61.png'
     plt.savefig(file_name)
 
-def regular_linear(input_length, hidden1, hidden2, output_length, batch_size, epochs) -> None:
+def regular_linear(input_length, hidden1, hidden2, output_length, batch_size, epochs, lr) -> None:
     global train_loss_list
     global test_loss_list
     train_loss_list = []
     test_loss_list = []
+    best_loss = float('inf')
+    patience = 5
 
     df = pl.read_csv("data/ENTSOEEnergyLoads/de.csv",
         dtypes={"start": pl.Datetime, "end": pl.Datetime, "load": pl.Float32},
     )
     x = df["load"]
     x = x.fill_null(strategy="backward")
+    data_mean = x.mean()
+    data_std = x.std()
     normalized_x = (x - x.mean()) / x.std()
     x_tensor = normalized_x.to_torch()
     data_train, data_test = x_tensor[: int(len(x) * 0.7)], x_tensor[int(len(x) * 0.7):]
@@ -181,17 +194,27 @@ def regular_linear(input_length, hidden1, hidden2, output_length, batch_size, ep
 
     print(f"Using {device} device")
     print(model)
-    loss_fn = MSELoss()
-    optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=0)
+    loss_fn = nn.MSELoss()
+    optimizer = torch.optim.Adam(params=model.parameters(), lr=lr, weight_decay=0)
 
-    for t in range(epochs):
+    for t in range(100):
 
         print(f"Epoch {t + 1}\n-------------------------------")
-        train(train_dataloader, model, loss_fn, optimizer, train_loss_list, device, isClassification=False)
+        model = train(train_dataloader, model, loss_fn, optimizer, train_loss_list, device, isClassification=False)
         test(test_dataloader, model, loss_fn, test_loss_list, device, isClassification=False)
+        if test_loss_list[-1]<best_loss:
+            best_loss = test_loss_list[-1]
+            best_model = copy.deepcopy(model)  # Deep copy here
+            patience = 5  # Reset patience counter
+        else:
+            patience -= 1
+            if patience == 0:
+                break
 
-    random_plot(test_dataloader, model, device)
-
+    test(test_dataloader, best_model, loss_fn, test_loss_list, device, isClassification=False)
+    '''
+    random_plot(test_dataloader, best_model, data_mean, data_std, device)
+    
     plt.clf()
     plt.plot(train_loss_list,
              color="orange",
@@ -203,8 +226,10 @@ def regular_linear(input_length, hidden1, hidden2, output_length, batch_size, ep
     plt.ylabel("MSE Loss", fontsize=18)
     plt.legend()
     plt.savefig("loss_curve.png")
+    '''
 
     print("Done!")
+    return #best_model, best_loss, t
 
 def mnist_regular_linear(hidden1=512, hidden2=256, batch_size=256, epochs=5) -> None:
     global train_loss_list
@@ -212,7 +237,7 @@ def mnist_regular_linear(hidden1=512, hidden2=256, batch_size=256, epochs=5) -> 
     train_loss_list = []
     test_loss_list = []
 
-    training_data = datasets.FashionMNIST(
+    training_data = datasets.MNIST(
         root="data",
         train=True,
         download=True,
@@ -220,7 +245,7 @@ def mnist_regular_linear(hidden1=512, hidden2=256, batch_size=256, epochs=5) -> 
     )
 
     # Download test data from open datasets.
-    test_data = datasets.FashionMNIST(
+    test_data = datasets.MNIST(
         root="data",
         train=False,
         download=True,
@@ -247,7 +272,7 @@ def mnist_regular_linear(hidden1=512, hidden2=256, batch_size=256, epochs=5) -> 
     optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=0)
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
-        train(train_dataloader, model, loss_fn, optimizer, train_loss_list, device,
+        model = train(train_dataloader, model, loss_fn, optimizer, train_loss_list, device,
               isClassification=True)
         test(test_dataloader, model, loss_fn, test_loss_list, device, isClassification=True)
 

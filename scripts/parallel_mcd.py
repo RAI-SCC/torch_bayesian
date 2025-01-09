@@ -145,7 +145,7 @@ def train(
         optimizer.zero_grad()
 
     train_loss_list.append(loss.item())
-    return model, train_loss_list
+    return model
 
 def test(dataloader: DataLoader,
     model: VIModule,
@@ -221,7 +221,7 @@ def test(dataloader: DataLoader,
             print(
                 f"Test Error: Avg loss: {test_loss:>8f} \n"
             )
-    return test_loss_list
+    return
 
 def random_plot(dataloader: DataLoader, model: VIModule, sample_num, enable_tests, device) -> None:
     global sampling_state
@@ -310,7 +310,8 @@ def parallel_mcd(input_length, hidden1, hidden2, output_length, batch_size, epoc
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     world_size = comm.Get_size()
-    enable_tests = True
+    print(world_size)
+    enable_tests = False
 
     global sampling_state
     global train_loss_list
@@ -355,11 +356,11 @@ def parallel_mcd(input_length, hidden1, hidden2, output_length, batch_size, epoc
     for t in range(epochs):
         if rank==0:
             print(f"Epoch {t + 1}\n-------------------------------")
-        train(train_dataloader, model, loss_fn, optimizer, sample_num, enable_tests, train_loss_list, device, isClassification=False)
+        model = train(train_dataloader, model, loss_fn, optimizer, sample_num, enable_tests, train_loss_list, device, isClassification=False)
         test(test_dataloader, model, loss_fn, sample_num, enable_tests, test_loss_list, device, isClassification=False)
-
+    '''
     random_plot(test_dataloader, model, sample_num, enable_tests, device)
-
+    
     if rank == 0:
         for name, param in model.named_parameters():
             if param.requires_grad:
@@ -380,14 +381,14 @@ def parallel_mcd(input_length, hidden1, hidden2, output_length, batch_size, epoc
         plt.ylabel("MSE Loss", fontsize=18)
         plt.legend()
         plt.savefig("loss_curve.png")
-
-        print("Done!")
+    '''
+    print("Done!")
 def mnist_parallel_mcd(hidden1=512, hidden2=256, batch_size=256, epochs=5, all_sample_num=50) -> None:
     # Download training data from open datasets.
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     world_size = comm.Get_size()
-    enable_tests = True
+    enable_tests = False
     global sampling_state
     global train_loss_list
     global test_loss_list
@@ -395,7 +396,7 @@ def mnist_parallel_mcd(hidden1=512, hidden2=256, batch_size=256, epochs=5, all_s
     test_loss_list = []
     sampling_state = None
 
-    training_data = datasets.FashionMNIST(
+    training_data = datasets.MNIST(
         root="data",
         train=True,
         download=True,
@@ -403,7 +404,7 @@ def mnist_parallel_mcd(hidden1=512, hidden2=256, batch_size=256, epochs=5, all_s
     )
 
     # Download test data from open datasets.
-    test_data = datasets.FashionMNIST(
+    test_data = datasets.MNIST(
         root="data",
         train=False,
         download=True,
@@ -433,7 +434,7 @@ def mnist_parallel_mcd(hidden1=512, hidden2=256, batch_size=256, epochs=5, all_s
     for t in range(epochs):
         if rank == 0:
             print(f"Epoch {t + 1}\n-------------------------------")
-        train(train_dataloader, model, loss_fn, optimizer, sample_num, enable_tests, train_loss_list, device,
+        model = train(train_dataloader, model, loss_fn, optimizer, sample_num, enable_tests, train_loss_list, device,
               isClassification=True)
         test(test_dataloader, model, loss_fn, sample_num, enable_tests, test_loss_list, device, isClassification=True)
 
