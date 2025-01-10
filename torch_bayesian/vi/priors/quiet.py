@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 import torch
 from torch import Tensor
+from torch.distributions import InverseGamma
 from torch.nn import init
 
 from torch_bayesian.vi import _globals
@@ -49,4 +50,60 @@ class BasicQuietPrior(Prior):
         init._no_grad_normal_(getattr(module, mean_name), self.mean_mean, self.mean_std)
         log_std_name = module.variational_parameter_name(variable, "log_std")
         log_std = torch.log(self._std_ratio * getattr(module, mean_name).abs())
+        vi_init.fixed_(getattr(module, log_std_name), log_std)
+
+
+class StandardQuietPrior(Prior):
+    """Prior assuming normal distributed mean and inverse gamma distributed variance proportional to it."""
+
+    def __init__(
+        self,
+        std_ratio: float = 1.0,
+        std_shape: float = 2.0,
+        mean_mean: float = 0.0,
+        mean_std: float = 1.0,
+        eps: float = 1e-10,
+    ) -> None:
+        super().__init__()
+        assert (
+            std_shape > 1
+        ), "std_shape must be greater than 1, since mean becomes ill-defined otherwise."
+
+        self.distribution_parameters = ("mean", "log_std")
+        self._required_parameters = ("mean", "log_std")
+        self._scaling_parameters = ("mean_mean", "mean_std", "eps")
+        self._std_ratio = std_ratio
+        self._std_shape = std_shape
+        self.mean_mean = mean_mean
+        self.mean_std = mean_std
+        self.eps = eps
+
+    def _beta(self, mean: Tensor) -> Tensor:
+        return (self._std_shape * self._std_ratio * mean) ** 2 / (self._std_shape - 1)
+
+    def log_prob(self, sample: Tensor, mean: Tensor, log_std: Tensor) -> Tensor:
+        """Compute the log probability of sample based on the prior."""
+        variance = (2 * log_std).exp() + self.eps
+        beta = self._beta(mean)
+
+        data_fitting = (sample - mean) ** 2 / variance
+        mean_decay = (mean - self.mean_mean) ** 2 / (self.mean_std**2)
+        var_decay = (self._std_shape + 1) * 2 * log_std + beta / variance
+        normalization = log(self.mean_std) - self._std_shape * beta.log()
+        if _globals._USE_NORM_CONSTANTS:
+            normalization = (
+                normalization + log(torch.pi) + torch.lgamma(self._std_shape)
+            )
+        return -0.5 * (data_fitting + mean_decay) - (var_decay + normalization)
+
+    def reset_parameters(self, module: "VIBaseModule", variable: str) -> None:
+        """Reset the parameters of the module to prior mean and standard deviation."""
+        mean_name = module.variational_parameter_name(variable, "mean")
+        init._no_grad_normal_(getattr(module, mean_name), self.mean_mean, self.mean_std)
+        log_std_name = module.variational_parameter_name(variable, "log_std")
+
+        beta = self._beta(getattr(module, mean_name))
+        dist = InverseGamma(self._std_shape, 1 / beta)
+        log_std = dist.sample().sqrt().log()
+
         vi_init.fixed_(getattr(module, log_std_name), log_std)
