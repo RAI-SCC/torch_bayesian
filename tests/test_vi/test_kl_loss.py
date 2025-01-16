@@ -25,7 +25,7 @@ def test_kl_loss() -> None:
     loss1 = KullbackLeiblerLoss(MeanFieldNormalPredictiveDistribution())
     with warns(
         UserWarning,
-        match=f"No dataset_size is provided. Number of samples \({sample_nr}\) is used instead.",
+        match=f"No dataset_size is provided. Number of samples \\({sample_nr}\\) is used instead.",
     ):
         _ = loss1(model_return, target)
 
@@ -98,4 +98,4 @@ def test_kl_loss() -> None:
     assert loss1.log["data_fitting"][0] + loss1.log["prior_matching"][0] == out1
 
     double_out = loss1(double_return, double_target, dataset_size=sample_nr)
-    assert double_out == out1
+    assert torch.allclose(double_out, out1)

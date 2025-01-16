@@ -5,6 +5,7 @@ from torch import Tensor
 
 from torch_bayesian.vi import VILinear
 from torch_bayesian.vi.priors import MeanFieldNormalPrior
+from torch_bayesian.vi.variational_distributions import NonBayesian
 
 
 def test_vilinear() -> None:
@@ -113,3 +114,13 @@ def test_vilinear() -> None:
     assert (weight_log_std == torch.full_like(weight_log_std, 5.0)).all()
     assert (bias_mean == torch.ones_like(bias_mean)).all()
     assert (bias_log_std == torch.full_like(bias_log_std, 5.0)).all()
+
+    module6 = VILinear(
+        in_features,
+        out_features,
+        variational_distribution=NonBayesian(),
+        return_log_probs=False,
+    )
+    sample4 = torch.randn(4, in_features)
+    out = module6(sample4, samples=1)
+    assert out.shape == (1, 4, out_features)

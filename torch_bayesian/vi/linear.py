@@ -83,6 +83,15 @@ class VILinear(VIBaseModule):
 
         super().__init__(variable_shapes=variable_shapes, **vikwargs)
 
+        # If the variational distribution is stable we might be able to use the stable fast path
+        if all(
+            isinstance(dist, MeanFieldNormalVarDist)
+            for dist in self.variational_distribution
+        ):
+            self._fast_path = True
+        else:
+            self._fast_path = False
+
     def forward(self, input_: Tensor) -> VIReturn[Tensor]:
         """
         Forward computation.
@@ -104,6 +113,11 @@ class VILinear(VIBaseModule):
             probability (in that order) of the sampled weights and biases.
             Only returned if return_log_probs.
         """
+        # Check for and perform fast path if possible:
+        if (not self._return_log_probs) and self._fast_path:
+            output = self._fast_forward(input_)
+            return output
+
         params = self.sample_variables()
 
         output = F.linear(input_, *params)
@@ -113,3 +127,18 @@ class VILinear(VIBaseModule):
             return output, log_probs
         else:
             return output
+
+    def _fast_forward(self, input_: Tensor) -> Tensor:
+        """Perform stable fast path for Gaussian variational distribution."""
+        weight_mean = self._weight_mean
+        weight_variance = (2 * self._weight_log_std).exp()
+        if "bias" in self.random_variables:
+            bias_mean = self._bias_mean
+            bias_variance = (2 * self._bias_log_std).exp()
+        else:
+            bias_mean = None
+            bias_variance = None
+        output_mean = F.linear(input_, weight_mean, bias_mean)
+        output_std = F.linear(input_.pow(2), weight_variance, bias_variance).sqrt()
+        output = MeanFieldNormalVarDist._normal_sample(output_mean, output_std)
+        return output
