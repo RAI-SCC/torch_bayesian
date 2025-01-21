@@ -5,4 +5,12 @@ from .normal import MeanFieldNormalPrior
 from .quiet import BasicQuietPrior
 from .uniform import UniformPrior
 
-__all__ = ["Prior", "MeanFieldNormalPrior", "BasicQuietPrior", "UniformPrior"]
+NonBayesian = UniformPrior
+
+__all__ = [
+    "BasicQuietPrior",
+    "MeanFieldNormalPrior",
+    "NonBayesian",
+    "Prior",
+    "UniformPrior",
+]
