@@ -503,7 +503,7 @@ class VITransformerEncoder(VIModule):
         """Forward computation."""
         output = src
         if self._return_log_probs:
-            log_probs = torch.zeros(2)
+            log_probs = torch.zeros(2, device=src.device)
             for mod in self.layers:
                 output, lps = mod(output, src_mask=mask)
                 log_probs = log_probs + lps
