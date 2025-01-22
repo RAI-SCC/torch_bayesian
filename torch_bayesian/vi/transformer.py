@@ -464,7 +464,7 @@ class VITransformerDecoder(VIModule):
         """Forward computation."""
         output = tgt
         if self._return_log_probs:
-            log_probs = torch.zeros(2)
+            log_probs = torch.zeros(2, device=tgt.device)
             for mod in self.layers:
                 output, lps = mod(
                     output, memory, tgt_mask=tgt_mask, memory_mask=memory_mask
