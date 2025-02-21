@@ -5,6 +5,7 @@ from .conv import VIConv1d, VIConv2d, VIConv3d
 from .kl_loss import KullbackLeiblerLoss
 from .linear import VILinear
 from .sequential import VIResidualConnection, VISequential
+from .mse_loss import MeanSquaredErrorLoss
 from .transformer import (
     VIMultiheadAttention,
     VITransformer,
@@ -25,6 +26,7 @@ __all__ = [
     "VIMultiheadAttention",
     "VIResidualConnection",
     "VISequential",
+    "MeanSquaredErrorLoss",
     "VITransformer",
     "VITransformerDecoder",
     "VITransformerDecoderLayer",
