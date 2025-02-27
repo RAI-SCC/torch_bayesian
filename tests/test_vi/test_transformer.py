@@ -369,17 +369,19 @@ def test_decoder_layer() -> None:
     mem = torch.rand((7, 4, d_model))
 
     (sa_out, sa_weights), sa_lps = module2._sa_block(tgt)
-    (sa_ref, sa_rweight), sa_rlp = module2.self_attn(tgt, tgt, tgt)
+    (sa_ref, sa_rweight), sa_rlp = module2.self_attn(tgt, tgt, tgt, need_weights=False)
     assert sa_out.shape == sa_ref.shape
     assert torch.allclose(sa_out, sa_ref)
-    assert torch.allclose(sa_weights, sa_rweight)
+    assert sa_weights == sa_rweight
     assert torch.allclose(sa_lps, sa_rlp)
 
     (mha_out, mha_weights), mha_lps = module2._mha_block(tgt, mem)
-    (mha_ref, mha_rweight), mha_rlp = module2.multihead_attn(tgt, mem, mem)
+    (mha_ref, mha_rweight), mha_rlp = module2.multihead_attn(
+        tgt, mem, mem, need_weights=False
+    )
     assert mha_out.shape == mha_ref.shape
     assert torch.allclose(mha_out, mha_ref)
-    assert torch.allclose(mha_weights, mha_rweight)
+    assert mha_weights == mha_rweight
     assert torch.allclose(mha_lps, mha_rlp)
 
     # check norm_first=True
@@ -465,10 +467,10 @@ def test_encoder_layer() -> None:
     src = torch.rand((7, 4, d_model))
 
     (sa_out, sa_weights), sa_lps = module2._sa_block(src)
-    (sa_ref, sa_rweight), sa_rlp = module2.self_attn(src, src, src)
+    (sa_ref, sa_rweight), sa_rlp = module2.self_attn(src, src, src, need_weights=False)
     assert sa_out.shape == sa_ref.shape
     assert torch.allclose(sa_out, sa_ref)
-    assert torch.allclose(sa_weights, sa_rweight)
+    assert sa_weights == sa_rweight
     assert torch.allclose(sa_lps, sa_rlp)
 
     # check norm_first=True
@@ -710,7 +712,21 @@ def test_transformer(
 ) -> None:
     """Test VITransformer."""
     if custom_coders:
-        encoder = nn.Linear(d_model, d_model, bias=bias, device=device, dtype=dtype)
+        encoder = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(
+                d_model,
+                nhead,
+                dim_feedforward,
+                activation=activation,
+                layer_norm_eps=layer_norm_eps,
+                norm_first=norm_first,
+                batch_first=batch_first,
+                bias=bias,
+                device=device,
+                dtype=dtype,
+            ),
+            num_layers=num_encoder_layers,
+        )
         decoder = VITransformerDecoderLayer(
             d_model,
             nhead,
