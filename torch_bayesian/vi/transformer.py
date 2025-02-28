@@ -5,6 +5,7 @@ import torch
 from torch import Tensor
 from torch.nn import LayerNorm, Module, ModuleList, ReLU
 from torch.nn import functional as F  # noqa: N812
+from torch.nn.modules.transformer import _detect_is_causal_mask, _get_seq_len
 
 from .base import VIBaseModule, VIModule
 from .linear import VILinear
@@ -94,7 +95,7 @@ class VIMultiheadAttention(VIBaseModule):
         key: Tensor,
         value: Tensor,
         attn_mask: Optional[Tensor] = None,
-        needs_weights: bool = True,
+        need_weights: bool = True,
         key_padding_mask: Optional[Tensor] = None,
         average_attn_weights: bool = True,
         is_causal: bool = False,
@@ -169,7 +170,7 @@ class VIMultiheadAttention(VIBaseModule):
                 out_proj_bias=out_proj_bias,
                 training=self.training,
                 key_padding_mask=key_padding_mask,
-                need_weights=needs_weights,
+                need_weights=need_weights,
                 attn_mask=attn_mask,
                 use_separate_proj_weight=True,
                 q_proj_weight=q_proj_weight,
@@ -201,7 +202,7 @@ class VIMultiheadAttention(VIBaseModule):
                 out_proj_bias=out_proj_bias,
                 training=self.training,
                 key_padding_mask=key_padding_mask,
-                need_weights=needs_weights,
+                need_weights=need_weights,
                 attn_mask=attn_mask,
                 average_attn_weights=average_attn_weights,
                 is_causal=is_causal,
@@ -269,9 +270,21 @@ class VITransformerEncoderLayer(VIModule):
         self._return_log_probs = return_log_probs
 
     def forward(
-        self, src: Tensor, src_mask: Optional[Tensor] = None
+        self,
+        src: Tensor,
+        src_mask: Optional[Tensor] = None,
+        src_key_padding_mask: Optional[Tensor] = None,
+        is_causal: bool = False,
     ) -> VIReturn[Tensor]:
         """Forward computation."""
+        src_key_padding_mask = F._canonical_mask(
+            mask=src_key_padding_mask,
+            mask_name="src_key_padding_mask",
+            other_type=F._none_or_dtype(src_mask),
+            other_name="src_mask",
+            target_type=src.dtype,
+        )
+
         src_mask = F._canonical_mask(
             mask=src_mask,
             mask_name="src_mask",
@@ -283,7 +296,9 @@ class VITransformerEncoderLayer(VIModule):
         x = src
         # _ff_block already includes residual connection
         if self._return_log_probs and self.norm_first:
-            (x1, _), lps1 = self._sa_block(self.norm1(x), src_mask)
+            (x1, _), lps1 = self._sa_block(
+                self.norm1(x), src_mask, src_key_padding_mask, is_causal=is_causal
+            )
             x = x + x1
             x2, lps2 = self._ff_block(self.norm2(x))
             x = x2
@@ -292,7 +307,9 @@ class VITransformerEncoderLayer(VIModule):
             log_probs = lps1 + lps2
             return x, log_probs
         elif self._return_log_probs:
-            (x1, _), lps1 = self._sa_block(x, src_mask)
+            (x1, _), lps1 = self._sa_block(
+                x, src_mask, src_key_padding_mask, is_causal=is_causal
+            )
             x = x + x1
             x2, lps2 = self._ff_block(self.norm1(x))
             x = self.norm2(x2)
@@ -301,18 +318,40 @@ class VITransformerEncoderLayer(VIModule):
             log_probs = lps1 + lps2
             return x, log_probs
         elif self.norm_first:
-            x = x + self._sa_block(self.norm1(x), src_mask)[0]
+            x = (
+                x
+                + self._sa_block(
+                    self.norm1(x), src_mask, src_key_padding_mask, is_causal=is_causal
+                )[0]
+            )
             x = self._ff_block(self.norm2(x))
             return x
         else:
-            x = self.norm1(x + self._sa_block(x, src_mask)[0])
+            x = self.norm1(
+                x
+                + self._sa_block(
+                    x, src_mask, src_key_padding_mask, is_causal=is_causal
+                )[0]
+            )
             x = self.norm2(self._ff_block(x))
             return x
 
     def _sa_block(
-        self, x: Tensor, attn_mask: Optional[Tensor] = None
+        self,
+        x: Tensor,
+        attn_mask: Optional[Tensor] = None,
+        key_padding_mask: Optional[Tensor] = None,
+        is_causal: bool = False,
     ) -> VIReturn[Tuple[Tensor, Optional[Tensor]]]:
-        x = self.self_attn(x, x, x, attn_mask=attn_mask)
+        x = self.self_attn(
+            x,
+            x,
+            x,
+            attn_mask=attn_mask,
+            key_padding_mask=key_padding_mask,
+            need_weights=False,
+            is_causal=is_causal,
+        )
         return x
 
 
@@ -386,14 +425,26 @@ class VITransformerDecoderLayer(VIModule):
         memory: Tensor,
         tgt_mask: Optional[Tensor] = None,
         memory_mask: Optional[Tensor] = None,
+        tgt_key_padding_mask: Optional[Tensor] = None,
+        memory_key_padding_mask: Optional[Tensor] = None,
+        tgt_is_causal: bool = False,
+        memory_is_causal: bool = False,
     ) -> VIReturn[Tensor]:
         """Forward computation."""
         x = tgt
         # _ff_block already includes residual connection
         if self._return_log_probs and self.norm_first:
-            (x1, _), lps1 = self._sa_block(self.norm1(x), tgt_mask)
+            (x1, _), lps1 = self._sa_block(
+                self.norm1(x), tgt_mask, tgt_key_padding_mask, tgt_is_causal
+            )
             x = x + x1
-            (x2, _), lps2 = self._mha_block(self.norm2(x), memory, memory_mask)
+            (x2, _), lps2 = self._mha_block(
+                self.norm2(x),
+                memory,
+                memory_mask,
+                memory_key_padding_mask,
+                memory_is_causal,
+            )
             x = x + x2
             x3, lps3 = self._ff_block(self.norm3(x))
             x = x3
@@ -402,9 +453,13 @@ class VITransformerDecoderLayer(VIModule):
             log_probs = lps1 + lps2 + lps3
             return x, log_probs
         elif self._return_log_probs:
-            (x1, _), lps1 = self._sa_block(x, tgt_mask)
+            (x1, _), lps1 = self._sa_block(
+                x, tgt_mask, tgt_key_padding_mask, tgt_is_causal
+            )
             x = self.norm1(x + x1)
-            (x2, _), lps2 = self._mha_block(x, memory, memory_mask)
+            (x2, _), lps2 = self._mha_block(
+                x, memory, memory_mask, memory_key_padding_mask, memory_is_causal
+            )
             x = self.norm2(x + x2)
             x3, lps3 = self._ff_block(x)
             x = self.norm3(x3)
@@ -413,26 +468,65 @@ class VITransformerDecoderLayer(VIModule):
             log_probs = lps1 + lps2 + lps3
             return x, log_probs
         elif self.norm_first:
-            x = x + self._sa_block(self.norm1(x), tgt_mask)[0]
-            x = x + self._mha_block(self.norm2(x), memory, memory_mask)[0]
+            x = x + self._sa_block(self.norm1(x), tgt_mask, tgt_key_padding_mask)[0]
+            x = (
+                x
+                + self._mha_block(
+                    self.norm2(x),
+                    memory,
+                    memory_mask,
+                    memory_key_padding_mask,
+                    tgt_is_causal,
+                )[0]
+            )
             x = self._ff_block(self.norm3(x))
             return x
         else:
-            x = self.norm1(x + self._sa_block(x, tgt_mask)[0])
-            x = self.norm2(x + self._mha_block(x, memory, memory_mask)[0])
+            x = self.norm1(x + self._sa_block(x, tgt_mask, tgt_key_padding_mask)[0])
+            x = self.norm2(
+                x
+                + self._mha_block(
+                    x, memory, memory_mask, memory_key_padding_mask, memory_is_causal
+                )[0]
+            )
             x = self.norm3(self._ff_block(x))
             return x
 
     def _sa_block(
-        self, x: Tensor, attn_mask: Optional[Tensor] = None
+        self,
+        x: Tensor,
+        attn_mask: Optional[Tensor] = None,
+        key_padding_mask: Optional[Tensor] = None,
+        is_causal: bool = False,
     ) -> VIReturn[Tuple[Tensor, Optional[Tensor]]]:
-        x = self.self_attn(x, x, x, attn_mask=attn_mask)
+        x = self.self_attn(
+            x,
+            x,
+            x,
+            attn_mask=attn_mask,
+            key_padding_mask=key_padding_mask,
+            is_causal=is_causal,
+            need_weights=False,
+        )
         return x
 
     def _mha_block(
-        self, x: Tensor, mem: Tensor, attn_mask: Optional[Tensor] = None
+        self,
+        x: Tensor,
+        mem: Tensor,
+        attn_mask: Optional[Tensor] = None,
+        key_padding_mask: Optional[Tensor] = None,
+        is_causal: bool = False,
     ) -> VIReturn[Tuple[Tensor, Optional[Tensor]]]:
-        x = self.multihead_attn(x, mem, mem, attn_mask=attn_mask)
+        x = self.multihead_attn(
+            x,
+            mem,
+            mem,
+            attn_mask=attn_mask,
+            key_padding_mask=key_padding_mask,
+            is_causal=is_causal,
+            need_weights=False,
+        )
         return x
 
 
@@ -460,14 +554,29 @@ class VITransformerDecoder(VIModule):
         memory: Tensor,
         tgt_mask: Optional[Tensor] = None,
         memory_mask: Optional[Tensor] = None,
+        tgt_key_padding_mask: Optional[Tensor] = None,
+        memory_key_padding_mask: Optional[Tensor] = None,
+        tgt_is_causal: Optional[bool] = None,
+        memory_is_causal: bool = False,
     ) -> VIReturn[Tensor]:
         """Forward computation."""
         output = tgt
+
+        seq_len = _get_seq_len(tgt, self.layers[0].self_attn.batch_first)
+        tgt_is_causal = _detect_is_causal_mask(tgt_mask, tgt_is_causal, seq_len)
+
         if self._return_log_probs:
             log_probs = torch.zeros(2, device=tgt.device)
             for mod in self.layers:
                 output, lps = mod(
-                    output, memory, tgt_mask=tgt_mask, memory_mask=memory_mask
+                    output,
+                    memory,
+                    tgt_mask=tgt_mask,
+                    memory_mask=memory_mask,
+                    tgt_key_padding_mask=tgt_key_padding_mask,
+                    memory_key_padding_mask=memory_key_padding_mask,
+                    tgt_is_causal=tgt_is_causal,
+                    memory_is_causal=memory_is_causal,
                 )
                 log_probs = log_probs + lps
             if self.norm is not None:
@@ -475,7 +584,16 @@ class VITransformerDecoder(VIModule):
             return output, log_probs
         else:
             for mod in self.layers:
-                output = mod(output, memory, tgt_mask=tgt_mask, memory_mask=memory_mask)
+                output = mod(
+                    output,
+                    memory,
+                    tgt_mask=tgt_mask,
+                    memory_mask=memory_mask,
+                    tgt_key_padding_mask=tgt_key_padding_mask,
+                    memory_key_padding_mask=memory_key_padding_mask,
+                    tgt_is_causal=tgt_is_causal,
+                    memory_is_causal=memory_is_causal,
+                )
             if self.norm is not None:
                 output = self.norm(output)
             return output
@@ -499,20 +617,57 @@ class VITransformerEncoder(VIModule):
         self.num_layers = num_layers
         self._return_log_probs = return_log_probs
 
-    def forward(self, src: Tensor, mask: Optional[Tensor] = None) -> VIReturn[Tensor]:
+    def forward(
+        self,
+        src: Tensor,
+        mask: Optional[Tensor] = None,
+        src_key_padding_mask: Optional[Tensor] = None,
+        is_causal: Optional[bool] = None,
+    ) -> VIReturn[Tensor]:
         """Forward computation."""
+        src_key_padding_mask = F._canonical_mask(
+            mask=src_key_padding_mask,
+            mask_name="src_key_padding_mask",
+            other_type=F._none_or_dtype(mask),
+            other_name="mask",
+            target_type=src.dtype,
+        )
+
+        mask = F._canonical_mask(
+            mask=mask,
+            mask_name="mask",
+            other_type=None,
+            other_name="",
+            target_type=src.dtype,
+            check_other=False,
+        )
+
         output = src
+
+        seq_len = _get_seq_len(src, self.layers[0].self_attn.batch_first)
+        is_causal = _detect_is_causal_mask(mask, is_causal, seq_len)
+
         if self._return_log_probs:
             log_probs = torch.zeros(2, device=src.device)
             for mod in self.layers:
-                output, lps = mod(output, src_mask=mask)
+                output, lps = mod(
+                    output,
+                    src_mask=mask,
+                    src_key_padding_mask=src_key_padding_mask,
+                    is_causal=is_causal,
+                )
                 log_probs = log_probs + lps
             if self.norm is not None:
                 output = self.norm(output)
             return output, log_probs
         else:
             for mod in self.layers:
-                output = mod(output, src_mask=mask)
+                output = mod(
+                    output,
+                    src_mask=mask,
+                    src_key_padding_mask=src_key_padding_mask,
+                    is_causal=is_causal,
+                )
             if self.norm is not None:
                 output = self.norm(output)
             return output
@@ -603,14 +758,55 @@ class VITransformer(VIModule):
         self.nhead = nhead
         self._return_log_probs = return_log_probs
 
-    def forward(self, src: Tensor, tgt: Tensor) -> VIReturn[Tensor]:
+    def forward(
+        self,
+        src: Tensor,
+        tgt: Tensor,
+        src_mask: Optional[Tensor] = None,
+        tgt_mask: Optional[Tensor] = None,
+        memory_mask: Optional[Tensor] = None,
+        src_key_padding_mask: Optional[Tensor] = None,
+        tgt_key_padding_mask: Optional[Tensor] = None,
+        memory_key_padding_mask: Optional[Tensor] = None,
+        src_is_causal: Optional[bool] = None,
+        tgt_is_causal: Optional[bool] = None,
+        memory_is_causal: bool = False,
+    ) -> VIReturn[Tensor]:
         """Forward computation."""
         if self._return_log_probs:
-            memory, encoder_log_probs = self.encoder(src)
-            output, decoder_log_probs = self.decoder(tgt, memory)
+            memory, encoder_log_probs = self.encoder(
+                src,
+                mask=src_mask,
+                src_key_padding_mask=src_key_padding_mask,
+                is_causal=src_is_causal,
+            )
+            output, decoder_log_probs = self.decoder(
+                tgt,
+                memory,
+                tgt_mask=tgt_mask,
+                memory_mask=memory_mask,
+                tgt_key_padding_mask=tgt_key_padding_mask,
+                memory_key_padding_mask=memory_key_padding_mask,
+                tgt_is_causal=tgt_is_causal,
+                memory_is_causal=memory_is_causal,
+            )
             log_probs = encoder_log_probs + decoder_log_probs
             return output, log_probs
         else:
-            memory = self.encoder(src)
-            output = self.decoder(tgt, memory)
+            memory = self.encoder(
+                src,
+                mask=src_mask,
+                src_key_padding_mask=src_key_padding_mask,
+                is_causal=src_is_causal,
+            )
+            output = self.decoder(
+                tgt,
+                memory,
+                tgt_mask=tgt_mask,
+                memory_mask=memory_mask,
+                tgt_key_padding_mask=tgt_key_padding_mask,
+                memory_key_padding_mask=memory_key_padding_mask,
+                tgt_is_causal=tgt_is_causal,
+                memory_is_causal=memory_is_causal,
+            )
             return output
