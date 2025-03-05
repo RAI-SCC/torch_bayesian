@@ -17,13 +17,14 @@ class StudentTVarDist(VariationalDistribution):
     ) -> None:
         super().__init__()
         self.degrees_of_freedom = degrees_of_freedom
+        self._unit_student_t = StudentT(degrees_of_freedom)
         self.variational_parameters = ("mean", "log_scale")
         self._default_variational_parameters = (0.0, log(initial_scale))
 
     def sample(self, mean: Tensor, log_scale: Tensor) -> Tensor:
         """Sample from a Student's t-distribution."""
         scale = torch.exp(log_scale)
-        return self._student_t_sample(mean, scale, self.degrees_of_freedom)
+        return self._student_t_sample(mean, scale)
 
     def log_prob(self, sample: Tensor, mean: Tensor, log_scale: Tensor) -> Tensor:
         """Compute the log probability of sample based on a Student's t-distribution."""
@@ -43,11 +44,7 @@ class StudentTVarDist(VariationalDistribution):
             )
         return -(data_fitting + normalization)
 
-    @staticmethod
-    def _student_t_sample(
-        mean: Tensor, scale: Tensor, degrees_of_freedom: float
-    ) -> Tensor:
-        base_distribution = StudentT(degrees_of_freedom * torch.ones_like(mean))
-        base_sample = base_distribution.sample()
+    def _student_t_sample(self, mean: Tensor, scale: Tensor) -> Tensor:
+        base_sample = self._unit_student_t.sample(sample_shape=mean.shape)
         sample = scale * base_sample + mean
         return sample

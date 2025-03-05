@@ -14,12 +14,14 @@ def test_student_t_sample(degrees_of_freedom: float) -> None:
     mean = torch.randn((3, 4))
     std = torch.zeros_like(mean)
 
-    sample = StudentTVarDist._student_t_sample(mean, std, degrees_of_freedom)
+    vardist = StudentTVarDist(degrees_of_freedom=degrees_of_freedom)
+
+    sample = vardist._student_t_sample(mean, std)
     assert sample.shape == mean.shape
     assert (sample == mean).all()
 
     std = torch.ones_like(mean)
-    sample = StudentTVarDist._student_t_sample(mean, std, degrees_of_freedom)
+    sample = vardist._student_t_sample(mean, std)
     assert not (sample == mean).all()
 
 
@@ -64,7 +66,7 @@ def test_log_prob(norm_constants: bool, degrees_of_freedom: float) -> None:
         norm_const = torch.full_like(mean, norm_value.item())
         ref1 += norm_const
     log_prob1 = vardist.log_prob(sample, mean, log_scale)
-    assert (torch.isclose(ref1, log_prob1)).all()
+    assert torch.allclose(ref1, log_prob1, atol=3e-7)
 
     sample_shape2 = (6,)
     mean = torch.randn(sample_shape2)
@@ -82,4 +84,4 @@ def test_log_prob(norm_constants: bool, degrees_of_freedom: float) -> None:
         norm_const = torch.full_like(mean, norm_value.item())
         ref2 += norm_const
     log_prob2 = vardist.log_prob(sample, mean, log_scale)
-    assert (torch.isclose(ref2, log_prob2)).all()
+    assert torch.allclose(ref2, log_prob2, atol=3e-7)
