@@ -72,10 +72,12 @@ class KullbackLeiblerLoss(Module):
             Negative ELBO loss. Shape: (1,)
         """
         samples, log_probs = model_output
+        #print(samples[0,0])
         # Average log probs separately and calculate prior matching term
         mean_log_probs = log_probs.mean(dim=0)
         prior_matching = mean_log_probs[1] - mean_log_probs[0]
         # Sample average for predictive log prob is already done
+        print(target, samples)
         data_fitting = self.predictive_distribution.log_prob_from_samples(
             target, samples
         ).sum()
@@ -87,5 +89,5 @@ class KullbackLeiblerLoss(Module):
             n_data = samples.shape[0]
         else:
             n_data = dataset_size or self.dataset_size
-
+        print(data_fitting)
         return -data_fitting + self.heat * prior_matching / n_data

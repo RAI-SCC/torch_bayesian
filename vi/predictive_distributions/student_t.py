@@ -20,6 +20,7 @@ class StudentTPredictiveDistribution(PredictiveDistribution):
         #kurtosis from Moments of Student’s T-Distribution: A Unified Approach
         kurtosis = torch.mean((samples - mean)**4)
         dof = (4*kurtosis - 6*variance**2) / (kurtosis - 3*variance**2)
+        dof = torch.max(kurtosis, 4.0 * torch.ones_like(dof))
         sigma = dof/(dof-2) * (1/variance)
 
         return mean, sigma, dof
@@ -32,5 +33,4 @@ class StudentTPredictiveDistribution(PredictiveDistribution):
         mean, sigma, dof = parameters
         data_fitting = - 0.5*(dof+1) * torch.log(1 + (sigma/dof) * ((reference-mean)**2))
         normalization = torch.lgamma(0.5*(dof+1)) - torch.lgamma(0.5*dof) + 0.5 * torch.log(sigma) - 0.5*torch.log(torch.pi*dof)
-        print(dof, torch.lgamma(0.5*(dof+1)), torch.lgamma(0.5*dof) ,torch.log(sigma))
         return data_fitting + normalization
