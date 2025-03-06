@@ -13,7 +13,7 @@ class StudentTVarDist(VariationalDistribution):
     """
     Variational distribution of independent Student's t-distributions.
 
-    Defines a variational Stundent's t-distribution with initial mean zero. Learnable
+    Defines a variational Student's t-distribution with initial mean zero. Learnable
     parameters are mean and log_scale; degrees_of_freedom can be provided but is fixed.
 
     Parameters
@@ -46,6 +46,11 @@ class StudentTVarDist(VariationalDistribution):
             Sample mean.
         log_scale: Tensor
             Sample distribution log scale.
+
+        Returns
+        -------
+        sample: Tensor
+            Sample tensor of the same shape as mean drawn from Student's t-distribution.
         """
         scale = torch.exp(log_scale)
         return self._student_t_sample(mean, scale)
@@ -65,6 +70,11 @@ class StudentTVarDist(VariationalDistribution):
             Distribution mean.
         log_scale: Tensor
             Distribution log scale.
+
+        Returns
+        -------
+        log_prob: Tensor
+            Tensor with the same shape as sample containing the log probability of the sample given mean and log_scale.
         """
         scale = torch.exp(log_scale)
         data_fitting = (
@@ -95,6 +105,11 @@ class StudentTVarDist(VariationalDistribution):
             Sample mean.
         scale: Tensor
             Sample distribution scale.
+
+        Returns
+        -------
+        sample: Tensor
+            Sample tensor of the same shape as mean drawn from Student's t-distribution.
         """
         base_sample = self._unit_student_t.sample(sample_shape=mean.shape)
         sample = scale * base_sample + mean
