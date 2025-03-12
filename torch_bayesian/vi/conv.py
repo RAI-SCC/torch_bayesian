@@ -1,3 +1,5 @@
+"""Definition of convolutional layers."""
+
 from typing import Any, List, Optional, Tuple, Union
 
 import torch
@@ -13,6 +15,8 @@ from .variational_distributions import MeanFieldNormalVarDist
 
 
 class _VIConvNd(VIBaseModule):
+    """Private class."""
+
     __constants__ = [
         "stride",
         "padding",
@@ -156,34 +160,7 @@ class _VIConvNd(VIBaseModule):
 
 
 class VIConv1d(_VIConvNd):
-    """
-    Equivalent of nn.Conv1d with variational inference.
-
-    Called with the same arguments as nn.VIConv1d, but accepts additional arguments.
-    This module's random variables are
-        ("weight", "bias") if bias == True
-        ("weight", )       if bias == False
-
-    Additional Parameters
-    ---------------------
-    variational_distribution: Union[VarDist, List[VarDist]]
-        Variational distribution which specifies the assumed weight distribution. A list of
-        distributions may be provided to specify different choices for each random variable.
-        Default: MeanFieldNormalVarDist()
-    prior: Union[Prior, List[Prior]]
-        Prior distribution which specifies the previous knowledge about the weight distribution.
-        A list of distributions may be provided to specify different choices for each random
-        variable. Default: MeanFieldNormalPrior()
-    rescale_prior: bool
-        If True prior._scaling_parameters are scaled with the sqrt of the layer width.
-        This may be necessary to maintain normalization for wide layers. Default: False
-    prior_initialization: bool
-        If True parameters are initialized according to the prior. If False parameters are
-        initialized similar to non-Bayesian networks. Default: False
-    return_log_probs: bool
-        If True the model forward pass returns the log probability of the sampled weight.
-        This is required for the standard loss calculation. Default: True
-    """
+    """Equivalent of nn.Conv1d with variational inference."""
 
     def __init__(
         self,
