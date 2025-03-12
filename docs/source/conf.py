@@ -26,7 +26,13 @@ templates_path = ["_templates"]
 # exclude_patterns = []
 
 apidoc_modules = [
-    {"path": "../../torch_bayesian", "destination": "../source"},
+    {
+        "path": "../../torch_bayesian",
+        "destination": "../source",
+        "module_first": False,
+        "implicit_namespaces": False,
+        "exclude_patterns": ["**/test*", "*[!_].py"],  #
+    },
 ]
 
 
@@ -35,3 +41,5 @@ apidoc_modules = [
 
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
+
+# command line (in venv: sphinx-build -M html docs/source docs/build/)
