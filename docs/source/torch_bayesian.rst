@@ -1,13 +1,13 @@
 torch\_bayesian package
 =======================
 
-Subpackages
------------
+Submodules
+----------
 
 .. toctree::
    :maxdepth: 4
 
-   torch_bayesian.vi
+   torch_bayesian.doc_dummy
 
 Module contents
 ---------------

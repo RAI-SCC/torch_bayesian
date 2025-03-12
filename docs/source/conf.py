@@ -15,11 +15,13 @@ release = "0.1"
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 master_doc = "torch_bayesian"
+# napoleon_numpy_docstring = True
 
 extensions = [
-    "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.apidoc",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.autodoc",
 ]
 
 templates_path = ["_templates"]
@@ -31,7 +33,8 @@ apidoc_modules = [
         "destination": "../source",
         "module_first": False,
         "implicit_namespaces": False,
-        "exclude_patterns": ["**/test*", "*[!_].py"],  #
+        "separate_modules": True,
+        "exclude_patterns": ["*/test*", "*/vi/*.py"],
     },
 ]
 
