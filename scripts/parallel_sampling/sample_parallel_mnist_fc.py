@@ -163,7 +163,9 @@ if __name__ == "__main__":
     rank = int(os.environ["SLURM_PROCID"])
     local_rank = int(os.environ["SLURM_LOCALID"])
     world_size = int(os.environ["SLURM_NTASKS"])
-    torch.cuda.set_device(local_rank)
+    #torch.cuda.set_device(local_rank)
+    set_device = "cuda:" + str(local_rank)
+    torch.device(set_device)
 
     input_length = 28*28
     output_length = 10

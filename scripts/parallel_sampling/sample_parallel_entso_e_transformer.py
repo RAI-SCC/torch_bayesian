@@ -37,6 +37,10 @@ class TimeSeriesTransformer(vi.VIModule):
     def forward(self, src, tgt, src_mask, tgt_mask):
         src_emb = self.encoder_projection(src)
         tgt_emb = self.decoder_projection(tgt)
+        print(src_emb.shape)
+        print(tgt_emb.shape)
+        print(src_mask.shape)
+        print(tgt_mask.shape)
         output = self.transformer(src_emb, tgt_emb, src_mask, tgt_mask)
         return self.fc_out(output)
 
@@ -45,13 +49,13 @@ def generate_square_subsequent_mask(sz):
     return mask
 
 def setup(rank, world_size):
-    """
-        Initialize the distributed process group.
-        """
-    os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "29500"
-
-    dist.init_process_group("gloo", rank=rank, world_size=world_size) # Change to "nccl" for GPUs
+    # Initialize distributed backend
+    dist.init_process_group(
+        backend="nccl",  # Use NCCL for CUDA
+        init_method="env://",
+        rank=rank,
+        world_size=world_size
+    )
 
 def cleanup():
     """
@@ -175,24 +179,19 @@ def test(dataloader: DataLoader,
     return
 
 
-def distributed(rank, world_size, parameters):
-    setup(rank, world_size)
-    (train_dataloader, test_dataloader, model, loss_fn, optimizer, sample_num, train_loss_list, test_loss_list,
-     random_seed, epochs, device) = parameters
-    # Do stuff here
-    torch.manual_seed(random_seed)
-    for t in range(epochs):
-        if rank == 0:
-            print(f"Epoch {t + 1}\n-------------------------------")
-        model = train(train_dataloader, model, loss_fn, optimizer, sample_num, train_loss_list, rank, world_size,device)
-        test(test_dataloader, model, loss_fn, sample_num, test_loss_list,rank, world_size, device)
 
-
-
-    cleanup()
 if __name__ == "__main__":
     # Hyper-parameters
-    world_size = 4  # Set the number of processes
+    rank = int(os.environ["SLURM_PROCID"])
+    local_rank = int(os.environ["SLURM_LOCALID"])
+    world_size = int(os.environ["SLURM_NTASKS"])
+    torch.cuda.set_device(local_rank)
+
+    print(f"[Process {rank}] Local Rank: {local_rank} / World Size: {world_size}")
+    print(f"[Process {rank}] CUDA device count: {torch.cuda.device_count()}")
+    print(f"[Process {rank}] Current device: {torch.cuda.current_device()}")
+    print(f"[Process {rank}] CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES')}")
+
     input_length = HISTORY_WINDOW
     output_length = PREDICTION_WINDOW
     epochs = 10
@@ -238,8 +237,15 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=0)
 
     sample_num = int(all_sample_num / world_size)
-    parameters = (train_dataloader, test_dataloader, model, loss_fn, optimizer, sample_num, train_loss_list, test_loss_list, random_seed, epochs, device)
+    
+    setup(rank, world_size)
 
+    torch.manual_seed(random_seed)
+    for t in range(epochs):
+        if rank == 0:
+            print(f"Epoch {t + 1}\n-------------------------------")
+        model = train(train_dataloader, model, loss_fn, optimizer, sample_num, train_loss_list, rank, world_size,device)
+        test(test_dataloader, model, loss_fn, sample_num, test_loss_list,rank, world_size, device)
 
-    mp.spawn(distributed, args=(world_size,parameters), nprocs=world_size, join=True)
+    cleanup()
 
