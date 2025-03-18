@@ -44,7 +44,7 @@ class TransformerTimeSeries(vi.VIModule):
 
     def forward(self, src, tgt, src_mask=None, tgt_mask=None):
         src = src.to(device)
-        tgt = src.to(device)
+        tgt = tgt.to(device)
         tgt_mask = tgt_mask.to(device)
         src = self.embedding(src) + self.positional_encoding[:, :src.size(1), :]
         tgt = self.embedding(tgt) + self.positional_encoding[:, :tgt.size(1), :]
@@ -119,7 +119,7 @@ def test_model(model, test_loader):
             predictions.append(tgt_input[:, 1:].squeeze())
 
             test_loss += loss_fn(predictions, batch_y).item()
-    test_loss /= num_batches
+    test_loss /= len(test_dataloader)
 
     print(f"Test Error: Avg loss: {test_loss:>8f} \n")
 
