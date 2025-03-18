@@ -1,9 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
 from torch.utils.data import DataLoader
-import matplotlib.pyplot as plt
 import polars as pl
 from entsoe_data_load import TimeseriesDataset
 import torch_bayesian.vi as vi
@@ -38,13 +36,16 @@ device = (
 class TransformerTimeSeries(vi.VIModule):
     def __init__(self, input_dim, model_dim, num_heads, num_layers, variational_distribution):
         super().__init__()
-        self.embedding = nn.Linear(input_dim, model_dim)
-        self.positional_encoding = nn.Parameter(torch.zeros(1, seq_length, model_dim))
+        self.embedding = nn.Linear(input_dim, model_dim).to(device)
+        self.positional_encoding = nn.Parameter(torch.zeros(1, seq_length, model_dim)).to(device)
         self.transformer = vi.VITransformer(d_model=model_dim, nhead=num_heads, num_encoder_layers=num_layers,
-                                          num_decoder_layers=num_layers, variational_distribution=variational_distribution)
-        self.fc = vi.VILinear(model_dim, 1, variational_distribution=variational_distribution)
+                                          num_decoder_layers=num_layers, variational_distribution=variational_distribution).to(device)
+        self.fc = vi.VILinear(model_dim, 1, variational_distribution=variational_distribution).to(device)
 
     def forward(self, src, tgt, src_mask=None, tgt_mask=None):
+        src = src.to(device)
+        tgt = src.to(device)
+        tgt_mask = tgt_mask.to(device)
         src = self.embedding(src) + self.positional_encoding[:, :src.size(1), :]
         tgt = self.embedding(tgt) + self.positional_encoding[:, :tgt.size(1), :]
 
@@ -65,10 +66,8 @@ input_dim = 1
 model_dim = 64
 num_heads = 4
 num_layers = 2
-dropout = 0.1
 model = TransformerTimeSeries(input_dim, model_dim, num_heads, num_layers, variational_distribution=MeanFieldNormalVarDist(initial_std=1.))
 model.return_log_probs(False)
-model = TransformerTimeSeries(input_dim, model_dim, num_heads, num_layers, forecast_horizon, dropout).to(device)
 print(f"Using {device} device")
 print(model)
 optimizer = optim.Adam(model.parameters(), lr=0.001)
@@ -103,6 +102,7 @@ train_model(model, train_dataloader)
 
 def test_model(model, test_loader):
     model.eval()
+    test_loss = 0.0
     predictions, actuals = [], []
     with torch.no_grad():
         for batch_x, batch_y in test_loader:
@@ -116,16 +116,13 @@ def test_model(model, test_loader):
                 next_pred = output[:, -1:].unsqueeze(-1)
                 tgt_input = torch.cat((tgt_input, next_pred), dim=1)
 
-            predictions.append(tgt_input[:, 1:].squeeze().numpy())
-            actuals.append(batch_y.numpy())
+            predictions.append(tgt_input[:, 1:].squeeze())
 
-    predictions = np.vstack(predictions)
-    actuals = np.vstack(actuals)
-    plt.plot(actuals[:, 0], label='Actual First Step')
-    plt.plot(predictions[:, 0], label='Predicted First Step')
-    plt.legend()
-    plt.title("Transformer Autoregressive Time Series Forecasting")
-    plt.show()
+            test_loss += loss_fn(predictions, batch_y).item()
+    test_loss /= num_batches
+
+    print(f"Test Error: Avg loss: {test_loss:>8f} \n")
+
 
 
 test_model(model, test_dataloader)
