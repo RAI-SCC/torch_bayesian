@@ -20,25 +20,24 @@ class KullbackLeiblerLoss(Module):
     Parameters
     ----------
     predictive_distribution: PredictiveDistribution
-        Assumed distribution of the outputs. Typically, `CategoricalPredictiveDistribution`
-        for classification and `MeanFieldNormalPredictiveDistribution` for regression.
+        Assumed distribution of the outputs. Typically, :func:`CategoricalPredictiveDistribution <torch_bayesian.vi.predictive_distributions.CategoricalPredictiveDistribution>`
+        for classification and :func:`MeanFieldNormalPredictiveDistribution <torch_bayesian.vi.predictive_distributions.MeanFieldNormalPredictiveDistribution>` for regression.
     dataset_size: Optional[int]
         Size of the training dataset. Required for loss calculation. If not provided,
         it must be provided to the forward method.
-    test: bool
-        let's see whether this shows up
     heat: float, default: 1
         Temperature in the sense of the Cold Posterior effect.
     track: bool, default: False
         Set True to track the loss components. The log is stored as a dictionary in
         `self.log`. Loss history is stored for three components as lists accessible via
         the respective keys:
-            *data_fitting: data log likelihood
-            *prior_matching: the Kullback-Leibler divergence of prior anc variational
-                distribution
-            *log_probs: the raw prior and variational distribution log probabilities of
-                the sampled weights.
-            *test:
+
+        - ``"data_fitting"``: data log likelihood
+        - ``"prior_matching"``: the Kullback-Leibler divergence of prior and variational
+          distribution
+        - ``"log_probs"``: the raw prior and variational distribution log probabilities of
+          the sampled weights.
+
     """
 
     def __init__(
@@ -82,7 +81,7 @@ class KullbackLeiblerLoss(Module):
         target: Tensor,
         dataset_size: Optional[int] = None,
     ) -> Tensor:
-        """
+        r"""
         Calculate the negative ELBO loss from sampled evaluations, a target and the weight log probs.
 
         Accepts a Tensor of N samples, the associate log probabilities and a target to
@@ -92,12 +91,12 @@ class KullbackLeiblerLoss(Module):
         ----------
         model_output: Tuple[Tensor, Tensor]
             The model output in with return_log_probs = True. The first Tensor is the
-            sampled model prediction (Shape: (N, *). The second Tensor contains
+            sampled model prediction (Shape: (N, \*). The second Tensor contains
             prior_log_prob and variational_log_prob - the log probability of the sampled
             weights under the prior and variational distribution respectively - and has
             shape (N, 2).
         target: Tensor,
-            Target prediction. Shape (*)
+            Target prediction. Shape (\*)
         dataset_size: Optional[int] = None
             Total number of samples in the dataset. Used in place of self.dataset_size
             if provided.

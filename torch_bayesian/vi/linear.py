@@ -16,11 +16,11 @@ class VILinear(VIBaseModule):
 
     Called with the same arguments as nn.Linear, but accepts additional arguments.
     This module's random variables are
-        ("weight", "bias") if bias == True
-        ("weight", )       if bias == False
+    ("weight", "bias") if bias == True
+    ("weight", )       if bias == False
 
-    Additional Parameters
-    ---------------------
+    Parameters
+    ----------
     variational_distribution: Union[VarDist, List[VarDist]]
         Variational distribution which specifies the assumed weight distribution. A list of
         distributions may be provided to specify different choices for each random variable.
@@ -93,20 +93,20 @@ class VILinear(VIBaseModule):
             self._fast_path = False
 
     def forward(self, input_: Tensor) -> VIReturn[Tensor]:
-        """
+        r"""
         Forward computation.
 
         Parameters
         ----------
         input_: Tensor
-            Input tensor of shape (*, in_features).
+            Input tensor of shape (\*, in_features).
 
         Returns
         -------
         output, log_probs if return_log_probs else output
 
         output: Tensor
-            Output tensor of shape (*, out_features).
+            Output tensor of shape (\*, out_features).
             Auto-sampling will add a sample dimension at the start for the overall output.
         log_probs: Tensor
             Tensor of shape (2,) containing the total prior and variational log

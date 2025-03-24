@@ -15,7 +15,7 @@ class Prior(metaclass=PostInitCallMeta):
     """
     Base for prior distributions.
 
-    Parameters
+    Attributes
     ----------
     distribution_parameters: Tuple[str, ...]
         Parameters characterizing the prior and can be set during prior based
