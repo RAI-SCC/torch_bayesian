@@ -6,7 +6,7 @@ from ..utils import PostInitCallMeta
 
 
 class PredictiveDistribution(metaclass=PostInitCallMeta):
-    """
+    r"""
     Base class for all predictive distributions.
 
     A predictive distribution is the assumed distribution of the model outputs. Its
@@ -32,7 +32,7 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
     Methods
     -------
     predictive_parameters_from_samples: Callable[[Tensor], Union[Tensor, Tuple[Tensor, ...]]]
-        Method that accepts the output of a model as Tensor of shape (S, *), where S is
+        Method that accepts the output of a model as Tensor of shape (S, \*), where S is
         the number of samples. Calculates the predictive parameters implied by the
         samples.
     log_prob_from_parameters: Callable[[Tensor, Union[Tensor, Tuple[Tensor, ...]]], Tensor]
@@ -61,7 +61,7 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
             raise NotImplementedError("Subclasses must define log_prob_from_parameters")
 
     def log_prob_from_samples(self, reference: Tensor, samples: Tensor) -> Tensor:
-        """
+        r"""
         Calculate the log probability for reference given a set of samples.
 
         Usually combines `predictive_parameters_from_samples` and `log_prob_from_parameters`,
@@ -70,9 +70,9 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
         Parameters
         ----------
         reference : Tensor
-            Expected prediction as Tensor of shape (*)
+            Expected prediction as Tensor of shape (\*)
         samples : Tensor
-            Model prediction as Tensor of shape (S, *), where S is the number of samples.
+            Model prediction as Tensor of shape (S, \*), where S is the number of samples.
 
         Returns
         -------

@@ -161,8 +161,9 @@ class VIConv1d(_VIConvNd):
 
     Called with the same arguments as nn.VIConv1d, but accepts additional arguments.
     This module's random variables are
-        ("weight", "bias") if bias == True
-        ("weight", )       if bias == False
+
+    - ("weight", "bias") if bias == True
+    - ("weight", )       if bias == False
 
     Additional Parameters
     ---------------------
@@ -298,8 +299,8 @@ class VIConv2d(_VIConvNd):
 
     Called with the same arguments as nn.VIConv2d, but accepts additional arguments.
     This module's random variables are
-        ("weight", "bias") if bias == True
-        ("weight", )       if bias == False
+    - ("weight", "bias") if bias == True
+    - ("weight", )       if bias == False
 
     Additional Parameters
     ---------------------
@@ -433,8 +434,8 @@ class VIConv3d(_VIConvNd):
 
     Called with the same arguments as nn.VIConv3d, but accepts additional arguments.
     This module's random variables are
-        ("weight", "bias") if bias == True
-        ("weight", )       if bias == False
+    - ("weight", "bias") if bias == True
+    - ("weight", )       if bias == False
 
     Additional Parameters
     ---------------------
