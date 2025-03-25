@@ -1,5 +1,5 @@
 from abc import ABC
-from math import log, pi
+from math import log
 from typing import Callable, Dict, Iterable, Optional, Tuple, Type, Union
 from warnings import warn
 
@@ -91,11 +91,10 @@ class NormalNormalDivergence(KullbackLeiblerModule):
 
         raw_kl = (
             variance_ratio.log()
-            + (prior_mean - variational_mean).pow(2) / variance_ratio
+            + (prior_mean - variational_mean).pow(2) / prior_variance
+            + 1 / variance_ratio
+            - 1
         ) / 2
-        if _globals._USE_NORM_CONSTANTS:
-            raw_kl = raw_kl - 0.5
-
         return raw_kl.sum()
 
 
@@ -105,7 +104,7 @@ class NonBayesianDivergence(KullbackLeiblerModule):
     @staticmethod
     def forward(*args: Tensor) -> Tensor:
         """Return placeholder zero."""
-        return torch.tensor([0.0], device=args[0].device)
+        return torch.tensor([0.0], device=args[-1].device)
 
 
 class UniformNormalDivergence(KullbackLeiblerModule):
@@ -131,9 +130,9 @@ class UniformNormalDivergence(KullbackLeiblerModule):
         Tensor
             The KL-Divergence of the two distributions.
         """
-        raw_kl = variational_log_std
+        raw_kl = -variational_log_std - 0.5
         if _globals._USE_NORM_CONSTANTS:
-            raw_kl = raw_kl - 0.5 * (1 + log(2 * pi))
+            raw_kl = raw_kl - 0.5 * log(2 * torch.pi)
         return raw_kl.sum()
 
 

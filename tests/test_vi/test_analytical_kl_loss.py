@@ -100,9 +100,15 @@ def test_normalnormal_klmodule(norm_constants: bool) -> None:
     module = NormalNormalDivergence()
     out = module(prior_params, var_params)
 
-    reference = (prior_params[1] - var_params[1]) + (
-        prior_params[0] - var_params[0]
-    ).pow(2) * torch.exp(2 * var_params[1]) / (2 * torch.exp(2 * prior_params[1]))
+    prior_variance = torch.exp(2 * prior_params[1])
+    variational_variance = torch.exp(2 * var_params[1])
+
+    reference = (
+        (prior_params[1] - var_params[1])
+        + (prior_params[0] - var_params[0]).pow(2) / (2 * prior_variance)
+        + variational_variance / (2 * prior_variance)
+        - 1 / 2
+    )
     if norm_constants:
         reference = reference - 0.5
     assert torch.allclose(out, reference.sum())
@@ -206,17 +212,33 @@ class DummyMLP(VIModule):
         return self.layers(input_)
 
 
-def test_prior_matching() -> None:
+@pytest.mark.parametrize(
+    "prior,var_dist, norm_constants",
+    [
+        (MeanFieldNormalPrior(), MeanFieldNormalVarDist(), True),
+        (MeanFieldNormalPrior(), MeanFieldNormalVarDist(), False),
+        (MeanFieldNormalPrior(1.0, 1.5), MeanFieldNormalVarDist(0.5), True),
+        (MeanFieldNormalPrior(1.0, 1.5), MeanFieldNormalVarDist(0.5), False),
+        (UniformPrior(), NonBayesian(), False),
+        (UniformPrior(), NonBayesian(), True),
+        (UniformPrior(), MeanFieldNormalVarDist(), False),
+        (UniformPrior(), MeanFieldNormalVarDist(), True),
+        (UniformPrior(), MeanFieldNormalVarDist(0.7), False),
+        (UniformPrior(), MeanFieldNormalVarDist(0.7), True),
+    ],
+)
+def test_prior_matching(
+    prior: Prior, var_dist: VariationalDistribution, norm_constants: bool
+) -> None:
     """Test AnalyticalKullbackLeiblerLoss.prior_matching()."""
-    prior = MeanFieldNormalPrior()
-    var_dist = MeanFieldNormalVarDist()
+    use_norm_constants(norm_constants)
 
     f_in = 8
-    f_hidden = 160
+    f_hidden = 16
     f_out = 10
 
     batch_size = 100
-    samples = 100
+    samples = 10000
 
     model = DummyMLP(f_in, f_hidden, f_out, prior=prior, var_dist=var_dist)
     criterion = AnalyticalKullbackLeiblerLoss(
@@ -236,4 +258,10 @@ def test_prior_matching() -> None:
     analytical_prior_matching = criterion.prior_matching()
     ref_criterion(out, target)
     ref_prior_matching = ref_criterion.log["prior_matching"]  # type: ignore [index]
-    print(ref_prior_matching[0] / analytical_prior_matching.item())
+    print(ref_prior_matching[0], analytical_prior_matching)
+    assert torch.allclose(
+        torch.tensor(ref_prior_matching[0]),
+        analytical_prior_matching,
+        atol=2e-1,
+        rtol=1e-3,
+    )
