@@ -43,7 +43,7 @@ class KullbackLeiblerModule(ABC):
 
     def __call__(
         self,
-        prior_parameters: Iterable[Tensor],
+        prior_parameters: Iterable[Union[Tensor, float]],
         variational_parameters: Iterable[Tensor],
     ) -> Tensor:
         """Distribute parameters to forward function."""
@@ -55,8 +55,8 @@ class NormalNormalDivergence(KullbackLeiblerModule):
 
     @staticmethod
     def forward(
-        prior_mean: Tensor,
-        prior_log_std: Tensor,
+        prior_mean: Union[Tensor, float],
+        prior_log_std: Union[Tensor, float],
         variational_mean: Tensor,
         variational_log_std: Tensor,
     ) -> Tensor:
@@ -69,9 +69,9 @@ class NormalNormalDivergence(KullbackLeiblerModule):
 
         Parameters
         ----------
-        prior_mean: Tensor
+        prior_mean: Union[Tensor, float]
             Means of the prior distribution.
-        prior_log_std: Tensor
+        prior_log_std: Union[Tensor, float]
             Log standard deviations of the prior distribution.
         variational_mean: Tensor
             Means of the variational distribution.
@@ -84,7 +84,9 @@ class NormalNormalDivergence(KullbackLeiblerModule):
             The KL-Divergence of the two distributions.
         """
         variational_variance = torch.exp(2 * variational_log_std)
-        prior_variance = torch.exp(2 * prior_log_std)
+        prior_variance = torch.exp(
+            torch.tensor(2, device=variational_mean.device) * prior_log_std
+        )
         variance_ratio = prior_variance / variational_variance
 
         raw_kl = (
@@ -166,7 +168,7 @@ class AnalyticalKullbackLeiblerLoss(Module):
                 if not isinstance(module, VIBaseModule):
                     continue
                 for prior, var_dist in zip(
-                    module.priors, module.variational_distributions
+                    module.prior, module.variational_distribution
                 ):
                     kl_type = self._detect_divergence(prior, var_dist)
                     if divergence_type is None:
@@ -204,15 +206,16 @@ class AnalyticalKullbackLeiblerLoss(Module):
         else:
             vardist_name = None
 
-        assert (
-            prior_name is not None and vardist_name is not None
-        ), f"Analytical loss is not implemented for {prior.__class__.__name__} and {var_dist.__class__.__name__}."
+        if (prior_name is None) or (vardist_name is None):
+            raise NotImplementedError(
+                f"Analytical loss is not implemented for {prior.__class__.__name__} and {var_dist.__class__.__name__}."
+            )
 
         return _kl_div_dict[prior_name + vardist_name + "Divergence"]()
 
     def prior_matching(self) -> Tensor:
         """Calculate the prior matching KL-Divergence of ``self.model``."""
-        total_kl = torch.tensor([])
+        total_kl = None
         for module in self.model.modules():
             if not isinstance(module, VIBaseModule):
                 continue
@@ -224,7 +227,10 @@ class AnalyticalKullbackLeiblerLoss(Module):
                 variational_params = module.get_variational_parameters(var)
 
                 variable_kl = self.kl_module(prior_params, variational_params)
-                total_kl = total_kl + variable_kl
+                if total_kl is None:
+                    total_kl = variable_kl
+                else:
+                    total_kl = total_kl + variable_kl
 
         return total_kl
 
