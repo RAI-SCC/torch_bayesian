@@ -27,6 +27,10 @@ classifiers = [
 ]
 dependencies = [
     "torch",
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinx-autoapi",
+    "myst-parser",
 ]
 
 [project.optional-dependencies]
