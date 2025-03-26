@@ -111,9 +111,9 @@ class KullbackLeiblerLoss(Module):
 
         if (dataset_size is None) and (self.dataset_size is None):
             warn(
-                f"No dataset_size is provided. Number of samples ({samples.shape[0]}) is used instead."
+                f"No dataset_size is provided. Batch size ({samples.shape[1]}) is used instead."
             )
-            n_data = samples.shape[0]
+            n_data = samples.shape[1]
         else:
             n_data = dataset_size or self.dataset_size
 

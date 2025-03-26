@@ -15,7 +15,7 @@ def test_kl_loss() -> None:
     batch_size = 4
     sample_shape = (5, 3)
     samples = torch.randn((sample_nr, batch_size, *sample_shape))
-    log_probs = torch.randn((sample_nr, 2))
+    log_probs = torch.randn((batch_size, 2))
     target = torch.randn([batch_size, *sample_shape])
 
     model_return = samples, log_probs
@@ -25,13 +25,13 @@ def test_kl_loss() -> None:
     loss1 = KullbackLeiblerLoss(MeanFieldNormalPredictiveDistribution())
     with warns(
         UserWarning,
-        match=f"No dataset_size is provided. Number of samples \\({sample_nr}\\) is used instead.",
+        match=f"No dataset_size is provided. Batch size \({batch_size}\) is used instead.",
     ):
         _ = loss1(model_return, target)
 
-    out1 = loss1(model_return, target, dataset_size=sample_nr)
+    out1 = loss1(model_return, target, dataset_size=batch_size)
     ref_data_fit = (
-        -sample_nr
+        -batch_size
         * loss1.predictive_distribution.log_prob_from_samples(target, samples)
         .mean(0)
         .sum()
@@ -43,22 +43,22 @@ def test_kl_loss() -> None:
     assert not loss1._track
 
     loss2 = KullbackLeiblerLoss(
-        MeanFieldNormalPredictiveDistribution(), dataset_size=sample_nr
+        MeanFieldNormalPredictiveDistribution(), dataset_size=batch_size
     )
     out2 = loss2(model_return, target)
     assert out1 == out2
-    out3 = loss2(model_return, target, dataset_size=2 * sample_nr)
+    out3 = loss2(model_return, target, dataset_size=2 * batch_size)
     assert out1 != out3
 
     loss3 = KullbackLeiblerLoss(
-        MeanFieldNormalPredictiveDistribution(), dataset_size=2 * sample_nr
+        MeanFieldNormalPredictiveDistribution(), dataset_size=2 * batch_size
     )
     out4 = loss3(model_return, target)
     assert out1 != out4
     assert out3 == out4
 
     loss4 = KullbackLeiblerLoss(
-        MeanFieldNormalPredictiveDistribution(), dataset_size=sample_nr, heat=0.5
+        MeanFieldNormalPredictiveDistribution(), dataset_size=batch_size, heat=0.5
     )
     out5 = loss4(model_return, target)
     assert out1 != out5
@@ -68,7 +68,7 @@ def test_kl_loss() -> None:
     assert out1 == out6
 
     loss5 = KullbackLeiblerLoss(
-        MeanFieldNormalPredictiveDistribution(), dataset_size=sample_nr, track=True
+        MeanFieldNormalPredictiveDistribution(), dataset_size=batch_size, track=True
     )
 
     assert loss5.log is not None
@@ -82,8 +82,8 @@ def test_kl_loss() -> None:
         assert loss1.log[key] == []
         assert loss5.log[key] == []
 
-    loss1(model_return, target, dataset_size=sample_nr)
-    loss5(model_return, target, dataset_size=sample_nr)
+    loss1(model_return, target, dataset_size=batch_size)
+    loss5(model_return, target, dataset_size=batch_size)
 
     for key in ["data_fitting", "prior_matching", "log_probs"]:
         assert len(loss1.log[key]) == 1
@@ -97,5 +97,5 @@ def test_kl_loss() -> None:
     assert loss1.log["log_probs"][0][1] - loss1.log["log_probs"][0][0] == ref_kl_term
     assert loss1.log["data_fitting"][0] + loss1.log["prior_matching"][0] == out1
 
-    double_out = loss1(double_return, double_target, dataset_size=sample_nr)
+    double_out = loss1(double_return, double_target, dataset_size=batch_size)
     assert torch.allclose(double_out, out1)

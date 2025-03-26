@@ -1,6 +1,6 @@
 from abc import ABC
 from math import log
-from typing import Callable, Dict, Iterable, Optional, Tuple, Type, Union
+from typing import Callable, Dict, Iterable, List, Optional, Type, Union
 from warnings import warn
 
 import torch
@@ -150,9 +150,7 @@ class AnalyticalKullbackLeiblerLoss(Module):
         model: VIModule,
         predictive_distribution: PredictiveDistribution,
         dataset_size: Optional[int] = None,
-        divergence_type: Union[
-            "KullbackLeiblerModule", Tuple[Prior, VariationalDistribution], None
-        ] = None,
+        divergence_type: Optional["KullbackLeiblerModule"] = None,
         heat: float = 1.0,
         track: bool = False,
     ) -> None:
@@ -182,11 +180,31 @@ class AnalyticalKullbackLeiblerLoss(Module):
         if divergence_type is None:
             raise ValueError("Provided model is not bayesian.")
 
-        if isinstance(divergence_type, tuple):
-            divergence_type = self._detect_divergence(*divergence_type)
         self.kl_module: KullbackLeiblerModule = divergence_type
         model.return_log_probs(False)
         self.model = model
+
+        self.log: Optional[Dict[str, List[Tensor]]] = None
+        if self._track:
+            self._init_log()
+
+    def track(self, mode: bool = True) -> None:
+        """
+        Enable or disable loss tracking.
+
+        Any existing loss history is kept and continued if tracking is reenabled.
+
+        Parameters
+        ----------
+        mode: bool, default: True
+            If ``True``, enable loss tracking if ``False`` disable it.
+        """
+        if mode and self.log is None:
+            self._init_log()
+        self._track = mode
+
+    def _init_log(self) -> None:
+        self.log = dict(data_fitting=[], prior_matching=[])
 
     @staticmethod
     def _detect_divergence(
@@ -261,9 +279,9 @@ class AnalyticalKullbackLeiblerLoss(Module):
 
         if (dataset_size is None) and (self.dataset_size is None):
             warn(
-                f"No dataset_size is provided. Number of samples ({samples.shape[0]}) is used instead."
+                f"No dataset_size is provided. Batch size ({samples.shape[1]}) is used instead."
             )
-            n_data = samples.shape[0]
+            n_data = samples.shape[1]
         else:
             n_data = dataset_size or self.dataset_size
 
