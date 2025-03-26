@@ -25,8 +25,8 @@ class KullbackLeiblerLoss(Module):
     dataset_size: Optional[int]
         Size of the training dataset. Required for loss calculation. If not provided,
         it must be provided to the forward method.
-    heat: float
-        Temperature in the sense of the Cold Posterior effect. Default: 1.
+    heat: float, default: 1.0
+        Temperature in the sense of the Cold Posterior effect.
     track: bool, default: False
         Set True to track the loss components. The log is stored as a dictionary in
         `self.log`. Loss history is stored for three components as lists accessible via
@@ -65,8 +65,8 @@ class KullbackLeiblerLoss(Module):
 
         Parameters
         ----------
-        mode: bool
-            If `True`, enable loss tracking if `False` disable it. Default: True.
+        mode: bool, default: True
+            If `True`, enable loss tracking if `False` disable it.
         """
         if mode and self.log is None:
             self._init_log()
@@ -95,9 +95,9 @@ class KullbackLeiblerLoss(Module):
             prior_log_prob and variational_log_prob - the log probability of the sampled
             weights under the prior and variational distribution respectively - and has
             shape (N, 2).
-        target: Tensor,
+        target: Tensor
             Target prediction. Shape (\*)
-        dataset_size: Optional[int] = None
+        dataset_size: Optional[int], default: None
             Total number of samples in the dataset. Used in place of self.dataset_size
             if provided.
 

@@ -97,8 +97,8 @@ from the table below based on the loss you would use in pytorch (more details
 
 | pytorch               | vi replacement (import from `vi.predictive_distributions`) |
 |-----------------------|------------------------------------------------------------|
-| `nn.MSELoss`          | `MeanFieldNormalPredicitveDistribution`                    |
-| `nn.CrossEntropyLoss` | `CategoricalPredicitveDistribution`                        |
+| `nn.MSELoss`          | `MeanFieldNormalPredictiveDistribution`                    |
+| `nn.CrossEntropyLoss` | `CategoricalPredictiveDistribution`                        |
 
 > **Note:** Reasons for the requirement to use `VISequential` (and how to overcome it)
 > are described in [Quickstart: Level 3](#level-3). However, adding residual connections

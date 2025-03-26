@@ -63,7 +63,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         ----------
          input_: Tensor
             Any number of input Tensors
-        samples : int
+        samples : int, default: 10
             Number of weight samples to evaluate
         kwargs: Any
             Any additional keyword arguments
@@ -84,7 +84,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
         Parameters
         ----------
-        mode : bool
+        mode : bool, default: True
             Whether to enable (`True`) or disable (`False`) returning of log probs.
         """
         for module in self.modules():

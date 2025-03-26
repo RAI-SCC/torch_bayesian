@@ -20,25 +20,24 @@ class VILinear(VIBaseModule):
     - ("weight", "bias") if bias == True
     - ("weight", )       if bias == False
 
-    Additional Parameters
-    ---------------------
-    variational_distribution: Union[VarDist, List[VarDist]]
+    Parameters
+    ----------
+    variational_distribution: Union[VarDist, List[VarDist]], default: :func:`MeanFieldNormalVarDist()<torch_bayesian.vi.variational_distributions.MeanFieldNormalVarDist>`
         Variational distribution which specifies the assumed weight distribution. A list of
         distributions may be provided to specify different choices for each random variable.
-        Default: MeanFieldNormalVarDist()
-    prior: Union[Prior, List[Prior]]
+    prior: Union[Prior, List[Prior]], default: :func:`MeanFieldNormalPrior()<torch_bayesian.vi.priors.MeanFieldNormalPrior>`
         Prior distribution which specifies the previous knowledge about the weight distribution.
         A list of distributions may be provided to specify different choices for each random
-        variable. Default: MeanFieldNormalPrior()
-    rescale_prior: bool
+        variable.
+    rescale_prior: bool, default: False
         If True prior._scaling_parameters are scaled with the sqrt of the layer width.
-        This may be necessary to maintain normalization for wide layers. Default: False
-    prior_initialization: bool
+        This may be necessary to maintain normalization for wide layers.
+    prior_initialization: bool, default: False
         If True parameters are initialized according to the prior. If False parameters are
-        initialized similar to non-Bayesian networks. Default: False
-    return_log_probs: bool
+        initialized similar to non-Bayesian networks.
+    return_log_probs: bool, default: True
         If True the model forward pass returns the log probability of the sampled weight.
-        This is required for the standard loss calculation. Default: True
+        This is required for the standard loss calculation.
     """
 
     __constants__ = ["in_features", "out_features"]
@@ -104,7 +103,7 @@ class VILinear(VIBaseModule):
 
         Returns
         -------
-        output, log_probs if return_log_probs else output
+        output, log_probs if ``return_log_probs`` else output
 
         output: Tensor
             Output tensor of shape (\*, out_features).
@@ -112,7 +111,7 @@ class VILinear(VIBaseModule):
         log_probs: Tensor
             Tensor of shape (2,) containing the total prior and variational log
             probability (in that order) of the sampled weights and biases.
-            Only returned if return_log_probs.
+            Only returned if ``return_log_probs``.
         """
         # Check for and perform fast path if possible:
         if (not self._return_log_probs) and self._fast_path:
