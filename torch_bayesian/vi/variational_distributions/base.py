@@ -46,8 +46,8 @@ class VariationalDistribution(metaclass=PostInitCallMeta):
             Name of the variable to reset.
         fan_in : int
             Size if  the input parameter map.
-        kaiming_scaling : bool
-            Whether th scale all parameters according to input map size. Default: True
+        kaiming_scaling : bool, default: True
+            Whether th scale all parameters according to input map size.
         """
         for parameter, default in zip(
             self.variational_parameters, self._default_variational_parameters

@@ -24,7 +24,7 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
     `predictive_parameters_from_samples` should still be defined to allow extracting
     predictions.
 
-    Properties
+    Attributes
     ----------
     predictive_parameters: Tuple[str, ...]
         String names of the predictive parameters. Mainly for documentation purposes.
@@ -32,12 +32,12 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
     Methods
     -------
     predictive_parameters_from_samples: Callable[[Tensor], Union[Tensor, Tuple[Tensor, ...]]]
-        Method that accepts the output of a model as Tensor of shape (S, \*), where S is
+        Abstract method that accepts the output of a model as Tensor of shape (S, \*), where S is
         the number of samples. Calculates the predictive parameters implied by the
         samples.
     log_prob_from_parameters: Callable[[Tensor, Union[Tensor, Tuple[Tensor, ...]]], Tensor]
         Accepts a reference and the predictive parameters as calculated by
-        `predictive_parameters_from_samples`. Calculates the log probability of the
+        ``predictive_parameters_from_samples``. Calculates the log probability of the
         reference.
     """
 

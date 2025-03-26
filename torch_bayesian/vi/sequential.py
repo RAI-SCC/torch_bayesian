@@ -9,11 +9,11 @@ from .base import VIModule
 
 class VISequential(VIModule, Sequential):
     """
-    Sequential container equivalent to torch.nn.Sequential, that manages VIModules too.
+    Sequential container equivalent to ``torch.nn.Sequential``, that manages :func:`VIModules<torch_bayesian.vi.VIModule>` too.
 
     Detects and aggregates prior_log_prob and variational_log_prob from submodules, if
     needed. Then passes on only the output to the next module making mixed sequences of
-    VIModules and nn.Modules work with and without return_log_probs.
+    :func:`VIModules<torch_bayesian.vi.VIModule>` and ``torch.nn.Modules`` work with and without ``return_log_probs``.
     """
 
     @overload
@@ -63,14 +63,14 @@ class VISequential(VIModule, Sequential):
 
         Returns
         -------
-        output, log_probs if return_log_probs else output
+        output, log_probs if ``return_log_probs`` else output
 
         output: Varies
             Output of the module stack.
         log_probs: Tensor
             Tensor of shape (2,) containing the total prior and variational log
             probability (in that order) of all sampled weights and biases.
-            Only returned if return_log_probs.
+            Only returned if ``return_log_probs``.
         """
         if self._return_log_probs:
             total_log_probs = torch.tensor([0.0, 0.0], device=input_.device)
@@ -108,14 +108,14 @@ class VIResidualConnection(VISequential):
 
         Returns
         -------
-        output, log_probs if return_log_probs else output
+        output, log_probs if ``return_log_probs`` else output
 
         output: Varies
             Output of the module stack plus the input to the residual connection.
         log_probs: Tensor
             Tensor of shape (2,) containing the total prior and variational log
             probability (in that order) of all sampled weights and biases.
-            Only returned if return_log_probs.
+            Only returned if ``return_log_probs``.
         """
         if self._return_log_probs:
             output, log_probs = super().forward(input_)

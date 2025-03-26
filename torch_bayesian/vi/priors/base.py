@@ -20,11 +20,10 @@ class Prior(metaclass=PostInitCallMeta):
     distribution_parameters: Tuple[str, ...]
         Parameters characterizing the prior and can be set during prior based
         initialization.
-    _required_parameters: Tuple[str, ...] = ()
+    _required_parameters: Tuple[str, ...], default: ()
         Parameters besides a sample needed to calculate log_prob.
-    _scaling_parameters: Tuple[str, ...]
+    _scaling_parameters: Tuple[str, ...], default: ``distribution_parameters``
         Parameters that need to be rescaled for prior rescaling.
-        Default: distribution_parameters
     log_prob: Callable[..., Tensor]
         Function to calculate the log probability of the input sample.
     """
@@ -91,8 +90,8 @@ class Prior(metaclass=PostInitCallMeta):
         Returns
         -------
         Tuple[Dict[str, int], Dict[str, int]]
-            The first dictionary maps the names of the shared parameters to their index in self.distribution_parameters.
-            The second dictionary maps the names of parameters exclusive to self.distribution_parameters to their index.
+            The first dictionary maps the names of the shared parameters to their index in ``self.distribution_parameters``.
+            The second dictionary maps the names of parameters exclusive to ``self.distribution_parameters`` to their index.
         """
         shared_params = {}
         diff_params = {}
