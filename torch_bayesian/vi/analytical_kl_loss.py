@@ -254,7 +254,7 @@ class AnalyticalKullbackLeiblerLoss(Module):
     def forward(
         self, model_output: Tensor, target: Tensor, dataset_size: Optional[int] = None
     ) -> Tensor:
-        """
+        r"""
         Calculate the negative ELBO loss from sampled evaluations and a target.
 
         Accepts a Tensor of N samples and a target to calculate the loss.
@@ -263,10 +263,10 @@ class AnalyticalKullbackLeiblerLoss(Module):
         ----------
         model_output: Tensor
             The model output in with return_log_probs = False, i.e. the sampled model
-            prediction. Shape: (N, *)
-        target: Tensor,
-            Target prediction. Shape (*)
-        dataset_size: Optional[int] = None
+            prediction. Shape: (N, \*)
+        target: Tensor
+            Target prediction. Shape (\*)
+        dataset_size: Optional[int], default: None
             Total number of samples in the dataset. Used in place of self.dataset_size
             if provided.
 
