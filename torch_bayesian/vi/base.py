@@ -61,7 +61,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
         Parameters
         ----------
-         input_: Tensor
+        input_: Tensor
             Any number of input Tensors
         samples : int, default: 10
             Number of weight samples to evaluate

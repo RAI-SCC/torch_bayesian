@@ -32,9 +32,12 @@ autodoc_type_aliases = {
     "torch.nn.common_types._size_3_t": "int | Tuple[int, int, int]",
     "torch_bayesian.vi.utils.common_types.VIReturn[torch.Tensor]": "torch.Tensor | Tuple[torch.Tensor, torch.Tensor]",
     "torch_bayesian.vi.utils.common_types.VIReturn[Tuple[torch.Tensor, Optional[torch.Tensor]]]": "Tuple[torch.Tensor, Optional[torch.Tensor]] | Tuple[Tuple[torch.Tensor, torch.Tensor | None], torch.Tensor]",
+    "torch_bayesian.vi.utils.common_types.VIReturn[torch.nn.common_types._tensor_list_t]": "Union[torch.Tensor, List[torch.Tensor]] | Tuple[Union[torch.Tensor, List[torch.Tensor]], torch.Tensor]",
     "torch_bayesian.vi.utils.common_types._vardist_any_t": "VariationalDistribution | List[VariationalDistribution]",
     "torch_bayesian.vi.utils.common_types._prior_any_t": "Prior | List[Prior]",
     "torch_bayesian.vi.utils.common_types._log_prob_return_format[torch.Tensor]": "Tuple[torch.Tensor, torch.Tensor]",
+    "Ellipsis": "...",
+    "torch_bayesian.vi.base.": "torch_bayesian.vi.",
     #    "torch.Tensor": "Tensor",
 }
 
@@ -148,6 +151,15 @@ autoapi_options = [
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "sphinx_rtd_theme"
+html_theme_options = {
+    "navigation_depth": -1,
+    "titles_only": True,
+}
+
 html_static_path = ["_static"]
+
+html_css_files = [
+    "css/custom.css",
+]
 
 # command line (in venv: sphinx-build -T -E -b html ./source ./build)
