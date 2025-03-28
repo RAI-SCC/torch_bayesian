@@ -17,7 +17,7 @@ class CategoricalPredictiveDistribution(PredictiveDistribution):
     def predictive_parameters_from_samples(
         self, samples: Tensor, eps: float = 1e-5
     ) -> Tensor:
-        """Calculate predictive probabilities or logits from samples."""
+        """Calculate predictive probabilities from samples."""
         if self._in_logits:
             return F.softmax(samples + eps, -1).mean(dim=0)
         else:

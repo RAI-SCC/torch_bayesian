@@ -24,6 +24,7 @@
 | test_predictive_distributions  | test_predictive_base    | base                                   | test_meta                                                                                                                          |
 |                                | test_categorical_pred   | predictive_distributions/categorical   | test_predictive_base                                                                                                               |
 |                                | test_normal_pred        | predictive_distributions/normal        | test_predicitve_base; test_use_norm_constants                                                                                      |
+|                                | test_non_bayesian_pred  | predictive_distributions/non_bayesian  | test_predictive_base                                                                                                               |
 
 ### To include tests
 

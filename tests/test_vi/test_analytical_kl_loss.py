@@ -21,6 +21,8 @@ from torch_bayesian.vi.analytical_kl_loss import (
 )
 from torch_bayesian.vi.predictive_distributions import (
     MeanFieldNormalPredictiveDistribution,
+    NonBayesianPredictiveDistribution,
+    PredictiveDistribution,
 )
 from torch_bayesian.vi.priors import MeanFieldNormalPrior, Prior, UniformPrior
 from torch_bayesian.vi.utils import use_norm_constants
@@ -31,12 +33,12 @@ from torch_bayesian.vi.variational_distributions import (
 )
 
 
-def test_klmodule() -> None:
+def test_klmodule(device: torch.device) -> None:
     """Test KullbackLeiblerModule."""
     module = KullbackLeiblerModule()
 
-    list_a = [torch.arange(27, 31)]
-    list_b = [torch.arange(3)]
+    list_a = [torch.arange(27, 31, device=device)]
+    list_b = [torch.arange(3, device=device)]
     reference = torch.cat([*list_a, *list_b])
 
     with pytest.raises(NotImplementedError):
@@ -48,32 +50,34 @@ def test_klmodule() -> None:
     module.forward = dummy_forward
 
     out = module(list_a, list_b)
+    assert out.device == device
     assert torch.equal(out, reference)
 
 
-def test_nonbayesian_klmodule() -> None:
+def test_nonbayesian_klmodule(device: torch.device) -> None:
     """Test NonBayesianDivergence."""
     sample_shape = [7, 10]
     prior_param_number = random.randint(1, 5)
     var_param_number = 1
 
-    prior_params = [*torch.randn([prior_param_number, *sample_shape])]
-    var_params = [*torch.randn([var_param_number, *sample_shape])]
+    prior_params = [*torch.randn([prior_param_number, *sample_shape], device=device)]
+    var_params = [*torch.randn([var_param_number, *sample_shape], device=device)]
 
     module = NonBayesianDivergence()
     out = module(prior_params, var_params)
+    assert out.device == device
     assert torch.equal(out, torch.tensor([0.0]))
 
 
 @pytest.mark.parametrize("norm_constants", [(True,), (False,)])
-def test_uniformnormal_klmodule(norm_constants: bool) -> None:
+def test_uniformnormal_klmodule(norm_constants: bool, device: torch.device) -> None:
     """Test UniformNormalDivergence."""
     sample_shape = [7, 10]
     prior_param_number = 0
     var_param_number = 2
 
-    prior_params = [*torch.randn([prior_param_number, *sample_shape])]
-    var_params = [*torch.randn([var_param_number, *sample_shape])]
+    prior_params = [*torch.randn([prior_param_number, *sample_shape], device=device)]
+    var_params = [*torch.randn([var_param_number, *sample_shape], device=device)]
 
     use_norm_constants(norm_constants)
     module = UniformNormalDivergence()
@@ -82,18 +86,20 @@ def test_uniformnormal_klmodule(norm_constants: bool) -> None:
         reference = -var_params[1] - 0.5
     else:
         reference = -var_params[1] - 0.5 * (1 + log(2 * pi))
+
+    assert out.device == device
     assert torch.equal(out, reference.sum())
 
 
 @pytest.mark.parametrize("norm_constants", [(True,), (False,)])
-def test_normalnormal_klmodule(norm_constants: bool) -> None:
+def test_normalnormal_klmodule(norm_constants: bool, device: torch.device) -> None:
     """Test NormalNormalDivergence."""
     sample_shape = [7, 10]
     prior_param_number = 2
     var_param_number = 2
 
-    prior_params = [*torch.randn([prior_param_number, *sample_shape])]
-    var_params = [*torch.randn([var_param_number, *sample_shape])]
+    prior_params = [*torch.randn([prior_param_number, *sample_shape], device=device)]
+    var_params = [*torch.randn([var_param_number, *sample_shape], device=device)]
 
     use_norm_constants(norm_constants)
     module = NormalNormalDivergence()
@@ -108,6 +114,7 @@ def test_normalnormal_klmodule(norm_constants: bool) -> None:
         + variational_variance / (2 * prior_variance)
         - 1 / 2
     )
+    assert out.device == device
     assert torch.allclose(out, reference.sum())
 
 
@@ -120,7 +127,7 @@ class DummyPrior(Prior):
 
     def log_prob(self, *args: Tensor) -> Tensor:
         """Return dummy log probability."""
-        return torch.zeros(1)
+        return torch.zeros(1, device=args[0].device)
 
 
 class DummyVarDist(VariationalDistribution):
@@ -133,11 +140,11 @@ class DummyVarDist(VariationalDistribution):
 
     def sample(self, mean: Tensor) -> Tensor:
         """Return dummy sample."""
-        return torch.zeros(1)
+        return torch.zeros(1, device=mean.device)
 
     def log_prob(self, sample: Tensor, mean: Tensor) -> Tensor:
         """Return dummy log probability."""
-        return torch.zeros(1)
+        return torch.zeros(1, device=mean.device)
 
 
 @pytest.mark.parametrize(
@@ -185,6 +192,7 @@ class DummyMLP(VIModule):
         alt_prior: Optional[Prior] = None,
         alt_vardist: Optional[VariationalDistribution] = None,
         return_log_probs: bool = True,
+        device: Optional[torch.device] = None,
     ) -> None:
         super().__init__()
         alt_prior = alt_prior or prior
@@ -197,6 +205,7 @@ class DummyMLP(VIModule):
                 variational_distribution=var_dist,
                 prior=prior,
                 return_log_probs=return_log_probs,
+                device=device,
             ),
             VILinear(
                 hidden_features,
@@ -204,6 +213,7 @@ class DummyMLP(VIModule):
                 variational_distribution=alt_var_dist,
                 prior=alt_prior,
                 return_log_probs=return_log_probs,
+                device=device,
             ),
         )
 
@@ -228,7 +238,10 @@ class DummyMLP(VIModule):
     ],
 )
 def test_prior_matching(
-    prior: Prior, var_dist: VariationalDistribution, norm_constants: bool
+    prior: Prior,
+    var_dist: VariationalDistribution,
+    norm_constants: bool,
+    device: torch.device,
 ) -> None:
     """Test AnalyticalKullbackLeiblerLoss.prior_matching()."""
     use_norm_constants(norm_constants)
@@ -240,7 +253,9 @@ def test_prior_matching(
     batch_size = 100
     samples = 10000
 
-    model = DummyMLP(f_in, f_hidden, f_out, prior=prior, var_dist=var_dist)
+    model = DummyMLP(
+        f_in, f_hidden, f_out, prior=prior, var_dist=var_dist, device=device
+    )
     criterion = AnalyticalKullbackLeiblerLoss(
         model, MeanFieldNormalPredictiveDistribution(), samples
     )
@@ -248,8 +263,8 @@ def test_prior_matching(
         MeanFieldNormalPredictiveDistribution(), samples, track=True
     )
 
-    sample = torch.rand([batch_size, f_in])
-    target = torch.rand([batch_size, f_out])
+    sample = torch.rand([batch_size, f_in], device=device)
+    target = torch.rand([batch_size, f_out], device=device)
 
     model.return_log_probs()
 
@@ -259,6 +274,7 @@ def test_prior_matching(
     ref_criterion(out, target)
     ref_prior_matching = ref_criterion.log["prior_matching"]  # type: ignore [index]
     print(ref_prior_matching[0], analytical_prior_matching)
+    assert analytical_prior_matching.device == device
     assert torch.allclose(
         torch.tensor(ref_prior_matching[0]),
         analytical_prior_matching,
@@ -516,6 +532,7 @@ def test_init(
     divergence_type: Optional[KullbackLeiblerModule],
     track: bool,
     expected_error: Optional[int],
+    device: torch.device,
 ) -> None:
     """Test AnalyticalKullbackLeiblerLoss initialization."""
     f_in = 8
@@ -528,7 +545,7 @@ def test_init(
     target_heat = heat or 1.0
 
     if prior is None and var_dist is None:
-        model = torch.nn.Linear(f_in, f_out)
+        model = torch.nn.Linear(f_in, f_out, device=device)
     else:
         model = DummyMLP(
             f_in,
@@ -539,6 +556,7 @@ def test_init(
             alt_prior=alt_prior,
             alt_vardist=alt_var_dist,
             return_log_probs=True,
+            device=device,
         )
 
     kwargs = dict(
@@ -552,7 +570,7 @@ def test_init(
         kwargs["divergence_type"] = divergence_type
 
     if expected_error is not None:
-        erorr_list = [
+        error_list = [
             (
                 NotImplementedError,
                 "Handling of inconsistent distributions types is not implemented yet.",
@@ -563,7 +581,7 @@ def test_init(
             ),
             (ValueError, "Provided model is not bayesian."),
         ]
-        error, message = erorr_list[expected_error]
+        error, message = error_list[expected_error]
         with pytest.raises(error, match=message):
             AnalyticalKullbackLeiblerLoss(**kwargs)  # type: ignore [arg-type]
         return
@@ -626,6 +644,7 @@ def test_forward(
     fwrd_dataset_size: Optional[int],
     track: bool,
     norm_constants: bool,
+    device: torch.device,
 ) -> None:
     """Test AnalyticalKullbackLeiblerLoss.forward()."""
     use_norm_constants(norm_constants)
@@ -635,27 +654,35 @@ def test_forward(
     f_out = 10
 
     batch_size = 100
-    samples = 1000
+    samples = 5000
     test_epochs = 3
 
-    model = DummyMLP(f_in, f_hidden, f_out, prior=prior, var_dist=var_dist)
+    model = DummyMLP(
+        f_in, f_hidden, f_out, prior=prior, var_dist=var_dist, device=device
+    )
+    if isinstance(var_dist, NonBayesian):
+        predictive_distribution: Type[PredictiveDistribution] = (
+            NonBayesianPredictiveDistribution
+        )
+    else:
+        predictive_distribution = MeanFieldNormalPredictiveDistribution
 
     criterion = AnalyticalKullbackLeiblerLoss(
         model,
-        MeanFieldNormalPredictiveDistribution(),
+        predictive_distribution(),
         init_dataset_size,
         heat=heat,
         track=track,
     )
     ref_criterion = KullbackLeiblerLoss(
-        MeanFieldNormalPredictiveDistribution(),
+        predictive_distribution(),
         init_dataset_size,
         heat=heat,
         track=True,
     )
 
-    sample = torch.rand([batch_size, f_in])
-    target = torch.rand([batch_size, f_out])
+    sample = torch.rand([batch_size, f_in], device=device)
+    target = torch.rand([batch_size, f_out], device=device)
     optimizer = torch.optim.Adam(model.parameters())
 
     model.return_log_probs()
@@ -672,7 +699,9 @@ def test_forward(
             analytical_loss = criterion(output[0], target, fwrd_dataset_size)
             ref_loss = ref_criterion(output, target, fwrd_dataset_size)
 
-        torch.allclose(analytical_loss, ref_loss, atol=2e-1, rtol=1e-3)
+        assert analytical_loss.device == device
+        print(analytical_loss, ref_loss)
+        assert torch.allclose(analytical_loss, ref_loss, atol=2e-1, rtol=1e-3)
 
         model.zero_grad()
         analytical_loss.backward()
@@ -688,4 +717,6 @@ def test_forward(
             criterion.log["prior_matching"],  # type: ignore [index]
             ref_criterion.log["prior_matching"],  # type: ignore [index]
         ):
-            torch.allclose(torch.tensor(item), torch.tensor(ref), atol=2e-1, rtol=1e-3)
+            assert torch.allclose(
+                torch.tensor(item), torch.tensor(ref), atol=2e-1, rtol=1e-3
+            )
