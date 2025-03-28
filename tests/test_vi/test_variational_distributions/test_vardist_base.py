@@ -140,10 +140,10 @@ def test_match_parameters() -> None:
     assert diff == {}
 
 
-def test_init_uniform() -> None:
+def test_init_uniform(device: torch.device) -> None:
     """Test _init_uniform."""
     parameter_shape = (6, 20)
-    module = Linear(*parameter_shape)
+    module = Linear(*parameter_shape, device=device)
 
     weight1 = module.weight.clone()
     bias1 = module.bias.clone()
@@ -156,6 +156,10 @@ def test_init_uniform() -> None:
 
     assert not torch.allclose(weight1, weight2)
     assert not torch.allclose(bias1, bias2)
+    assert weight1.device == device
+    assert weight2.device == device
+    assert bias1.device == device
+    assert bias2.device == device
 
     assert (weight2.abs() < (1 / sqrt(parameter_shape[0]))).all()
     assert (bias2.abs() < (1 / sqrt(fan_in))).all()
@@ -170,12 +174,14 @@ def test_init_uniform() -> None:
     assert not torch.allclose(weight2, weight3)
     assert (weight3.abs() < (1 / sqrt(parameter_shape[0]))).all()
     assert (bias3 == 0).all()
+    assert weight3.device == device
+    assert bias3.device == device
 
 
-def test_init_constant() -> None:
+def test_init_constant(device: torch.device) -> None:
     """Test _init_constant."""
     parameter_shape = (5, 15)
-    module = Linear(*parameter_shape)
+    module = Linear(*parameter_shape, device=device)
 
     iter1 = module.parameters()
     default = (1.0, 2.0)
@@ -187,6 +193,8 @@ def test_init_constant() -> None:
 
     assert (weight2 == (default[0] / sqrt(fan_in))).all()
     assert (bias2 == (default[1] / sqrt(fan_in))).all()
+    assert weight2.device == device
+    assert bias2.device == device
 
     iter2 = module.parameters()
     eps1 = 1e-5
@@ -201,9 +209,11 @@ def test_init_constant() -> None:
 
     assert (weight3 == (default[0] + log(1 / sqrt(fan_in) + eps1))).all()
     assert (bias3 == default[1] + log(eps2)).all()
+    assert weight3.device == device
+    assert bias3.device == device
 
 
-def test_vardist_reset_parameters() -> None:
+def test_vardist_reset_parameters(device: torch.device) -> None:
     """Test VariationalDistribution.reset_parameters."""
     param_shape = (5, 4)
 
@@ -231,7 +241,7 @@ def test_vardist_reset_parameters() -> None:
             return f"{variable}_{parameter}"
 
     vardist = Test()
-    dummy = ModuleDummy()
+    dummy = ModuleDummy().to(device=device)
     fan_in = param_shape[1]
 
     mean1 = dummy.weight_mean.clone()
@@ -244,6 +254,9 @@ def test_vardist_reset_parameters() -> None:
 
     assert not torch.allclose(mean1, mean2)
     assert len(torch.unique(mean2)) == param_shape[0] * param_shape[1]
+    assert mean1.device == device
+    assert mean2.device == device
+    assert std2.device == device
 
     assert std2.shape == param_shape
     assert (std2 == 1.0).all()
@@ -260,6 +273,8 @@ def test_vardist_reset_parameters() -> None:
 
     assert not torch.allclose(mean2, mean3)
     assert len(torch.unique(mean3)) == param_shape[0] * param_shape[1]
+    assert mean3.device == device
+    assert std3.device == device
 
     assert std3.shape == param_shape
     assert (std3 == (1.0 / sqrt(fan_in))).all()

@@ -61,24 +61,25 @@ def test_parameter_checking() -> None:
     _ = Test4()
 
 
-def test_log_prob_from_samples() -> None:
+def test_log_prob_from_samples(device: torch.device) -> None:
     """Test PredictiveDistribution.log_prob_from_samples."""
 
     class Test(PredictiveDistribution):
         predictive_parameters = ("mean",)
 
-        def predictive_parameters_from_samples(self, samples: Tensor) -> Tensor:
+        @staticmethod
+        def predictive_parameters_from_samples(samples: Tensor) -> Tensor:
             return samples.sum(dim=0)
 
-        def log_prob_from_parameters(
-            self, reference: Tensor, parameters: Tensor
-        ) -> Tensor:
+        @staticmethod
+        def log_prob_from_parameters(reference: Tensor, parameters: Tensor) -> Tensor:
             return reference + parameters
 
     test = Test()
-    samples = torch.randn((5, 3, 4))
-    reference = torch.randn((3, 4))
+    samples = torch.randn((5, 3, 4), device=device)
+    reference = torch.randn((3, 4), device=device)
     target = samples.sum(dim=0) + reference
 
     out = test.log_prob_from_samples(reference, samples)
-    assert (target == out).all()
+    assert torch.equal(target, out)
+    assert out.device == device

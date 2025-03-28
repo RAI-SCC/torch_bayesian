@@ -23,12 +23,12 @@ from torch_bayesian.vi.variational_distributions import (
 )
 
 
-def test_multiheadattention() -> None:
+def test_multiheadattention(device: torch.device) -> None:
     """Test VIMultiheadAttention."""
     embed_dim = 5
     num_heads = 3
     with raises(AssertionError, match="embed_dim must be divisible by num_heads"):
-        _ = VIMultiheadAttention(embed_dim, num_heads)
+        _ = VIMultiheadAttention(embed_dim, num_heads, device=device)
 
     embed_dim = 9
     random_variables1 = (
@@ -41,6 +41,7 @@ def test_multiheadattention() -> None:
         embed_dim,
         num_heads,
         variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
+        device=device,
     )
     assert module1.embed_dim == embed_dim
     assert module1.num_heads == num_heads
@@ -59,11 +60,20 @@ def test_multiheadattention() -> None:
     assert module1._out_proj_bias_mean.shape == (embed_dim,)
     assert module1._out_proj_bias_log_std.shape == (embed_dim,)
 
+    assert module1._in_proj_weight_mean.device == device
+    assert module1._in_proj_weight_log_std.device == device
+    assert module1._in_proj_bias_mean.device == device
+    assert module1._in_proj_bias_log_std.device == device
+    assert module1._out_proj_weight_mean.device == device
+    assert module1._out_proj_weight_log_std.device == device
+    assert module1._out_proj_bias_mean.device == device
+    assert module1._out_proj_bias_log_std.device == device
+
     module1._has_sampling_responsibility = False
 
-    src1 = torch.rand((3, 4, embed_dim))
-    tgt1 = torch.rand((3, 5, embed_dim))
-    extr = torch.rand((3, 5, embed_dim))
+    src1 = torch.rand((3, 4, embed_dim), device=device)
+    tgt1 = torch.rand((3, 5, embed_dim), device=device)
+    extr = torch.rand((3, 5, embed_dim), device=device)
 
     tsrc1 = src1.transpose(0, 1)
     ttgt1 = tgt1.transpose(0, 1)
@@ -89,8 +99,10 @@ def test_multiheadattention() -> None:
     (out, weights), lps = module1(src1, src1, src1, average_attn_weights=False)
     assert attn_weights.shape == weights.shape
     assert torch.allclose(attn_weights, weights)
+    assert attn_weights.device == device
     assert out.shape == ref.shape
     assert torch.allclose(out, ref)
+    assert out.device == device
 
     # test q != k = v
     ref, attn_weights = F.multi_head_attention_forward(
@@ -113,8 +125,10 @@ def test_multiheadattention() -> None:
     (out, weights), lps = module1(src1, tgt1, tgt1, average_attn_weights=False)
     assert attn_weights.shape == weights.shape
     assert torch.allclose(attn_weights, weights)
+    assert attn_weights.device == device
     assert out.shape == ref.shape
     assert torch.allclose(out, ref)
+    assert out.device == device
 
     # test q != k != v
     ref, attn_weights = F.multi_head_attention_forward(
@@ -137,8 +151,10 @@ def test_multiheadattention() -> None:
     (out, weights), lps = module1(src1, tgt1, extr, average_attn_weights=False)
     assert attn_weights.shape == weights.shape
     assert torch.allclose(attn_weights, weights)
+    assert attn_weights.device == device
     assert out.shape == ref.shape
     assert torch.allclose(out, ref)
+    assert out.device == device
 
     kdim = 3
     vdim = 5
@@ -160,6 +176,7 @@ def test_multiheadattention() -> None:
         return_log_probs=False,
         batch_first=False,
         bias=False,
+        device=device,
     )
 
     assert module2.embed_dim == embed_dim
@@ -170,9 +187,9 @@ def test_multiheadattention() -> None:
     assert not module2.batch_first
     assert module2.random_variables == random_variables2
 
-    q = torch.rand((7, 4, embed_dim))
-    k = torch.rand((5, 4, kdim))
-    v = torch.rand((5, 4, vdim))
+    q = torch.rand((7, 4, embed_dim), device=device)
+    k = torch.rand((5, 4, kdim), device=device)
+    v = torch.rand((5, 4, vdim), device=device)
 
     ref, attn_weights = F.multi_head_attention_forward(
         q,
@@ -197,8 +214,10 @@ def test_multiheadattention() -> None:
     out, weights = module2(q, k, v, average_attn_weights=False)
     assert attn_weights.shape == weights.mean(dim=0).shape
     assert torch.allclose(attn_weights, weights.mean(dim=0), atol=2e-8)
+    assert attn_weights.device == device
     assert out.mean(dim=0).shape == ref.shape
     assert torch.allclose(out.mean(dim=0), ref)
+    assert out.device == device
 
     random_variables3 = (
         "q_proj_weight",
@@ -215,6 +234,7 @@ def test_multiheadattention() -> None:
         kdim=kdim,
         vdim=vdim,
         variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
+        device=device,
     )
     module3._has_sampling_responsibility = False
 
@@ -226,9 +246,9 @@ def test_multiheadattention() -> None:
     assert module3.batch_first
     assert module3.random_variables == random_variables3
 
-    q = torch.rand((4, 7, embed_dim))
-    k = torch.rand((4, 5, kdim))
-    v = torch.rand((4, 5, vdim))
+    q = torch.rand((4, 7, embed_dim), device=device)
+    k = torch.rand((4, 5, kdim), device=device)
+    v = torch.rand((4, 5, vdim), device=device)
 
     ref, attn_weights = F.multi_head_attention_forward(
         q.transpose(0, 1),
@@ -254,8 +274,10 @@ def test_multiheadattention() -> None:
     ref = ref.transpose(0, 1)
     assert attn_weights.shape == weights.shape
     assert torch.allclose(attn_weights, weights)
+    assert attn_weights.device == device
     assert out.shape == ref.shape
     assert torch.allclose(out, ref)
+    assert out.device == device
 
     random_variables4 = ("in_proj_weight", "out_proj_weight")
     module4 = VIMultiheadAttention(
@@ -265,6 +287,7 @@ def test_multiheadattention() -> None:
         return_log_probs=False,
         batch_first=False,
         bias=False,
+        device=device,
     )
 
     assert module4.embed_dim == embed_dim
@@ -273,7 +296,7 @@ def test_multiheadattention() -> None:
     assert not module4.batch_first
     assert module4.random_variables == random_variables4
 
-    src = torch.rand((7, 4, embed_dim))
+    src = torch.rand((7, 4, embed_dim), device=device)
 
     ref, attn_weights = F.multi_head_attention_forward(
         src,
@@ -294,16 +317,18 @@ def test_multiheadattention() -> None:
     out, weights = module4(src, src, src, average_attn_weights=True)
     assert attn_weights.shape == weights.mean(dim=0).shape
     assert torch.allclose(attn_weights, weights.mean(dim=0), atol=2e-8)
+    assert attn_weights.device == device
     assert out.mean(dim=0).shape == ref.shape
     assert torch.allclose(out.mean(dim=0), ref)
+    assert out.device == device
 
 
-def test_decoder_layer() -> None:
+def test_decoder_layer(device: torch.device) -> None:
     """Test VITransformerDecoderLayer."""
     d_model = 8
     nhead = 2
 
-    module1 = VITransformerDecoderLayer(d_model, nhead)
+    module1 = VITransformerDecoderLayer(d_model, nhead, device=device)
     assert not module1.norm_first
     assert module1.self_attn.embed_dim == d_model
     assert module1.self_attn.num_heads == nhead
@@ -335,6 +360,7 @@ def test_decoder_layer() -> None:
         norm_first=True,
         bias=False,
         batch_first=False,
+        device=device,
     )
     assert module2.norm_first
     assert module2.self_attn.embed_dim == d_model
@@ -363,10 +389,11 @@ def test_decoder_layer() -> None:
         variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
         norm_first=False,
         bias=False,
+        device=device,
     )
 
-    tgt = torch.rand((7, 4, d_model))
-    mem = torch.rand((7, 4, d_model))
+    tgt = torch.rand((7, 4, d_model), device=device)
+    mem = torch.rand((7, 4, d_model), device=device)
 
     (sa_out, sa_weights), sa_lps = module2._sa_block(tgt)
     (sa_ref, sa_rweight), sa_rlp = module2.self_attn(tgt, tgt, tgt, need_weights=False)
@@ -374,6 +401,8 @@ def test_decoder_layer() -> None:
     assert torch.allclose(sa_out, sa_ref)
     assert sa_weights == sa_rweight
     assert torch.allclose(sa_lps, sa_rlp)
+    assert sa_out.device == device
+    assert sa_ref.device == device
 
     (mha_out, mha_weights), mha_lps = module2._mha_block(tgt, mem)
     (mha_ref, mha_rweight), mha_rlp = module2.multihead_attn(
@@ -383,6 +412,8 @@ def test_decoder_layer() -> None:
     assert torch.allclose(mha_out, mha_ref)
     assert mha_weights == mha_rweight
     assert torch.allclose(mha_lps, mha_rlp)
+    assert mha_out.device == device
+    assert mha_ref.device == device
 
     # check norm_first=True
     module2.return_log_probs(False)
@@ -409,12 +440,12 @@ def test_decoder_layer() -> None:
     assert torch.allclose(out3, out4)
 
 
-def test_encoder_layer() -> None:
+def test_encoder_layer(device: torch.device) -> None:
     """Test VITransformerEncoderLayer."""
     d_model = 8
     nhead = 2
 
-    module1 = VITransformerEncoderLayer(d_model, nhead)
+    module1 = VITransformerEncoderLayer(d_model, nhead, device=device)
     assert not module1.norm_first
     assert module1.self_attn.embed_dim == d_model
     assert module1.self_attn.num_heads == nhead
@@ -440,6 +471,7 @@ def test_encoder_layer() -> None:
         norm_first=True,
         bias=False,
         batch_first=False,
+        device=device,
     )
     assert module2.norm_first
     assert module2.self_attn.embed_dim == d_model
@@ -462,9 +494,10 @@ def test_encoder_layer() -> None:
         variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
         norm_first=False,
         bias=False,
+        device=device,
     )
 
-    src = torch.rand((7, 4, d_model))
+    src = torch.rand((7, 4, d_model), device=device)
 
     (sa_out, sa_weights), sa_lps = module2._sa_block(src)
     (sa_ref, sa_rweight), sa_rlp = module2.self_attn(src, src, src, need_weights=False)
@@ -472,6 +505,8 @@ def test_encoder_layer() -> None:
     assert torch.allclose(sa_out, sa_ref)
     assert sa_weights == sa_rweight
     assert torch.allclose(sa_lps, sa_rlp)
+    assert sa_out.device == device
+    assert sa_ref.device == device
 
     # check norm_first=True
     module2.return_log_probs(False)
@@ -496,7 +531,7 @@ def test_encoder_layer() -> None:
     assert torch.allclose(out3, out4)
 
 
-def test_decoder() -> None:
+def test_decoder(device: torch.device) -> None:
     """Test VITransformerDecoder."""
     d_model = 8
     nhead = 2
@@ -506,6 +541,7 @@ def test_decoder() -> None:
         d_model,
         nhead,
         variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
+        device=device,
     )
     module1 = VITransformerDecoder(layer, num_layers)
 
@@ -520,8 +556,8 @@ def test_decoder() -> None:
         assert lay is not layer
     assert module1.layers[0] is not module1.layers[1]
 
-    tgt = torch.rand((9, 5, d_model))
-    memory = torch.rand((9, 5, d_model))
+    tgt = torch.rand((9, 5, d_model), device=device)
+    memory = torch.rand((9, 5, d_model), device=device)
 
     module1.return_log_probs(False)
     out1 = module1(tgt, memory)
@@ -532,11 +568,13 @@ def test_decoder() -> None:
     assert out1.shape == (10, 9, 5, d_model)
     assert out1.shape[1:] == ref.shape
     assert torch.allclose(out1[0], ref, atol=1e-6)
+    assert out1.device == device
 
     module1.return_log_probs(True)
     out2, _ = module1(tgt, memory)
     assert out1.shape == out2.shape
     assert torch.allclose(out1, out2)
+    assert out1.device == device
 
     module2 = VITransformerDecoder(layer, num_layers, norm=nn.LayerNorm(d_model))
     assert isinstance(module2.norm, nn.LayerNorm)
@@ -551,14 +589,16 @@ def test_decoder() -> None:
     assert out3.shape == (10, 9, 5, d_model)
     assert out3.shape[1:] == ref2.shape
     assert torch.allclose(out3[0], ref2, atol=1e-6)
+    assert out3.device == device
 
     module2.return_log_probs(True)
     out4, _ = module2(tgt, memory)
     assert out3.shape == out4.shape
     assert torch.allclose(out3, out4)
+    assert out4.device == device
 
 
-def test_encoder() -> None:
+def test_encoder(device: torch.device) -> None:
     """Test VITransformerEncoder."""
     d_model = 8
     nhead = 2
@@ -568,6 +608,7 @@ def test_encoder() -> None:
         d_model,
         nhead,
         variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
+        device=device,
     )
     module1 = VITransformerEncoder(layer, num_layers)
 
@@ -582,7 +623,7 @@ def test_encoder() -> None:
         assert lay is not layer
     assert module1.layers[0] is not module1.layers[1]
 
-    src = torch.rand((9, 5, d_model))
+    src = torch.rand((9, 5, d_model), device=device)
 
     module1.return_log_probs(False)
     out1 = module1(src)
@@ -593,11 +634,13 @@ def test_encoder() -> None:
     assert out1.shape == (10, 9, 5, d_model)
     assert out1.shape[1:] == ref.shape
     assert torch.allclose(out1[0], ref, atol=1e-6)
+    assert out1.device == device
 
     module1.return_log_probs(True)
     out2, _ = module1(src)
     assert out1.shape == out2.shape
     assert torch.allclose(out1, out2)
+    assert out2.device == device
 
     module2 = VITransformerEncoder(layer, num_layers, norm=nn.LayerNorm(d_model))
     assert isinstance(module2.norm, nn.LayerNorm)
@@ -612,17 +655,19 @@ def test_encoder() -> None:
     assert out3.shape == (10, 9, 5, d_model)
     assert out3.shape[1:] == ref2.shape
     assert torch.allclose(out3[0], ref2, atol=1e-6)
+    assert out3.device == device
 
     module2.return_log_probs(True)
     out4, _ = module2(src)
     assert out3.shape == out4.shape
     assert torch.allclose(out3, out4)
+    assert out4.device == device
 
 
 @mark.parametrize(
     "d_model,nhead,num_encoder_layers,num_decoder_layers,dim_feedforward,activation,"
     "custom_coders,layer_norm_eps,batch_first,norm_first,bias,variational_distribution,"
-    "prior,prior_initialization,rescale_prior,return_log_probs,device,dtype",
+    "prior,prior_initialization,rescale_prior,return_log_probs,dtype",
     [
         (
             32,
@@ -642,7 +687,6 @@ def test_encoder() -> None:
             True,
             True,
             None,
-            None,
         ),
         (
             27,
@@ -661,7 +705,6 @@ def test_encoder() -> None:
             True,
             False,
             False,
-            torch.device("cpu"),
             torch.float16,
         ),
         (
@@ -681,7 +724,6 @@ def test_encoder() -> None:
             False,
             True,
             False,
-            None,
             None,
         ),
     ],
@@ -794,7 +836,6 @@ def test_transformer(
         )
 
         # Set default device and dtype
-        device = device or torch.device("cpu")
         dtype = dtype or torch.float32
 
         assert len(module.encoder.layers) == num_encoder_layers
@@ -867,3 +908,4 @@ def test_transformer(
         assert log_probs.shape == (num_samples, 2)
 
     assert sample_output.shape == output_shape
+    assert sample_output.device == device
