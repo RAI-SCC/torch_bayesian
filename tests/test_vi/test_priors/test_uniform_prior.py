@@ -7,8 +7,8 @@ def test_log_prob(device: torch.device) -> None:
     """Test UniformPrior.log_prob()."""
     prior = UniformPrior()
 
-    sample1 = torch.rand(5)
-    sample2 = torch.rand([3, 6])
+    sample1 = torch.rand(5, device=device)
+    sample2 = torch.rand([3, 6], device=device)
 
     out1 = prior.log_prob(sample1)
     out2 = prior.log_prob(sample2)

@@ -16,7 +16,7 @@ def test_normal_predictive_distribution(
     predictive_dist = MeanFieldNormalPredictiveDistribution()
     use_norm_constants(norm_constants)
 
-    nr_samples = 7
+    nr_samples = 50
     sample_shape = (5, 3)
     samples = torch.randn((nr_samples, *sample_shape), device=device)
     reference = torch.randn(sample_shape, device=device)

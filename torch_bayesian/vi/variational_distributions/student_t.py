@@ -1,4 +1,5 @@
 from math import log
+from typing import Optional
 
 import torch
 from torch import Tensor
@@ -25,11 +26,13 @@ class StudentTVarDist(VariationalDistribution):
     """
 
     def __init__(
-        self, initial_scale: float = 1.0, degrees_of_freedom: float = 4.0
+        self,
+        initial_scale: float = 1.0,
+        degrees_of_freedom: float = 4.0,
+        device: Optional[torch.device] = None,
     ) -> None:
         super().__init__()
-        self.degrees_of_freedom = degrees_of_freedom
-        self._unit_student_t = StudentT(degrees_of_freedom)
+        self.degrees_of_freedom = torch.tensor(degrees_of_freedom, device=device)
         self.variational_parameters = ("mean", "log_scale")
         self._default_variational_parameters = (0.0, log(initial_scale))
 
@@ -76,6 +79,7 @@ class StudentTVarDist(VariationalDistribution):
         log_prob: Tensor
             Tensor with the same shape as sample containing the log probability of the sample given mean and log_scale.
         """
+        self.degrees_of_freedom = self.degrees_of_freedom.to(device=sample.device)
         scale = torch.exp(log_scale)
         data_fitting = (
             (self.degrees_of_freedom + 1.0)
@@ -87,8 +91,8 @@ class StudentTVarDist(VariationalDistribution):
             normalization = (
                 normalization
                 + 0.5 * log(torch.pi * self.degrees_of_freedom)
-                + torch.lgamma(torch.tensor(self.degrees_of_freedom / 2.0))
-                - torch.lgamma(torch.tensor((self.degrees_of_freedom + 1.0) / 2.0))
+                + torch.lgamma(self.degrees_of_freedom / 2.0)
+                - torch.lgamma((self.degrees_of_freedom + 1.0) / 2.0)
             )
         return -(data_fitting + normalization)
 
@@ -111,6 +115,7 @@ class StudentTVarDist(VariationalDistribution):
         sample: Tensor
             Sample tensor of the same shape as mean drawn from Student's t-distribution.
         """
-        base_sample = self._unit_student_t.sample(sample_shape=mean.shape)
+        self.degrees_of_freedom = self.degrees_of_freedom.to(device=mean.device)
+        base_sample = StudentT(self.degrees_of_freedom).sample(sample_shape=mean.shape)
         sample = scale * base_sample + mean
         return sample

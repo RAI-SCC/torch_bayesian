@@ -59,16 +59,16 @@ def test_sampled_forward(device: torch.device) -> None:
     sample1 = torch.randn(shape1, device=device)
     test1 = Test(ref=sample1)
     cons, rand = test1.sampled_forward(sample1, samples=10)
-    assert (cons == torch.zeros((10,) + shape1)).all()
+    assert torch.equal(cons, torch.zeros((10,) + shape1))
     for r in rand[1:]:
-        assert not (rand[0] == r).all()
+        assert not torch.allclose(rand[0], r)
 
     shape2 = (5,)
     sample2 = torch.randn(shape2, device=device)
     test2 = Test(ref=sample2)
-    assert (
-        test2.sampled_forward(sample2, samples=1)[0] == torch.zeros((1,) + shape2)
-    ).all()
+    assert torch.allclose(
+        test2.sampled_forward(sample2, samples=1)[0], torch.zeros((1,) + shape2)
+    )
 
 
 def test_name_maker() -> None:
