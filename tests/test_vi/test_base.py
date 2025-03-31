@@ -67,7 +67,8 @@ def test_sampled_forward(device: torch.device) -> None:
     sample2 = torch.randn(shape2, device=device)
     test2 = Test(ref=sample2)
     assert torch.allclose(
-        test2.sampled_forward(sample2, samples=1)[0], torch.zeros((1,) + shape2)
+        test2.sampled_forward(sample2, samples=1)[0],
+        torch.zeros((1,) + shape2, device=device),
     )
 
 
