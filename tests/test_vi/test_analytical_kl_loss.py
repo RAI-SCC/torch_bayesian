@@ -66,7 +66,7 @@ def test_nonbayesian_klmodule(device: torch.device) -> None:
     module = NonBayesianDivergence()
     out = module(prior_params, var_params)
     assert out.device == device
-    assert torch.equal(out, torch.tensor([0.0]))
+    assert torch.equal(out, torch.tensor([0.0], device=device))
 
 
 @pytest.mark.parametrize("norm_constants", [(True,), (False,)])
