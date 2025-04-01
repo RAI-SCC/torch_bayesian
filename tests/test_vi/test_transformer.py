@@ -1,5 +1,6 @@
-from typing import Optional
+from typing import Optional, Tuple
 
+import pytest
 import torch
 from pytest import mark, raises
 from torch import nn
@@ -21,6 +22,125 @@ from torch_bayesian.vi.variational_distributions import (
     MeanFieldNormalVarDist,
     VariationalDistribution,
 )
+
+
+@pytest.mark.parametrize(
+    "embed_dim,num_heads,variational_distribution,batch_size,seq_len,use_attn_mask,error",
+    [
+        (32, 1, MeanFieldNormalVarDist(1e-20), 3, 5, False, None),
+        (32, 3, MeanFieldNormalVarDist(1e-20), 3, 5, False, 1),
+        (32, 4, MeanFieldNormalVarDist(1e-20), 3, 5, False, None),
+        (32, 1, MeanFieldNormalVarDist(1e-20), 3, 5, True, None),
+    ],
+)
+def test_multihead_attention_new(
+    embed_dim: int,
+    num_heads: int,
+    variational_distribution: VariationalDistribution,
+    batch_size: Optional[int],
+    seq_len: int,
+    use_attn_mask: bool,
+    error: Optional[int],
+    device: torch.device,
+) -> None:
+    """Test vimultiheadattention."""
+    samples = 100
+    primary_param = variational_distribution.variational_parameters[0]
+
+    if error == 1:
+        with raises(AssertionError, match="embed_dim must be divisible by num_heads"):
+            _ = VIMultiheadAttention(embed_dim, num_heads, device=device)
+        return
+
+    random_variable_shapes = dict(
+        in_proj_weight=(3 * embed_dim, embed_dim),
+        out_proj_weight=(embed_dim, embed_dim),
+        in_proj_bias=(3 * embed_dim,),
+        out_proj_bias=(embed_dim,),
+    )
+    module = VIMultiheadAttention(
+        embed_dim,
+        num_heads,
+        variational_distribution=variational_distribution,
+        device=device,
+    )
+
+    assert module.embed_dim == embed_dim
+    assert module.num_heads == num_heads
+    assert module.kdim == embed_dim
+    assert module.vdim == embed_dim
+    assert module._qkv_same_embed_dim
+    assert module.batch_first
+    assert set(module.random_variables) == set(random_variable_shapes.keys())
+
+    param_dict = dict(module.named_parameters())
+    for var, shape in random_variable_shapes.items():
+        for param in variational_distribution.variational_parameters:
+            name = module.variational_parameter_name(var, param)
+            assert name in param_dict
+            assert param_dict[name].shape == shape
+            assert param_dict[name].device == device
+
+    if batch_size is not None:
+        sample_shape: Tuple[int, ...] = (batch_size, seq_len, embed_dim)
+    else:
+        sample_shape = (seq_len, embed_dim)
+
+    src1 = torch.rand(sample_shape, device=device)
+    tgt1 = torch.rand(sample_shape, device=device)
+    extr = torch.rand(sample_shape, device=device)
+
+    weight_dict = dict(
+        in_proj_weight=None,
+        in_proj_bias=None,
+        bias_k=None,
+        bias_v=None,
+        out_proj_weight=None,
+        out_proj_bias=None,
+    )
+    for var in random_variable_shapes:
+        weight_dict[var] = getattr(
+            module, module.variational_parameter_name(var, primary_param)
+        ).clone()
+
+    if use_attn_mask:
+        attn_mask = torch.tril(torch.full((5, 5), float("-inf"), device=device), -1)
+    else:
+        attn_mask = None
+
+    for q, k, v in [(src1, src1, src1), (src1, tgt1, tgt1), (src1, tgt1, extr)]:
+        ref_args = dict(
+            query=q.transpose(0, 1),
+            key=k.transpose(0, 1),
+            value=v.transpose(0, 1),
+            embed_dim_to_check=embed_dim,
+            num_heads=num_heads,
+            add_zero_attn=False,
+            dropout_p=0.0,
+            attn_mask=attn_mask,
+            average_attn_weights=False,
+            **weight_dict,
+        )
+
+        ref, ref_weights = F.multi_head_attention_forward(**ref_args)
+        ref = ref.transpose(0, 1)
+        model_return = module(
+            q, k, v, attn_mask=attn_mask, average_attn_weights=False, samples=samples
+        )
+
+        (out, weights), log_probs = model_return
+
+        out = out.mean(dim=0)
+        weights = weights.mean(dim=0)
+        log_probs = log_probs.mean(dim=0)
+
+        out.sum().backward()
+        assert ref_weights.shape == weights.shape
+        assert torch.allclose(ref_weights, weights)
+        assert weights.device == device
+        assert out.shape == ref.shape
+        assert torch.allclose(out, ref)
+        assert out.device == device
 
 
 def test_multiheadattention(device: torch.device) -> None:
