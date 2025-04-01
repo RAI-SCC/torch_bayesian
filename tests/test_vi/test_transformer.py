@@ -97,6 +97,7 @@ def test_multiheadattention(device: torch.device) -> None:
     )
     ref = ref.transpose(0, 1)
     (out, weights), lps = module1(src1, src1, src1, average_attn_weights=False)
+    out.sum().backward()
     assert attn_weights.shape == weights.shape
     assert torch.allclose(attn_weights, weights)
     assert attn_weights.device == device
@@ -123,6 +124,7 @@ def test_multiheadattention(device: torch.device) -> None:
     )
     ref = ref.transpose(0, 1)
     (out, weights), lps = module1(src1, tgt1, tgt1, average_attn_weights=False)
+    out.sum().backward()
     assert attn_weights.shape == weights.shape
     assert torch.allclose(attn_weights, weights)
     assert attn_weights.device == device
@@ -149,6 +151,7 @@ def test_multiheadattention(device: torch.device) -> None:
     )
     ref = ref.transpose(0, 1)
     (out, weights), lps = module1(src1, tgt1, extr, average_attn_weights=False)
+    out.sum().backward()
     assert attn_weights.shape == weights.shape
     assert torch.allclose(attn_weights, weights)
     assert attn_weights.device == device
@@ -212,6 +215,7 @@ def test_multiheadattention(device: torch.device) -> None:
         v_proj_weight=module2._v_proj_weight_mean,
     )
     out, weights = module2(q, k, v, average_attn_weights=False)
+    out.sum().backward()
     assert attn_weights.shape == weights.mean(dim=0).shape
     assert torch.allclose(attn_weights, weights.mean(dim=0), atol=2e-8)
     assert attn_weights.device == device
@@ -271,6 +275,7 @@ def test_multiheadattention(device: torch.device) -> None:
         v_proj_weight=module3._v_proj_weight_mean,
     )
     (out, weights), _ = module3(q, k, v, average_attn_weights=False)
+    out.sum().backward()
     ref = ref.transpose(0, 1)
     assert attn_weights.shape == weights.shape
     assert torch.allclose(attn_weights, weights)
@@ -315,6 +320,7 @@ def test_multiheadattention(device: torch.device) -> None:
         average_attn_weights=True,
     )
     out, weights = module4(src, src, src, average_attn_weights=True)
+    out.sum().backward()
     assert attn_weights.shape == weights.mean(dim=0).shape
     assert torch.allclose(attn_weights, weights.mean(dim=0), atol=2e-8)
     assert attn_weights.device == device
@@ -418,6 +424,7 @@ def test_decoder_layer(device: torch.device) -> None:
     # check norm_first=True
     module2.return_log_probs(False)
     out1 = module2(tgt, mem)
+    out1.sum().backward()
     ref1 = tgt + module2._sa_block(module2.norm1(tgt))[0]
     ref1 = ref1 + module2._mha_block(module2.norm2(ref1), mem)[0]
     ref1 = module2._ff_block(module2.norm3(ref1))
@@ -425,11 +432,13 @@ def test_decoder_layer(device: torch.device) -> None:
 
     module2.return_log_probs(True)
     out2, _ = module2(tgt, mem)
+    out2.sum().backward()
     assert torch.allclose(out1, out2)
 
     # check norm_first=False
     module3.return_log_probs(False)
     out3 = module3(tgt, mem)
+    out3.sum().backward()
     ref2 = module3.norm1(tgt + module3._sa_block(tgt)[0])
     ref2 = module3.norm2(ref2 + module3._mha_block(ref2, mem)[0])
     ref2 = module3.norm3(module3._ff_block(ref2))
@@ -437,6 +446,7 @@ def test_decoder_layer(device: torch.device) -> None:
 
     module3.return_log_probs(True)
     out4, _ = module3(tgt, mem)
+    out4.sum().backward()
     assert torch.allclose(out3, out4)
 
 
@@ -511,23 +521,27 @@ def test_encoder_layer(device: torch.device) -> None:
     # check norm_first=True
     module2.return_log_probs(False)
     out1 = module2(src)
+    out1.sum().backward()
     ref1 = src + module2._sa_block(module2.norm1(src))[0]
     ref1 = module2._ff_block(module2.norm2(ref1))
     assert torch.allclose(out1, ref1)
 
     module2.return_log_probs(True)
     out2, _ = module2(src)
+    out2.sum().backward()
     assert torch.allclose(out1, out2)
 
     # check norm_first=False
     module3.return_log_probs(False)
     out3 = module3(src)
+    out3.sum().backward()
     ref2 = module3.norm1(src + module3._sa_block(src)[0])
     ref2 = module3.norm2(module3._ff_block(ref2))
     assert torch.allclose(out3, ref2)
 
     module3.return_log_probs(True)
     out4, _ = module3(src)
+    out4.sum().backward()
     assert torch.allclose(out3, out4)
 
 
@@ -561,6 +575,7 @@ def test_decoder(device: torch.device) -> None:
 
     module1.return_log_probs(False)
     out1 = module1(tgt, memory)
+    out1.sum().backward()
     ref = tgt
     for mod in module1.layers:
         ref = mod(ref, memory)
@@ -572,6 +587,7 @@ def test_decoder(device: torch.device) -> None:
 
     module1.return_log_probs(True)
     out2, _ = module1(tgt, memory)
+    out2.sum().backward()
     assert out1.shape == out2.shape
     assert torch.allclose(out1, out2)
     assert out1.device == device
@@ -581,6 +597,7 @@ def test_decoder(device: torch.device) -> None:
 
     module2.return_log_probs(False)
     out3 = module2(tgt, memory)
+    out3.sum().backward()
     ref2 = tgt
     for mod in module2.layers:
         ref2 = mod(ref2, memory)
@@ -593,6 +610,7 @@ def test_decoder(device: torch.device) -> None:
 
     module2.return_log_probs(True)
     out4, _ = module2(tgt, memory)
+    out4.sum().backward()
     assert out3.shape == out4.shape
     assert torch.allclose(out3, out4)
     assert out4.device == device
@@ -627,6 +645,7 @@ def test_encoder(device: torch.device) -> None:
 
     module1.return_log_probs(False)
     out1 = module1(src)
+    out1.sum().backward()
     ref = src
     for mod in module1.layers:
         ref = mod(ref)
@@ -638,6 +657,7 @@ def test_encoder(device: torch.device) -> None:
 
     module1.return_log_probs(True)
     out2, _ = module1(src)
+    out2.sum().backward()
     assert out1.shape == out2.shape
     assert torch.allclose(out1, out2)
     assert out2.device == device
@@ -647,6 +667,7 @@ def test_encoder(device: torch.device) -> None:
 
     module2.return_log_probs(False)
     out3 = module2(src)
+    out3.sum().backward()
     ref2 = src
     for mod in module2.layers:
         ref2 = mod(ref2)
@@ -659,6 +680,7 @@ def test_encoder(device: torch.device) -> None:
 
     module2.return_log_probs(True)
     out4, _ = module2(src)
+    out4.sum().backward()
     assert out3.shape == out4.shape
     assert torch.allclose(out3, out4)
     assert out4.device == device
@@ -905,7 +927,12 @@ def test_transformer(
 
     if return_log_probs:
         sample_output, log_probs = sample_output
+        sample_output += (
+            log_probs.sum()
+        )  # this makes the backward below also track logprobs
         assert log_probs.shape == (num_samples, 2)
+        assert log_probs.device == device
 
+    sample_output.sum().backward()
     assert sample_output.shape == output_shape
     assert sample_output.device == device
