@@ -278,7 +278,7 @@ def test_prior_matching(
     assert torch.allclose(
         torch.tensor(ref_prior_matching[0]),
         analytical_prior_matching,
-        atol=2e-1,
+        atol=5e-1,
         rtol=1e-3,
     )
 

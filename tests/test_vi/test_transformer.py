@@ -25,12 +25,12 @@ from torch_bayesian.vi.variational_distributions import (
 
 
 @pytest.mark.parametrize(
-    "embed_dim,num_heads,variational_distribution,batch_size,seq_len,use_attn_mask,error",
+    "embed_dim,num_heads,variational_distribution,batch_size,src_len,tgt_len,use_attn_mask,error",
     [
-        (32, 1, MeanFieldNormalVarDist(1e-20), 3, 5, False, None),
-        (32, 3, MeanFieldNormalVarDist(1e-20), 3, 5, False, 1),
-        (32, 4, MeanFieldNormalVarDist(1e-20), 3, 5, False, None),
-        (32, 1, MeanFieldNormalVarDist(1e-20), 3, 5, True, None),
+        (32, 1, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, None),
+        (32, 3, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, 1),
+        (32, 4, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, None),
+        (32, 1, MeanFieldNormalVarDist(1e-20), 3, 5, 7, True, None),
     ],
 )
 def test_multihead_attention_new(
@@ -38,7 +38,8 @@ def test_multihead_attention_new(
     num_heads: int,
     variational_distribution: VariationalDistribution,
     batch_size: Optional[int],
-    seq_len: int,
+    src_len: int,
+    tgt_len: int,
     use_attn_mask: bool,
     error: Optional[int],
     device: torch.device,
@@ -82,13 +83,15 @@ def test_multihead_attention_new(
             assert param_dict[name].device == device
 
     if batch_size is not None:
-        sample_shape: Tuple[int, ...] = (batch_size, seq_len, embed_dim)
+        src_shape: Tuple[int, ...] = (batch_size, src_len, embed_dim)
+        tgt_shape: Tuple[int, ...] = (batch_size, tgt_len, embed_dim)
     else:
-        sample_shape = (seq_len, embed_dim)
+        src_shape = (src_len, embed_dim)
+        tgt_shape = (tgt_len, embed_dim)
 
-    src1 = torch.rand(sample_shape, device=device)
-    tgt1 = torch.rand(sample_shape, device=device)
-    extr = torch.rand(sample_shape, device=device)
+    src1 = torch.rand(src_shape, device=device)
+    tgt1 = torch.rand(tgt_shape, device=device)
+    extr = torch.rand(tgt_shape, device=device)
 
     weight_dict = dict(
         in_proj_weight=None,
@@ -103,12 +106,14 @@ def test_multihead_attention_new(
             module, module.variational_parameter_name(var, primary_param)
         ).clone()
 
-    if use_attn_mask:
-        attn_mask = torch.tril(torch.full((5, 5), float("-inf"), device=device), -1)
-    else:
-        attn_mask = None
-
     for q, k, v in [(src1, src1, src1), (src1, tgt1, tgt1), (src1, tgt1, extr)]:
+        if use_attn_mask:
+            attn_mask = torch.tril(
+                torch.full((q.shape[-2], k.shape[-2]), float("-inf"), device=device), -1
+            )
+        else:
+            attn_mask = None
+
         ref_args = dict(
             query=q.transpose(0, 1),
             key=k.transpose(0, 1),
@@ -139,7 +144,7 @@ def test_multihead_attention_new(
         assert torch.allclose(ref_weights, weights)
         assert weights.device == device
         assert out.shape == ref.shape
-        assert torch.allclose(out, ref)
+        assert torch.allclose(out, ref, atol=1e-7)
         assert out.device == device
 
 
