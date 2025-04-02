@@ -18,6 +18,10 @@ from .variational_distributions import MeanFieldNormalVarDist, VariationalDistri
 class VIMultiheadAttention(VIBaseModule):
     """Alpha implementation of VIMultiheadAttention."""
 
+    __constants__ = ["batch_first"]
+    bias_k: Optional[torch.Tensor]
+    bias_v: Optional[torch.Tensor]
+
     def __init__(
         self,
         embed_dim: int,

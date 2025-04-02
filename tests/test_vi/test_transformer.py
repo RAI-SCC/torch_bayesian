@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import pytest
 import torch
@@ -25,12 +25,15 @@ from torch_bayesian.vi.variational_distributions import (
 
 
 @pytest.mark.parametrize(
-    "embed_dim,num_heads,variational_distribution,batch_size,src_len,tgt_len,use_attn_mask,error",
+    "embed_dim,num_heads,variational_distribution,batch_size,src_len,tgt_len,use_attn_mask,bias,add_bias_kv,error",
     [
-        (32, 1, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, None),
-        (32, 3, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, 1),
-        (32, 4, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, None),
-        (32, 1, MeanFieldNormalVarDist(1e-20), 3, 5, 7, True, None),
+        (32, 2, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, True, False, None),
+        (32, 3, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, True, False, 1),
+        (32, 4, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, True, False, None),
+        (32, 2, MeanFieldNormalVarDist(1e-20), 3, 5, 7, True, True, False, None),
+        (32, 2, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, False, False, None),
+        (32, 2, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, True, True, None),
+        (32, 2, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, False, True, None),
     ],
 )
 def test_multihead_attention_new(
@@ -41,6 +44,8 @@ def test_multihead_attention_new(
     src_len: int,
     tgt_len: int,
     use_attn_mask: bool,
+    bias: bool,
+    add_bias_kv: bool,
     error: Optional[int],
     device: torch.device,
 ) -> None:
@@ -50,18 +55,27 @@ def test_multihead_attention_new(
 
     if error == 1:
         with raises(AssertionError, match="embed_dim must be divisible by num_heads"):
-            _ = VIMultiheadAttention(embed_dim, num_heads, device=device)
+            _ = VIMultiheadAttention(
+                embed_dim, num_heads, bias=bias, add_bias_kv=add_bias_kv, device=device
+            )
         return
 
-    random_variable_shapes = dict(
+    random_variable_shapes: Dict[str, Tuple[int, ...]] = dict(
         in_proj_weight=(3 * embed_dim, embed_dim),
         out_proj_weight=(embed_dim, embed_dim),
-        in_proj_bias=(3 * embed_dim,),
-        out_proj_bias=(embed_dim,),
     )
+    if bias:
+        random_variable_shapes["in_proj_bias"] = (3 * embed_dim,)
+        random_variable_shapes["out_proj_bias"] = (embed_dim,)
+    if add_bias_kv:
+        random_variable_shapes["bias_k"] = (1, 1, embed_dim)
+        random_variable_shapes["bias_v"] = (1, 1, embed_dim)
+
     module = VIMultiheadAttention(
         embed_dim,
         num_heads,
+        bias=bias,
+        add_bias_kv=add_bias_kv,
         variational_distribution=variational_distribution,
         device=device,
     )
@@ -71,6 +85,7 @@ def test_multihead_attention_new(
     assert module.kdim == embed_dim
     assert module.vdim == embed_dim
     assert module._qkv_same_embed_dim
+    assert module.bias == bias
     assert module.batch_first
     assert set(module.random_variables) == set(random_variable_shapes.keys())
 
