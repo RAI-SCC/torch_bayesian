@@ -1,9 +1,9 @@
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import pytest
 import torch
 from pytest import mark, raises
-from torch import nn
+from torch import Tensor, nn
 from torch.nn import functional as F  # noqa: N812
 
 from torch_bayesian.vi import (
@@ -18,22 +18,174 @@ from torch_bayesian.vi import (
     VITransformerEncoderLayer,
 )
 from torch_bayesian.vi.priors import MeanFieldNormalPrior, Prior
+from torch_bayesian.vi.utils.common_types import VIReturn
 from torch_bayesian.vi.variational_distributions import (
     MeanFieldNormalVarDist,
     VariationalDistribution,
 )
 
 
+class Filter(VIModule):
+    """Wrapper to stop MultiheadAttention from returning None."""
+
+    def __init__(self, module: VIMultiheadAttention) -> None:
+        super().__init__()
+        self.module = module
+
+    def forward(self, *args: Any, **kwargs: Any) -> VIReturn[Tensor]:
+        """Forward call."""
+        out = self.module(*args, **kwargs)
+        if out[1] is None:
+            return out[0]
+        elif out[0][1] is None:
+            return out[0][0], out[1]
+        else:
+            return out
+
+
 @pytest.mark.parametrize(
-    "embed_dim,num_heads,variational_distribution,batch_size,src_len,tgt_len,use_attn_mask,bias,add_bias_kv,error",
+    "embed_dim,num_heads,variational_distribution,batch_size,src_len,tgt_len,use_attn_mask,need_weights,use_key_mask,bias,add_bias_kv,error",
     [
-        (32, 2, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, True, False, None),
-        (32, 3, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, True, False, 1),
-        (32, 4, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, True, False, None),
-        (32, 2, MeanFieldNormalVarDist(1e-20), 3, 5, 7, True, True, False, None),
-        (32, 2, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, False, False, None),
-        (32, 2, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, True, True, None),
-        (32, 2, MeanFieldNormalVarDist(1e-20), 3, 5, 7, False, False, True, None),
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            False,
+            True,
+            False,
+            None,
+        ),  # noqa
+        (
+            32,
+            3,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            False,
+            True,
+            False,
+            1,
+        ),  # noqa
+        (
+            32,
+            4,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            False,
+            True,
+            False,
+            None,
+        ),  # noqa
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            True,
+            False,
+            False,
+            True,
+            False,
+            None,
+        ),  # noqa
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            True,
+            False,
+            True,
+            False,
+            None,
+        ),  # noqa
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            True,
+            False,
+            True,
+            True,
+            False,
+            None,
+        ),  # noqa
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            True,
+            True,
+            False,
+            None,
+        ),  # noqa
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            False,
+            False,
+            False,
+            None,
+        ),  # noqa
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            False,
+            True,
+            True,
+            None,
+        ),  # noqa
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            False,
+            False,
+            True,
+            None,
+        ),  # noqa
     ],
 )
 def test_multihead_attention_new(
@@ -44,12 +196,15 @@ def test_multihead_attention_new(
     src_len: int,
     tgt_len: int,
     use_attn_mask: bool,
+    need_weights: bool,
+    use_key_mask: bool,
     bias: bool,
     add_bias_kv: bool,
     error: Optional[int],
     device: torch.device,
 ) -> None:
     """Test vimultiheadattention."""
+    return_log_probs = True
     samples = 100
     primary_param = variational_distribution.variational_parameters[0]
 
@@ -71,28 +226,30 @@ def test_multihead_attention_new(
         random_variable_shapes["bias_k"] = (1, 1, embed_dim)
         random_variable_shapes["bias_v"] = (1, 1, embed_dim)
 
-    module = VIMultiheadAttention(
-        embed_dim,
-        num_heads,
-        bias=bias,
-        add_bias_kv=add_bias_kv,
-        variational_distribution=variational_distribution,
-        device=device,
+    module = Filter(
+        VIMultiheadAttention(
+            embed_dim,
+            num_heads,
+            bias=bias,
+            add_bias_kv=add_bias_kv,
+            variational_distribution=variational_distribution,
+            device=device,
+        )
     )
 
-    assert module.embed_dim == embed_dim
-    assert module.num_heads == num_heads
-    assert module.kdim == embed_dim
-    assert module.vdim == embed_dim
-    assert module._qkv_same_embed_dim
-    assert module.bias == bias
-    assert module.batch_first
-    assert set(module.random_variables) == set(random_variable_shapes.keys())
+    assert module.module.embed_dim == embed_dim
+    assert module.module.num_heads == num_heads
+    assert module.module.kdim == embed_dim
+    assert module.module.vdim == embed_dim
+    assert module.module._qkv_same_embed_dim
+    assert module.module.bias == bias
+    assert module.module.batch_first
+    assert set(module.module.random_variables) == set(random_variable_shapes.keys())
 
-    param_dict = dict(module.named_parameters())
+    param_dict = dict(module.module.named_parameters())
     for var, shape in random_variable_shapes.items():
         for param in variational_distribution.variational_parameters:
-            name = module.variational_parameter_name(var, param)
+            name = module.module.variational_parameter_name(var, param)
             assert name in param_dict
             assert param_dict[name].shape == shape
             assert param_dict[name].device == device
@@ -118,7 +275,7 @@ def test_multihead_attention_new(
     )
     for var in random_variable_shapes:
         weight_dict[var] = getattr(
-            module, module.variational_parameter_name(var, primary_param)
+            module.module, module.module.variational_parameter_name(var, primary_param)
         ).clone()
 
     for q, k, v in [(src1, src1, src1), (src1, tgt1, tgt1), (src1, tgt1, extr)]:
@@ -129,6 +286,16 @@ def test_multihead_attention_new(
         else:
             attn_mask = None
 
+        if use_key_mask:
+            if batch_size is not None:
+                shape = (batch_size, k.shape[-2])
+            else:
+                shape = (k.shape[-2],)
+            x = torch.rand(shape, device=device)
+            key_mask = torch.zeros_like(x, device=device).where(x > 0.3, float("-inf"))
+        else:
+            key_mask = None
+
         ref_args = dict(
             query=q.transpose(0, 1),
             key=k.transpose(0, 1),
@@ -138,6 +305,8 @@ def test_multihead_attention_new(
             add_zero_attn=False,
             dropout_p=0.0,
             attn_mask=attn_mask,
+            need_weights=need_weights,
+            key_padding_mask=key_mask,
             average_attn_weights=False,
             **weight_dict,
         )
@@ -145,19 +314,31 @@ def test_multihead_attention_new(
         ref, ref_weights = F.multi_head_attention_forward(**ref_args)
         ref = ref.transpose(0, 1)
         model_return = module(
-            q, k, v, attn_mask=attn_mask, average_attn_weights=False, samples=samples
+            q,
+            k,
+            v,
+            attn_mask=attn_mask,
+            need_weights=need_weights,
+            key_padding_mask=key_mask,
+            average_attn_weights=False,
+            samples=samples,
         )
 
-        (out, weights), log_probs = model_return
+        if return_log_probs:
+            model_return, log_probs = model_return
+            log_probs = log_probs.mean(dim=0)
+        if need_weights:
+            out, weights = model_return
+            weights = weights.mean(dim=0)
+            assert ref_weights.shape == weights.shape
+            assert torch.allclose(ref_weights, weights)
+            assert weights.device == device
+        else:
+            out = model_return
 
         out = out.mean(dim=0)
-        weights = weights.mean(dim=0)
-        log_probs = log_probs.mean(dim=0)
 
         out.sum().backward()
-        assert ref_weights.shape == weights.shape
-        assert torch.allclose(ref_weights, weights)
-        assert weights.device == device
         assert out.shape == ref.shape
         assert torch.allclose(out, ref, atol=1e-7)
         assert out.device == device
@@ -1196,6 +1377,7 @@ def test_transformer(
                 dtype=dtype,
             ),
             num_layers=num_encoder_layers,
+            enable_nested_tensor=False,
         )
         decoder = VITransformerDecoderLayer(
             d_model,

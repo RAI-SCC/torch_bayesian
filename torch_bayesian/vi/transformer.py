@@ -232,8 +232,8 @@ class VITransformerEncoderLayer(VIModule):
         dim_feedforward: int = 512,
         activation: Module = ReLU(),
         layer_norm_eps: float = 1e-5,
-        norm_first: bool = False,
         batch_first: bool = True,
+        norm_first: bool = False,
         bias: bool = True,
         variational_distribution: VariationalDistribution = MeanFieldNormalVarDist(),
         prior: Prior = MeanFieldNormalPrior(),
@@ -303,24 +303,24 @@ class VITransformerEncoderLayer(VIModule):
             (x1, _), lps1 = self._sa_block(
                 self.norm1(x), src_mask, src_key_padding_mask, is_causal=is_causal
             )
-            x = x + x1
-            x2, lps2 = self._ff_block(self.norm2(x))
-            x = x2
+            x2 = x + x1
+            x3, lps2 = self._ff_block(self.norm2(x2))
+            x4 = x3
 
             lps1, lps2 = cast(Tuple[Tensor, Tensor], (lps1, lps2))
             log_probs = lps1 + lps2
-            return x, log_probs
+            return x4, log_probs
         elif self._return_log_probs:
             (x1, _), lps1 = self._sa_block(
                 x, src_mask, src_key_padding_mask, is_causal=is_causal
             )
-            x = x + x1
-            x2, lps2 = self._ff_block(self.norm1(x))
-            x = self.norm2(x2)
+            x2 = x + x1
+            x3, lps2 = self._ff_block(self.norm1(x2))
+            x4 = self.norm2(x3)
 
             lps1, lps2 = cast(Tuple[Tensor, Tensor], (lps1, lps2))
             log_probs = lps1 + lps2
-            return x, log_probs
+            return x4, log_probs
         elif self.norm_first:
             x = (
                 x
@@ -725,8 +725,8 @@ class VITransformer(VIModule):
                 dim_feedforward,
                 activation,
                 layer_norm_eps,
-                norm_first,
                 batch_first,
+                norm_first,
                 bias,
                 **vikwargs,
             )
