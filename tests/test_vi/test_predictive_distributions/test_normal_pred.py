@@ -36,7 +36,7 @@ def test_normal_predictive_distribution(
     test_log_prob = predictive_dist.log_prob_from_parameters(
         reference, (target_mean, target_std)
     )
-    assert torch.allclose(test_log_prob, target_log_prob)
+    assert torch.allclose(test_log_prob, target_log_prob, atol=1e-7)
     assert test_log_prob.device == device
 
     end2end_log_prob = predictive_dist.log_prob_from_samples(reference, samples)

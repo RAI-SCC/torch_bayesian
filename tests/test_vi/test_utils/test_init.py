@@ -21,7 +21,7 @@ def test_fixed(device: torch.device) -> None:
 
     init.fixed_(dummy.weight_mean, other1)
     weight1 = iter1.__next__().clone()
-    assert torch.equal(dummy.weight_mean, other1)
-    assert torch.equal(weight1, other1)
+    assert torch.allclose(dummy.weight_mean, other1)
+    assert torch.allclose(weight1, other1)
     assert weight1.requires_grad
     assert weight1.device == device

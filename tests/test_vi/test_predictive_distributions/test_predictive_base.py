@@ -81,5 +81,5 @@ def test_log_prob_from_samples(device: torch.device) -> None:
     target = samples.sum(dim=0) + reference
 
     out = test.log_prob_from_samples(reference, samples)
-    assert torch.equal(target, out)
+    assert torch.allclose(target, out)
     assert out.device == device

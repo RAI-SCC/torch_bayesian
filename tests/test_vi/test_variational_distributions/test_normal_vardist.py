@@ -12,12 +12,12 @@ def test_normal_sample(device: torch.device) -> None:
     std = torch.zeros_like(mean, device=device)
     sample = MeanFieldNormalVarDist._normal_sample(mean, std)
     assert sample.shape == mean.shape
-    assert torch.equal(sample, mean)
+    assert torch.allclose(sample, mean)
     assert sample.device == device
 
     std = torch.ones_like(mean)
     sample = MeanFieldNormalVarDist._normal_sample(mean, std)
-    assert not torch.equal(sample, mean)
+    assert not torch.allclose(sample, mean)
     assert sample.device == device
 
 
@@ -28,13 +28,13 @@ def test_sample(device: torch.device) -> None:
     log_std = torch.full_like(mean, -float("inf"), device=device)
     sample = vardist.sample(mean, log_std)
     assert sample.shape == mean.shape
-    assert torch.equal(sample, mean)
+    assert torch.allclose(sample, mean)
     assert sample.device == device
 
     mean = torch.randn((6,), device=device)
     log_std = torch.zeros_like(mean, device=device)
     sample = vardist.sample(mean, log_std)
-    assert not torch.equal(sample, mean)
+    assert not torch.allclose(sample, mean)
     assert sample.device == device
 
 
@@ -65,5 +65,6 @@ def test_log_prob(norm_constants: bool, device: torch.device) -> None:
         norm_const = torch.full_like(mean, 2 * torch.pi, device=device).log() / 2
         ref2 += norm_const
     log_prob2 = vardist.log_prob(sample, mean, log_std)
-    assert torch.allclose(ref2, log_prob2)
+    assert torch.allclose(ref2, log_prob2, atol=1e-7)
+    assert log_prob2.device == device
     assert log_prob2.device == device

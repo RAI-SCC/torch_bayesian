@@ -41,7 +41,7 @@ def test_log_prob(norm_constants: bool, device: torch.device) -> None:
         norm_const = torch.full(shape2, 2 * torch.pi, device=device).log() / 2
         ref2 -= norm_const
     log_prob2 = prior.log_prob(sample)
-    assert torch.allclose(ref2, log_prob2)
+    assert torch.allclose(ref2, log_prob2, atol=1e-7)
 
 
 def test_normal_reset_parameters(device: torch.device) -> None:

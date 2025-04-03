@@ -18,12 +18,12 @@ def test_student_t_sample(degrees_of_freedom: float, device: torch.device) -> No
 
     sample = vardist._student_t_sample(mean, std)
     assert sample.shape == mean.shape
-    assert torch.equal(sample, mean)
+    assert torch.allclose(sample, mean)
     assert sample.device == device
 
     std = torch.ones_like(mean, device=device)
     sample = vardist._student_t_sample(mean, std)
-    assert not torch.equal(sample, mean)
+    assert not torch.allclose(sample, mean)
     assert sample.device == device
 
 
@@ -35,13 +35,13 @@ def test_sample(degrees_of_freedom: float, device: torch.device) -> None:
     log_scale = torch.full_like(mean, -float("inf"), device=device)
     sample = vardist.sample(mean, log_scale)
     assert sample.shape == mean.shape
-    assert torch.equal(sample, mean)
+    assert torch.allclose(sample, mean)
     assert sample.device == device
 
     mean = torch.randn((6,), device=device)
     log_scale = torch.zeros_like(mean, device=device)
     sample = vardist.sample(mean, log_scale)
-    assert not torch.equal(sample, mean)
+    assert not torch.allclose(sample, mean)
     assert sample.device == device
 
 

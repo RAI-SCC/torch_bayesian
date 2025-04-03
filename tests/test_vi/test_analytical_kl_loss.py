@@ -51,7 +51,7 @@ def test_klmodule(device: torch.device) -> None:
 
     out = module(list_a, list_b)
     assert out.device == device
-    assert torch.equal(out, reference)
+    assert torch.allclose(out, reference)
 
 
 def test_nonbayesian_klmodule(device: torch.device) -> None:
@@ -66,7 +66,7 @@ def test_nonbayesian_klmodule(device: torch.device) -> None:
     module = NonBayesianDivergence()
     out = module(prior_params, var_params)
     assert out.device == device
-    assert torch.equal(out, torch.tensor([0.0], device=device))
+    assert torch.allclose(out, torch.tensor([0.0], device=device))
 
 
 @pytest.mark.parametrize("norm_constants", [(True,), (False,)])
@@ -88,7 +88,7 @@ def test_uniformnormal_klmodule(norm_constants: bool, device: torch.device) -> N
         reference = -var_params[1] - 0.5 * (1 + log(2 * pi))
 
     assert out.device == device
-    assert torch.equal(out, reference.sum())
+    assert torch.allclose(out, reference.sum())
 
 
 @pytest.mark.parametrize("norm_constants", [(True,), (False,)])

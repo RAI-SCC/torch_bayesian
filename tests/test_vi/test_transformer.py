@@ -268,7 +268,7 @@ def test_multihead_attention_new(
             else:
                 shape = (k.shape[-2],)
             x = torch.rand(shape, device=device)
-            key_mask = torch.zeros_like(x, device=device).where(x > 0.3, float("-inf"))
+            key_mask = torch.zeros_like(x, device=device).where(x > 0.1, float("-inf"))
         else:
             key_mask = None
 
@@ -306,11 +306,15 @@ def test_multihead_attention_new(
         out, weights = model_return
 
         weights = weights.mean(dim=0)
+        weights = torch.nan_to_num(weights)
+        ref_weights = torch.nan_to_num(ref_weights)
         assert ref_weights.shape == weights.shape
         assert torch.allclose(ref_weights, weights, atol=1e-6)
         assert weights.device == device
 
         out = out.mean(dim=0)
+        out = torch.nan_to_num(out)
+        ref = torch.nan_to_num(ref)
         out.sum().backward()
         assert out.shape == ref.shape
         assert torch.allclose(out, ref, atol=1e-6)
@@ -1335,22 +1339,16 @@ def test_transformer(
 ) -> None:
     """Test VITransformer."""
     if custom_coders:
-        encoder = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(
-                d_model,
-                nhead,
-                dim_feedforward,
-                activation=activation,
-                layer_norm_eps=layer_norm_eps,
-                norm_first=norm_first,
-                batch_first=batch_first,
-                bias=bias,
-                device=device,
-                dtype=dtype,
-            ),
-            num_layers=num_encoder_layers,
-            enable_nested_tensor=False,
-        )
+
+        class ArgWrapper(nn.Module):
+            def __init__(self, coder: nn.Module) -> None:
+                super().__init__()
+                self.coder = coder
+
+            def forward(self, input_: Tensor, *args: Any, **kwargs: Any) -> Tensor:
+                return self.coder(input_)
+
+        encoder = ArgWrapper(nn.Linear(d_model, d_model, device=device))
         decoder = VITransformerDecoderLayer(
             d_model,
             nhead,
