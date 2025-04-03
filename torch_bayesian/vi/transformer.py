@@ -99,7 +99,7 @@ class VIMultiheadAttention(VIBaseModule):
         key: Tensor,
         value: Tensor,
         attn_mask: Optional[Tensor] = None,
-        need_weights: bool = True,
+        # need_weights: bool = True,
         key_padding_mask: Optional[Tensor] = None,
         average_attn_weights: bool = True,
         is_causal: bool = False,
@@ -174,7 +174,7 @@ class VIMultiheadAttention(VIBaseModule):
                 out_proj_bias=out_proj_bias,
                 training=self.training,
                 key_padding_mask=key_padding_mask,
-                need_weights=need_weights,
+                need_weights=True,
                 attn_mask=attn_mask,
                 use_separate_proj_weight=True,
                 q_proj_weight=q_proj_weight,
@@ -206,7 +206,7 @@ class VIMultiheadAttention(VIBaseModule):
                 out_proj_bias=out_proj_bias,
                 training=self.training,
                 key_padding_mask=key_padding_mask,
-                need_weights=need_weights,
+                need_weights=True,
                 attn_mask=attn_mask,
                 average_attn_weights=average_attn_weights,
                 is_causal=is_causal,
@@ -214,9 +214,6 @@ class VIMultiheadAttention(VIBaseModule):
 
         if self.batch_first and is_batched:
             attn_output = attn_output.transpose(1, 0)
-
-        if attn_output_weights is None:
-            attn_output_weights = torch.tensor(float("nan"), device=attn_output.device)
 
         if self._return_log_probs:
             log_probs = self.get_log_probs(params)
@@ -356,7 +353,6 @@ class VITransformerEncoderLayer(VIModule):
             x,
             attn_mask=attn_mask,
             key_padding_mask=key_padding_mask,
-            need_weights=False,
             is_causal=is_causal,
         )
         return x
@@ -513,7 +509,6 @@ class VITransformerDecoderLayer(VIModule):
             attn_mask=attn_mask,
             key_padding_mask=key_padding_mask,
             is_causal=is_causal,
-            need_weights=False,
         )
         return x
 
@@ -532,7 +527,6 @@ class VITransformerDecoderLayer(VIModule):
             attn_mask=attn_mask,
             key_padding_mask=key_padding_mask,
             is_causal=is_causal,
-            need_weights=False,
         )
         return x
 

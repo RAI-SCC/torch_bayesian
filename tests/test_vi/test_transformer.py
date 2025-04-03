@@ -44,7 +44,7 @@ class Filter(VIModule):
 
 
 @pytest.mark.parametrize(
-    "embed_dim,num_heads,variational_distribution,batch_size,src_len,tgt_len,use_attn_mask,need_weights,use_key_mask,bias,add_bias_kv,error",
+    "embed_dim,num_heads,variational_distribution,batch_size,src_len,tgt_len,use_attn_mask,use_key_mask,bias,add_bias_kv,error",
     [
         (
             32,
@@ -53,7 +53,6 @@ class Filter(VIModule):
             3,
             5,
             7,
-            False,
             False,
             False,
             True,
@@ -67,7 +66,6 @@ class Filter(VIModule):
             3,
             5,
             7,
-            False,
             False,
             False,
             True,
@@ -83,35 +81,6 @@ class Filter(VIModule):
             7,
             False,
             False,
-            False,
-            True,
-            False,
-            None,
-        ),
-        (
-            32,
-            2,
-            MeanFieldNormalVarDist(1e-20),
-            3,
-            5,
-            7,
-            True,
-            False,
-            False,
-            True,
-            False,
-            None,
-        ),
-        (
-            32,
-            2,
-            MeanFieldNormalVarDist(1e-20),
-            3,
-            5,
-            7,
-            False,
-            True,
-            False,
             True,
             False,
             None,
@@ -126,6 +95,18 @@ class Filter(VIModule):
             True,
             False,
             True,
+            False,
+            None,
+        ),
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            True,
+            True,
             True,
             False,
             None,
@@ -137,7 +118,6 @@ class Filter(VIModule):
             3,
             5,
             7,
-            False,
             False,
             True,
             True,
@@ -155,7 +135,6 @@ class Filter(VIModule):
             False,
             False,
             False,
-            False,
             None,
         ),
         (
@@ -165,7 +144,6 @@ class Filter(VIModule):
             3,
             5,
             7,
-            False,
             False,
             False,
             True,
@@ -179,7 +157,6 @@ class Filter(VIModule):
             3,
             5,
             7,
-            False,
             False,
             False,
             False,
@@ -196,7 +173,6 @@ def test_multihead_attention_new(
     src_len: int,
     tgt_len: int,
     use_attn_mask: bool,
-    need_weights: bool,
     use_key_mask: bool,
     bias: bool,
     add_bias_kv: bool,
@@ -305,7 +281,7 @@ def test_multihead_attention_new(
             add_zero_attn=False,
             dropout_p=0.0,
             attn_mask=attn_mask,
-            need_weights=need_weights,
+            need_weights=True,
             key_padding_mask=key_mask,
             average_attn_weights=False,
             **weight_dict,
@@ -318,7 +294,6 @@ def test_multihead_attention_new(
             k,
             v,
             attn_mask=attn_mask,
-            need_weights=need_weights,
             key_padding_mask=key_mask,
             average_attn_weights=False,
             samples=samples,
@@ -330,16 +305,12 @@ def test_multihead_attention_new(
 
         out, weights = model_return
 
-        if need_weights:
-            weights = weights.mean(dim=0)
-            assert ref_weights.shape == weights.shape
-            assert torch.allclose(ref_weights, weights)
-            assert weights.device == device
-        else:
-            assert torch.isnan(weights).all()
+        weights = weights.mean(dim=0)
+        assert ref_weights.shape == weights.shape
+        assert torch.allclose(ref_weights, weights)
+        assert weights.device == device
 
         out = out.mean(dim=0)
-
         out.sum().backward()
         assert out.shape == ref.shape
         assert torch.allclose(out, ref, atol=1e-7)
@@ -725,7 +696,7 @@ def test_decoder_layer(device: torch.device) -> None:
     mem = torch.rand((7, 4, d_model), device=device)
 
     (sa_out, sa_weights), sa_lps = module2._sa_block(tgt)
-    (sa_ref, sa_rweight), sa_rlp = module2.self_attn(tgt, tgt, tgt, need_weights=False)
+    (sa_ref, sa_rweight), sa_rlp = module2.self_attn(tgt, tgt, tgt)
     assert sa_out.shape == sa_ref.shape
     assert torch.allclose(sa_out, sa_ref)
     assert torch.allclose(sa_lps, sa_rlp)
@@ -733,9 +704,7 @@ def test_decoder_layer(device: torch.device) -> None:
     assert sa_ref.device == device
 
     (mha_out, mha_weights), mha_lps = module2._mha_block(tgt, mem)
-    (mha_ref, mha_rweight), mha_rlp = module2.multihead_attn(
-        tgt, mem, mem, need_weights=False
-    )
+    (mha_ref, mha_rweight), mha_rlp = module2.multihead_attn(tgt, mem, mem)
     assert mha_out.shape == mha_ref.shape
     assert torch.allclose(mha_out, mha_ref)
     assert torch.allclose(mha_lps, mha_rlp)
@@ -831,7 +800,7 @@ def test_encoder_layer(device: torch.device) -> None:
     src = torch.rand((7, 4, d_model), device=device)
 
     (sa_out, sa_weights), sa_lps = module2._sa_block(src)
-    (sa_ref, sa_rweight), sa_rlp = module2.self_attn(src, src, src, need_weights=False)
+    (sa_ref, sa_rweight), sa_rlp = module2.self_attn(src, src, src)
     assert sa_out.shape == sa_ref.shape
     assert torch.allclose(sa_out, sa_ref)
     assert torch.allclose(sa_lps, sa_rlp)
