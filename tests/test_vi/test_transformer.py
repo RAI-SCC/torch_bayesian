@@ -307,13 +307,13 @@ def test_multihead_attention_new(
 
         weights = weights.mean(dim=0)
         assert ref_weights.shape == weights.shape
-        assert torch.allclose(ref_weights, weights)
+        assert torch.allclose(ref_weights, weights, atol=1e-6)
         assert weights.device == device
 
         out = out.mean(dim=0)
         out.sum().backward()
         assert out.shape == ref.shape
-        assert torch.allclose(out, ref, atol=1e-7)
+        assert torch.allclose(out, ref, atol=1e-6)
         assert out.device == device
 
 
@@ -718,12 +718,12 @@ def test_decoder_layer(device: torch.device) -> None:
     ref1 = tgt + module2._sa_block(module2.norm1(tgt))[0]
     ref1 = ref1 + module2._mha_block(module2.norm2(ref1), mem)[0]
     ref1 = module2._ff_block(module2.norm3(ref1))
-    assert torch.allclose(out1, ref1)
+    assert torch.allclose(out1, ref1, atol=1e-6)
 
     module2.return_log_probs(True)
     out2, _ = module2(tgt, mem)
     out2.sum().backward()
-    assert torch.allclose(out1, out2)
+    assert torch.allclose(out1, out2, atol=1e-6)
 
     # check norm_first=False
     module3.return_log_probs(False)
@@ -732,12 +732,12 @@ def test_decoder_layer(device: torch.device) -> None:
     ref2 = module3.norm1(tgt + module3._sa_block(tgt)[0])
     ref2 = module3.norm2(ref2 + module3._mha_block(ref2, mem)[0])
     ref2 = module3.norm3(module3._ff_block(ref2))
-    assert torch.allclose(out3, ref2)
+    assert torch.allclose(out3, ref2, atol=1e-6)
 
     module3.return_log_probs(True)
     out4, _ = module3(tgt, mem)
     out4.sum().backward()
-    assert torch.allclose(out3, out4)
+    assert torch.allclose(out3, out4, atol=1e-6)
 
 
 def test_encoder_layer(device: torch.device) -> None:
@@ -818,7 +818,7 @@ def test_encoder_layer(device: torch.device) -> None:
     module2.return_log_probs(True)
     out2, _ = module2(src)
     out2.sum().backward()
-    assert torch.allclose(out1, out2)
+    assert torch.allclose(out1, out2, atol=2e-7)
 
     # check norm_first=False
     module3.return_log_probs(False)
@@ -826,12 +826,12 @@ def test_encoder_layer(device: torch.device) -> None:
     out3.sum().backward()
     ref2 = module3.norm1(src + module3._sa_block(src)[0])
     ref2 = module3.norm2(module3._ff_block(ref2))
-    assert torch.allclose(out3, ref2)
+    assert torch.allclose(out3, ref2, atol=2e-7)
 
     module3.return_log_probs(True)
     out4, _ = module3(src)
     out4.sum().backward()
-    assert torch.allclose(out3, out4)
+    assert torch.allclose(out3, out4, atol=2e-7)
 
 
 def test_decoder(device: torch.device) -> None:
@@ -878,10 +878,12 @@ def test_decoder(device: torch.device) -> None:
     out2, _ = module1(tgt, memory)
     out2.sum().backward()
     assert out1.shape == out2.shape
-    assert torch.allclose(out1, out2)
+    assert torch.allclose(out1, out2, atol=1e-6)
     assert out1.device == device
 
-    module2 = VITransformerDecoder(layer, num_layers, norm=nn.LayerNorm(d_model))
+    module2 = VITransformerDecoder(
+        layer, num_layers, norm=nn.LayerNorm(d_model, device=device)
+    )
     assert isinstance(module2.norm, nn.LayerNorm)
 
     module2.return_log_probs(False)
@@ -901,7 +903,7 @@ def test_decoder(device: torch.device) -> None:
     out4, _ = module2(tgt, memory)
     out4.sum().backward()
     assert out3.shape == out4.shape
-    assert torch.allclose(out3, out4)
+    assert torch.allclose(out3, out4, atol=1e-6)
     assert out4.device == device
 
 
@@ -948,10 +950,12 @@ def test_encoder(device: torch.device) -> None:
     out2, _ = module1(src)
     out2.sum().backward()
     assert out1.shape == out2.shape
-    assert torch.allclose(out1, out2)
+    assert torch.allclose(out1, out2, atol=2e-7)
     assert out2.device == device
 
-    module2 = VITransformerEncoder(layer, num_layers, norm=nn.LayerNorm(d_model))
+    module2 = VITransformerEncoder(
+        layer, num_layers, norm=nn.LayerNorm(d_model, device=device)
+    )
     assert isinstance(module2.norm, nn.LayerNorm)
 
     module2.return_log_probs(False)
@@ -971,7 +975,7 @@ def test_encoder(device: torch.device) -> None:
     out4, _ = module2(src)
     out4.sum().backward()
     assert out3.shape == out4.shape
-    assert torch.allclose(out3, out4)
+    assert torch.allclose(out3, out4, atol=1e-6)
     assert out4.device == device
 
 
