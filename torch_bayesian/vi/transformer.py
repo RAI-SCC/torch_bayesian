@@ -215,6 +215,9 @@ class VIMultiheadAttention(VIBaseModule):
         if self.batch_first and is_batched:
             attn_output = attn_output.transpose(1, 0)
 
+        if attn_output_weights is None:
+            attn_output_weights = torch.tensor(float("nan"), device=attn_output.device)
+
         if self._return_log_probs:
             log_probs = self.get_log_probs(params)
             return (attn_output, attn_output_weights), log_probs

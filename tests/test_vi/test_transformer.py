@@ -59,7 +59,7 @@ class Filter(VIModule):
             True,
             False,
             None,
-        ),  # noqa
+        ),
         (
             32,
             3,
@@ -73,7 +73,7 @@ class Filter(VIModule):
             True,
             False,
             1,
-        ),  # noqa
+        ),
         (
             32,
             4,
@@ -87,7 +87,7 @@ class Filter(VIModule):
             True,
             False,
             None,
-        ),  # noqa
+        ),
         (
             32,
             2,
@@ -101,7 +101,7 @@ class Filter(VIModule):
             True,
             False,
             None,
-        ),  # noqa
+        ),
         (
             32,
             2,
@@ -115,7 +115,7 @@ class Filter(VIModule):
             True,
             False,
             None,
-        ),  # noqa
+        ),
         (
             32,
             2,
@@ -129,7 +129,7 @@ class Filter(VIModule):
             True,
             False,
             None,
-        ),  # noqa
+        ),
         (
             32,
             2,
@@ -143,7 +143,7 @@ class Filter(VIModule):
             True,
             False,
             None,
-        ),  # noqa
+        ),
         (
             32,
             2,
@@ -157,7 +157,7 @@ class Filter(VIModule):
             False,
             False,
             None,
-        ),  # noqa
+        ),
         (
             32,
             2,
@@ -171,7 +171,7 @@ class Filter(VIModule):
             True,
             True,
             None,
-        ),  # noqa
+        ),
         (
             32,
             2,
@@ -185,7 +185,7 @@ class Filter(VIModule):
             False,
             True,
             None,
-        ),  # noqa
+        ),
     ],
 )
 def test_multihead_attention_new(
@@ -327,14 +327,16 @@ def test_multihead_attention_new(
         if return_log_probs:
             model_return, log_probs = model_return
             log_probs = log_probs.mean(dim=0)
+
+        out, weights = model_return
+
         if need_weights:
-            out, weights = model_return
             weights = weights.mean(dim=0)
             assert ref_weights.shape == weights.shape
             assert torch.allclose(ref_weights, weights)
             assert weights.device == device
         else:
-            out = model_return
+            assert torch.isnan(weights).all()
 
         out = out.mean(dim=0)
 
@@ -726,7 +728,6 @@ def test_decoder_layer(device: torch.device) -> None:
     (sa_ref, sa_rweight), sa_rlp = module2.self_attn(tgt, tgt, tgt, need_weights=False)
     assert sa_out.shape == sa_ref.shape
     assert torch.allclose(sa_out, sa_ref)
-    assert sa_weights == sa_rweight
     assert torch.allclose(sa_lps, sa_rlp)
     assert sa_out.device == device
     assert sa_ref.device == device
@@ -737,7 +738,6 @@ def test_decoder_layer(device: torch.device) -> None:
     )
     assert mha_out.shape == mha_ref.shape
     assert torch.allclose(mha_out, mha_ref)
-    assert mha_weights == mha_rweight
     assert torch.allclose(mha_lps, mha_rlp)
     assert mha_out.device == device
     assert mha_ref.device == device
@@ -834,7 +834,6 @@ def test_encoder_layer(device: torch.device) -> None:
     (sa_ref, sa_rweight), sa_rlp = module2.self_attn(src, src, src, need_weights=False)
     assert sa_out.shape == sa_ref.shape
     assert torch.allclose(sa_out, sa_ref)
-    assert sa_weights == sa_rweight
     assert torch.allclose(sa_lps, sa_rlp)
     assert sa_out.device == device
     assert sa_ref.device == device
