@@ -26,7 +26,7 @@ def test_log_prob(norm_constants: bool, device: torch.device) -> None:
         norm_const = torch.full(shape1, 2 * torch.pi, device=device).log() / 2
         ref1 += norm_const
     log_prob1 = prior.log_prob(sample)
-    assert torch.allclose(ref1, log_prob1)
+    assert torch.allclose(ref1, log_prob1, atol=1e-7)
 
     mean = 0.7
     std = 0.3

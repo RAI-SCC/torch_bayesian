@@ -44,7 +44,7 @@ class Filter(VIModule):
 
 
 @pytest.mark.parametrize(
-    "embed_dim,num_heads,variational_distribution,batch_size,src_len,tgt_len,use_attn_mask,use_key_mask,bias,add_bias_kv,error",
+    "embed_dim,num_heads,variational_distribution,batch_size,src_len,tgt_len,use_attn_mask,use_key_mask,bias,add_bias_kv,add_zero_attn,kdim,vdim,batch_first,error",
     [
         (
             32,
@@ -57,6 +57,10 @@ class Filter(VIModule):
             False,
             True,
             False,
+            False,
+            None,
+            None,
+            True,
             None,
         ),
         (
@@ -70,6 +74,10 @@ class Filter(VIModule):
             False,
             True,
             False,
+            False,
+            None,
+            None,
+            True,
             1,
         ),
         (
@@ -83,6 +91,10 @@ class Filter(VIModule):
             False,
             True,
             False,
+            False,
+            None,
+            None,
+            True,
             None,
         ),
         (
@@ -96,6 +108,10 @@ class Filter(VIModule):
             False,
             True,
             False,
+            False,
+            None,
+            None,
+            True,
             None,
         ),
         (
@@ -109,6 +125,10 @@ class Filter(VIModule):
             True,
             True,
             False,
+            False,
+            None,
+            None,
+            True,
             None,
         ),
         (
@@ -122,31 +142,9 @@ class Filter(VIModule):
             True,
             True,
             False,
-            None,
-        ),
-        (
-            32,
-            2,
-            MeanFieldNormalVarDist(1e-20),
-            3,
-            5,
-            7,
-            False,
-            False,
-            False,
             False,
             None,
-        ),
-        (
-            32,
-            2,
-            MeanFieldNormalVarDist(1e-20),
-            3,
-            5,
-            7,
-            False,
-            False,
-            True,
+            None,
             True,
             None,
         ),
@@ -160,12 +158,152 @@ class Filter(VIModule):
             False,
             False,
             False,
+            False,
+            False,
+            None,
+            None,
+            True,
+            None,
+        ),
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            True,
+            True,
+            False,
+            None,
+            None,
+            True,
+            None,
+        ),
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            False,
+            True,
+            False,
+            None,
+            None,
+            True,
+            None,
+        ),
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            True,
+            False,
+            True,
+            None,
+            None,
+            True,
+            None,
+        ),
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            True,
+            False,
+            False,
+            None,
+            None,
+            False,
+            None,
+        ),
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            True,
+            False,
+            False,
+            30,
+            None,
+            True,
+            None,
+        ),
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            True,
+            False,
+            False,
+            None,
+            16,
+            True,
+            None,
+        ),
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            True,
+            False,
+            False,
+            10,
+            36,
+            True,
+            None,
+        ),
+        (
+            32,
+            2,
+            MeanFieldNormalVarDist(1e-20),
+            3,
+            5,
+            7,
+            False,
+            False,
+            False,
+            False,
+            False,
+            16,
+            16,
             True,
             None,
         ),
     ],
 )
-def test_multihead_attention_new(
+def test_multihead_attention(
     embed_dim: int,
     num_heads: int,
     variational_distribution: VariationalDistribution,
@@ -176,10 +314,14 @@ def test_multihead_attention_new(
     use_key_mask: bool,
     bias: bool,
     add_bias_kv: bool,
+    add_zero_attn: bool,
+    kdim: Optional[int],
+    vdim: Optional[int],
+    batch_first: bool,
     error: Optional[int],
     device: torch.device,
 ) -> None:
-    """Test vimultiheadattention."""
+    """Test VIMultiheadAttention."""
     return_log_probs = True
     samples = 100
     primary_param = variational_distribution.variational_parameters[0]
@@ -187,20 +329,15 @@ def test_multihead_attention_new(
     if error == 1:
         with raises(AssertionError, match="embed_dim must be divisible by num_heads"):
             _ = VIMultiheadAttention(
-                embed_dim, num_heads, bias=bias, add_bias_kv=add_bias_kv, device=device
+                embed_dim,
+                num_heads,
+                bias=bias,
+                add_bias_kv=add_bias_kv,
+                add_zero_attn=add_zero_attn,
+                batch_first=batch_first,
+                device=device,
             )
         return
-
-    random_variable_shapes: Dict[str, Tuple[int, ...]] = dict(
-        in_proj_weight=(3 * embed_dim, embed_dim),
-        out_proj_weight=(embed_dim, embed_dim),
-    )
-    if bias:
-        random_variable_shapes["in_proj_bias"] = (3 * embed_dim,)
-        random_variable_shapes["out_proj_bias"] = (embed_dim,)
-    if add_bias_kv:
-        random_variable_shapes["bias_k"] = (1, 1, embed_dim)
-        random_variable_shapes["bias_v"] = (1, 1, embed_dim)
 
     module = Filter(
         VIMultiheadAttention(
@@ -208,18 +345,41 @@ def test_multihead_attention_new(
             num_heads,
             bias=bias,
             add_bias_kv=add_bias_kv,
+            add_zero_attn=add_zero_attn,
+            kdim=kdim,
+            vdim=vdim,
+            batch_first=batch_first,
             variational_distribution=variational_distribution,
             device=device,
         )
     )
 
+    random_variable_shapes: Dict[str, Tuple[int, ...]] = {
+        "out_proj_weight": (embed_dim, embed_dim),
+    }
+    if bias:
+        random_variable_shapes["in_proj_bias"] = (3 * embed_dim,)
+        random_variable_shapes["out_proj_bias"] = (embed_dim,)
+    if add_bias_kv:
+        random_variable_shapes["bias_k"] = (1, 1, embed_dim)
+        random_variable_shapes["bias_v"] = (1, 1, embed_dim)
+    if kdim is not None or vdim is not None:
+        use_separate_proj_weight = True
+        assert not module.module._qkv_same_embed_dim
+        random_variable_shapes["q_proj_weight"] = (embed_dim, embed_dim)
+        random_variable_shapes["k_proj_weight"] = (embed_dim, kdim or embed_dim)
+        random_variable_shapes["v_proj_weight"] = (embed_dim, vdim or embed_dim)
+    else:
+        use_separate_proj_weight = False
+        assert module.module._qkv_same_embed_dim
+        random_variable_shapes["in_proj_weight"] = (3 * embed_dim, embed_dim)
+
     assert module.module.embed_dim == embed_dim
+    assert module.module.kdim == (kdim or embed_dim)
+    assert module.module.vdim == (vdim or embed_dim)
     assert module.module.num_heads == num_heads
-    assert module.module.kdim == embed_dim
-    assert module.module.vdim == embed_dim
-    assert module.module._qkv_same_embed_dim
     assert module.module.bias == bias
-    assert module.module.batch_first
+    assert module.module.batch_first == batch_first
     assert set(module.module.random_variables) == set(random_variable_shapes.keys())
 
     param_dict = dict(module.module.named_parameters())
@@ -232,14 +392,16 @@ def test_multihead_attention_new(
 
     if batch_size is not None:
         src_shape: Tuple[int, ...] = (batch_size, src_len, embed_dim)
-        tgt_shape: Tuple[int, ...] = (batch_size, tgt_len, embed_dim)
+        tgt_shape: Tuple[int, ...] = (batch_size, tgt_len, kdim or embed_dim)
+        ext_shape: Tuple[int, ...] = (batch_size, tgt_len, vdim or embed_dim)
     else:
         src_shape = (src_len, embed_dim)
-        tgt_shape = (tgt_len, embed_dim)
+        tgt_shape = (tgt_len, kdim or embed_dim)
+        ext_shape = (tgt_len, vdim or embed_dim)
 
     src1 = torch.rand(src_shape, device=device)
     tgt1 = torch.rand(tgt_shape, device=device)
-    extr = torch.rand(tgt_shape, device=device)
+    extr = torch.rand(ext_shape, device=device)
 
     weight_dict = dict(
         in_proj_weight=None,
@@ -255,6 +417,9 @@ def test_multihead_attention_new(
         ).clone()
 
     for q, k, v in [(src1, src1, src1), (src1, tgt1, tgt1), (src1, tgt1, extr)]:
+        if torch.equal(k, v) and ((kdim is not None) or (vdim is not None)):
+            continue
+
         if use_attn_mask:
             attn_mask = torch.tril(
                 torch.full((q.shape[-2], k.shape[-2]), float("-inf"), device=device), -1
@@ -278,9 +443,10 @@ def test_multihead_attention_new(
             value=v.transpose(0, 1),
             embed_dim_to_check=embed_dim,
             num_heads=num_heads,
-            add_zero_attn=False,
+            add_zero_attn=add_zero_attn,
             dropout_p=0.0,
             attn_mask=attn_mask,
+            use_separate_proj_weight=use_separate_proj_weight,
             need_weights=True,
             key_padding_mask=key_mask,
             average_attn_weights=False,
@@ -288,7 +454,14 @@ def test_multihead_attention_new(
         )
 
         ref, ref_weights = F.multi_head_attention_forward(**ref_args)
-        ref = ref.transpose(0, 1)
+
+        if not batch_first:
+            q = q.transpose(0, 1)
+            k = k.transpose(0, 1)
+            v = v.transpose(0, 1)
+        else:
+            ref = ref.transpose(0, 1)
+
         model_return = module(
             q,
             k,
@@ -319,312 +492,6 @@ def test_multihead_attention_new(
         assert out.shape == ref.shape
         assert torch.allclose(out, ref, atol=1e-6)
         assert out.device == device
-
-
-def test_multiheadattention(device: torch.device) -> None:
-    """Test VIMultiheadAttention."""
-    embed_dim = 5
-    num_heads = 3
-    with raises(AssertionError, match="embed_dim must be divisible by num_heads"):
-        _ = VIMultiheadAttention(embed_dim, num_heads, device=device)
-
-    embed_dim = 9
-    random_variables1 = (
-        "in_proj_weight",
-        "out_proj_weight",
-        "in_proj_bias",
-        "out_proj_bias",
-    )
-    module1 = VIMultiheadAttention(
-        embed_dim,
-        num_heads,
-        variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
-        device=device,
-    )
-    assert module1.embed_dim == embed_dim
-    assert module1.num_heads == num_heads
-    assert module1.kdim == embed_dim
-    assert module1.vdim == embed_dim
-    assert module1._qkv_same_embed_dim
-    assert module1.batch_first
-    assert module1.random_variables == random_variables1
-
-    assert module1._in_proj_weight_mean.shape == (3 * embed_dim, embed_dim)
-    assert module1._in_proj_weight_log_std.shape == (3 * embed_dim, embed_dim)
-    assert module1._in_proj_bias_mean.shape == (3 * embed_dim,)
-    assert module1._in_proj_bias_log_std.shape == (3 * embed_dim,)
-    assert module1._out_proj_weight_mean.shape == (embed_dim, embed_dim)
-    assert module1._out_proj_weight_log_std.shape == (embed_dim, embed_dim)
-    assert module1._out_proj_bias_mean.shape == (embed_dim,)
-    assert module1._out_proj_bias_log_std.shape == (embed_dim,)
-
-    assert module1._in_proj_weight_mean.device == device
-    assert module1._in_proj_weight_log_std.device == device
-    assert module1._in_proj_bias_mean.device == device
-    assert module1._in_proj_bias_log_std.device == device
-    assert module1._out_proj_weight_mean.device == device
-    assert module1._out_proj_weight_log_std.device == device
-    assert module1._out_proj_bias_mean.device == device
-    assert module1._out_proj_bias_log_std.device == device
-
-    module1._has_sampling_responsibility = False
-
-    src1 = torch.rand((3, 4, embed_dim), device=device)
-    tgt1 = torch.rand((3, 5, embed_dim), device=device)
-    extr = torch.rand((3, 5, embed_dim), device=device)
-
-    tsrc1 = src1.transpose(0, 1)
-    ttgt1 = tgt1.transpose(0, 1)
-
-    # test q = k = v
-    ref, attn_weights = F.multi_head_attention_forward(
-        tsrc1,
-        tsrc1,
-        tsrc1,
-        embed_dim,
-        num_heads,
-        module1._in_proj_weight_mean,
-        module1._in_proj_bias_mean,
-        None,
-        None,
-        False,
-        0.0,
-        module1._out_proj_weight_mean,
-        module1._out_proj_bias_mean,
-        average_attn_weights=False,
-    )
-    ref = ref.transpose(0, 1)
-    (out, weights), lps = module1(src1, src1, src1, average_attn_weights=False)
-    out.sum().backward()
-    assert attn_weights.shape == weights.shape
-    assert torch.allclose(attn_weights, weights)
-    assert attn_weights.device == device
-    assert out.shape == ref.shape
-    assert torch.allclose(out, ref)
-    assert out.device == device
-
-    # test q != k = v
-    ref, attn_weights = F.multi_head_attention_forward(
-        tsrc1,
-        ttgt1,
-        ttgt1,
-        embed_dim,
-        num_heads,
-        module1._in_proj_weight_mean,
-        module1._in_proj_bias_mean,
-        None,
-        None,
-        False,
-        0.0,
-        module1._out_proj_weight_mean,
-        module1._out_proj_bias_mean,
-        average_attn_weights=False,
-    )
-    ref = ref.transpose(0, 1)
-    (out, weights), lps = module1(src1, tgt1, tgt1, average_attn_weights=False)
-    out.sum().backward()
-    assert attn_weights.shape == weights.shape
-    assert torch.allclose(attn_weights, weights)
-    assert attn_weights.device == device
-    assert out.shape == ref.shape
-    assert torch.allclose(out, ref)
-    assert out.device == device
-
-    # test q != k != v
-    ref, attn_weights = F.multi_head_attention_forward(
-        tsrc1,
-        ttgt1,
-        extr.transpose(0, 1),
-        embed_dim,
-        num_heads,
-        module1._in_proj_weight_mean,
-        module1._in_proj_bias_mean,
-        None,
-        None,
-        False,
-        0.0,
-        module1._out_proj_weight_mean,
-        module1._out_proj_bias_mean,
-        average_attn_weights=False,
-    )
-    ref = ref.transpose(0, 1)
-    (out, weights), lps = module1(src1, tgt1, extr, average_attn_weights=False)
-    out.sum().backward()
-    assert attn_weights.shape == weights.shape
-    assert torch.allclose(attn_weights, weights)
-    assert attn_weights.device == device
-    assert out.shape == ref.shape
-    assert torch.allclose(out, ref)
-    assert out.device == device
-
-    kdim = 3
-    vdim = 5
-    random_variables2 = (
-        "q_proj_weight",
-        "k_proj_weight",
-        "v_proj_weight",
-        "out_proj_weight",
-        "bias_k",
-        "bias_v",
-    )
-    module2 = VIMultiheadAttention(
-        embed_dim,
-        num_heads,
-        kdim=kdim,
-        vdim=vdim,
-        add_bias_kv=True,
-        variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
-        return_log_probs=False,
-        batch_first=False,
-        bias=False,
-        device=device,
-    )
-
-    assert module2.embed_dim == embed_dim
-    assert module2.num_heads == num_heads
-    assert module2.kdim == kdim
-    assert module2.vdim == vdim
-    assert not module2._qkv_same_embed_dim
-    assert not module2.batch_first
-    assert module2.random_variables == random_variables2
-
-    q = torch.rand((7, 4, embed_dim), device=device)
-    k = torch.rand((5, 4, kdim), device=device)
-    v = torch.rand((5, 4, vdim), device=device)
-
-    ref, attn_weights = F.multi_head_attention_forward(
-        q,
-        k,
-        v,
-        embed_dim,
-        num_heads,
-        None,
-        None,
-        module2._bias_k_mean,
-        module2._bias_v_mean,
-        False,
-        0.0,
-        module2._out_proj_weight_mean,
-        None,
-        average_attn_weights=False,
-        use_separate_proj_weight=True,
-        q_proj_weight=module2._q_proj_weight_mean,
-        k_proj_weight=module2._k_proj_weight_mean,
-        v_proj_weight=module2._v_proj_weight_mean,
-    )
-    out, weights = module2(q, k, v, average_attn_weights=False)
-    out.sum().backward()
-    assert attn_weights.shape == weights.mean(dim=0).shape
-    assert torch.allclose(attn_weights, weights.mean(dim=0), atol=2e-8)
-    assert attn_weights.device == device
-    assert out.mean(dim=0).shape == ref.shape
-    assert torch.allclose(out.mean(dim=0), ref)
-    assert out.device == device
-
-    random_variables3 = (
-        "q_proj_weight",
-        "k_proj_weight",
-        "v_proj_weight",
-        "out_proj_weight",
-        "in_proj_bias",
-        "out_proj_bias",
-    )
-    module3 = VIMultiheadAttention(
-        embed_dim,
-        num_heads,
-        bias=True,
-        kdim=kdim,
-        vdim=vdim,
-        variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
-        device=device,
-    )
-    module3._has_sampling_responsibility = False
-
-    assert module3.embed_dim == embed_dim
-    assert module3.num_heads == num_heads
-    assert module3.kdim == kdim
-    assert module3.vdim == vdim
-    assert not module3._qkv_same_embed_dim
-    assert module3.batch_first
-    assert module3.random_variables == random_variables3
-
-    q = torch.rand((4, 7, embed_dim), device=device)
-    k = torch.rand((4, 5, kdim), device=device)
-    v = torch.rand((4, 5, vdim), device=device)
-
-    ref, attn_weights = F.multi_head_attention_forward(
-        q.transpose(0, 1),
-        k.transpose(0, 1),
-        v.transpose(0, 1),
-        embed_dim,
-        num_heads,
-        None,
-        module3._in_proj_bias_mean,
-        None,
-        None,
-        False,
-        0.0,
-        module3._out_proj_weight_mean,
-        module3._out_proj_bias_mean,
-        average_attn_weights=False,
-        use_separate_proj_weight=True,
-        q_proj_weight=module3._q_proj_weight_mean,
-        k_proj_weight=module3._k_proj_weight_mean,
-        v_proj_weight=module3._v_proj_weight_mean,
-    )
-    (out, weights), _ = module3(q, k, v, average_attn_weights=False)
-    out.sum().backward()
-    ref = ref.transpose(0, 1)
-    assert attn_weights.shape == weights.shape
-    assert torch.allclose(attn_weights, weights)
-    assert attn_weights.device == device
-    assert out.shape == ref.shape
-    assert torch.allclose(out, ref)
-    assert out.device == device
-
-    random_variables4 = ("in_proj_weight", "out_proj_weight")
-    module4 = VIMultiheadAttention(
-        embed_dim,
-        num_heads,
-        variational_distribution=MeanFieldNormalVarDist(initial_std=1e-20),
-        return_log_probs=False,
-        batch_first=False,
-        bias=False,
-        device=device,
-    )
-
-    assert module4.embed_dim == embed_dim
-    assert module4.num_heads == num_heads
-    assert module4._qkv_same_embed_dim
-    assert not module4.batch_first
-    assert module4.random_variables == random_variables4
-
-    src = torch.rand((7, 4, embed_dim), device=device)
-
-    ref, attn_weights = F.multi_head_attention_forward(
-        src,
-        src,
-        src,
-        embed_dim,
-        num_heads,
-        module4._in_proj_weight_mean,
-        None,
-        None,
-        None,
-        False,
-        0.0,
-        module4._out_proj_weight_mean,
-        None,
-        average_attn_weights=True,
-    )
-    out, weights = module4(src, src, src, average_attn_weights=True)
-    out.sum().backward()
-    assert attn_weights.shape == weights.mean(dim=0).shape
-    assert torch.allclose(attn_weights, weights.mean(dim=0), atol=2e-8)
-    assert attn_weights.device == device
-    assert out.mean(dim=0).shape == ref.shape
-    assert torch.allclose(out.mean(dim=0), ref)
-    assert out.device == device
 
 
 def test_decoder_layer(device: torch.device) -> None:
