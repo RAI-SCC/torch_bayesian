@@ -1,6 +1,7 @@
 from typing import Callable
 import numpy as np
 import torch
+import statistics
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, TensorDataset
 from properscoring import crps_quadrature, crps_gaussian
@@ -15,6 +16,7 @@ from vi.predictive_distributions import StudentTPredictiveDistribution, MixtureG
 from data_generator import CustomDataset, data_generator
 from statistics import mean
 import matplotlib.pyplot as plt
+import time
 
 def set_all_seeds(seed):
     os.environ["PL_GLOBAL_SEED"] = str(seed)
@@ -24,19 +26,23 @@ def set_all_seeds(seed):
 def bnn_with_normal() -> None:
     """Reimplement the pytorch quickstart tutorial with BNNs."""
     # Download training data from open datasets.
-    x_true, y_true, error_dist = data_generator(x_lims=[-20, 20], dist="gamma",  width=1.5, size=200000)
+    x_true, y_true, error_dist = data_generator(x_lims=[-5, 5], dist="gamma", size=100000)
 
     dataset = CustomDataset(x_true, y_true)
-    x_train, y_train = dataset.__getitem__(1000, data_interval=[-18, 18])
+    x_train, y_train = dataset.__getitem__(30000, data_interval=[-4.5, 4.5])
     train_data = TensorDataset(x_train, y_train)
 
-    x_test, y_test = dataset.__getitem__(100, data_interval=[-20, 20])
+    x_val, y_val = dataset.__getitem__(100, data_interval=[-4.5, 4.5])
+    val_data = TensorDataset(x_val, y_val)
+
+    x_test, y_test = dataset.__getitem__(1000, data_interval=[-5, 5])
     test_data = TensorDataset(x_test, y_test)
 
-    batch_size = 64
+    batch_size = 16
 
     # Create data loaders.
     train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True)
+    val_dataloader = DataLoader(val_data, batch_size=batch_size, drop_last=True)
     test_dataloader = DataLoader(test_data, batch_size=batch_size, drop_last=True)
 
     for x, y in test_dataloader:
@@ -63,15 +69,15 @@ def bnn_with_normal() -> None:
             super().__init__()
 
             self.linear_relu_stack = vi.VISequential(
-                vi.VILinear(1, 32, prior=prior,
+                vi.VILinear(1, 100, prior=prior,
                             prior_initialization=prior_initialization, rescale_prior=rescale_prior,
                             variational_distribution=variational_distribution),
+                #nn.ReLU(),
+                #vi.VILinear(32, 32, prior=prior,
+                #            prior_initialization=prior_initialization, rescale_prior=rescale_prior,
+                #            variational_distribution=variational_distribution),
                 nn.ReLU(),
-                vi.VILinear(32, 32, prior=prior,
-                            prior_initialization=prior_initialization, rescale_prior=rescale_prior,
-                            variational_distribution=variational_distribution),
-                nn.ReLU(),
-                vi.VILinear(32, 1, prior=prior,
+                vi.VILinear(100, 1, prior=prior,
                             prior_initialization=prior_initialization, rescale_prior=rescale_prior,
                             variational_distribution=variational_distribution),
             )
@@ -91,7 +97,7 @@ def bnn_with_normal() -> None:
     #plt.show()
     print(model)
 
-    predictive_distribution = MixtureGaussianPredictiveDistribution()
+    predictive_distribution = SkewNormalPredictiveDistribution()
     loss_fn = vi.KullbackLeiblerLoss(
         predictive_distribution, dataset_size=len(train_data)#, heat=0.1
     )
@@ -135,18 +141,36 @@ def bnn_with_normal() -> None:
                 #break
             #exit()
 
-            if batch % 100 == 0:
+            if batch % 500 == 0:
                 loss, current = loss.item(), (batch + 1) * len(x)
                 print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
         return loss_hist
+
+    def validate(
+        dataloader: DataLoader,
+        model: VIModule,
+        loss_fn: Callable,
+    ) -> None:
+        val_loss_hist = []
+        for batch, (x, y) in enumerate(dataloader):
+            optimizer.zero_grad()
+            x.unsqueeze_(-1)
+            y.unsqueeze_(-1)
+            x, y = x.to(device), y.to(device)
+            # Compute prediction error
+            pred = model(x, samples=10)
+            loss = loss_fn(pred, y)
+            val_loss_hist.append(loss.item())
+
+        return val_loss_hist
 
     def test(dataloader: DataLoader, model: VIModule, loss_fn: Callable) -> None:
         size = len(dataloader.dataset)
         num_batches = len(dataloader)
         model.eval()
         loss_hist = []
-        #crpss = []
+        crpss = []
 
         test_loss, mse = 0.0, 0.0
         with torch.no_grad():
@@ -160,40 +184,56 @@ def bnn_with_normal() -> None:
                 #print(loss_fn(pred, y).item())
                 mse += torch.sum((pred[0].mean(dim=0) - y)**2)/dataloader.batch_size
 
-                #for i in range(batch_size):
+                for i in range(batch_size):
                     #print(y[i].shape, pred[0][:,i,:].flatten().shape)
                     #print(y[i])
                     #print(pred[0][:,i,:])
 
-                    #crps_value = crps_quadrature(y[i], ECDF(pred[0][:,i,:].flatten()), tol=1e1)
+                    crps_value = crps_quadrature(y[i], ECDF(pred[0][:,i,:].flatten()), tol=1e1)
                     #crps_value = crps_gaussian(y[i], pred[0][:, i, :].mean(dim=0),  pred[0][:, i, :].std(dim=0))
-                    #crpss.append(crps_value.item())
+                    crpss.append(crps_value.item())
                     #print(crps_value.item())
 
         test_loss /= num_batches
         mse /= size
-        #crps = mean(crpss)
+        crps = mean(crpss)
 
         print(
-            f"Test Error: \n MSE: {mse:>8f}, Avg loss: {test_loss:>8f} \n" #, CRPS: {crps:>8f}
+            f"Test Error: \n MSE: {mse:>8f}, Avg loss: {test_loss:>8f} , CRPS: {crps:>8f} \n"
         )
-        #return loss_hist,
+        return test_loss
 
+    start = time.time()
     epochs = 50
     loss_hist = []
+    val_loss = []
+    count = 0
+    min_test_loss = 1000.0
     for t in range(epochs):
         print(f"Epoch {t + 1}\n-------------------------------")
         #train(train_dataloader, model, loss_fn, optimizer)
         #loss_hist.extend(test(test_dataloader, model, loss_fn))
         loss_hist.extend(train(train_dataloader, model, loss_fn, optimizer))
-        test(test_dataloader, model, loss_fn)
+        val_loss = validate(val_dataloader, model, loss_fn)
+        test_loss = test(test_dataloader, model, loss_fn)
+
+
+        if test_loss < min_test_loss-1:
+            min_test_loss = test_loss
+            count = 0
+        else:
+            count += 1
+        if count >= 5:
+            break
+
+
 
     #plt.plot(np.log(np.exp(loss_hist)+1))
     plt.plot(loss_hist)
     plt.yscale('log')
     plt.title("Loss")
     plt.show()
-    y_pred = model(x_test.unsqueeze_(-1))
+    y_pred = model(x_test.unsqueeze_(-1), samples=100)
     x_test = torch.squeeze(x_test)
     x_test_sorted, indices = torch.sort(x_test)
 
@@ -202,12 +242,13 @@ def bnn_with_normal() -> None:
 
     #y_pred_lower = np.squeeze(y_pred_lower.detach().numpy())
     y_pred_upper = np.squeeze(np.squeeze(y_pred[0].quantile(0.975, dim=0))[indices].detach().numpy())
-
-    plt.scatter(x_train.detach().numpy(), y_train.detach().numpy(), s=3, color='#1f77b4')
+    plt.hist(y_pred[0][:,0,0].detach().numpy())
+    plt.show()
+    plt.scatter(x_train.detach().numpy(), y_train.detach().numpy(), s=3, color='#1f77b4', alpha=0.1)
 
     plt.plot(x_test_sorted, y_pred_lower, c='#bcbd22')
     plt.plot(x_test_sorted, y_pred_upper, c='#bcbd22')
-    plt.fill_between(x_test_sorted, y_pred_lower, y_pred_upper, alpha=0.7, color='#bcbd22')
+    plt.fill_between(x_test_sorted, y_pred_lower, y_pred_upper, alpha=0.4, color='#bcbd22')
 
     plt.scatter(x_test.detach().numpy(), y_pred[0].mean(dim=0).detach().numpy(), s=5, c='#d62728')
     plt.scatter([], [], color='#1f77b4', s=20, label="training data")
@@ -216,7 +257,8 @@ def bnn_with_normal() -> None:
 
     plt.legend(prop={'size': 18})
     plt.show()
-    print("Done!")
+    end = time.time()
+    print("Done! time consumed:", end - start)
     return x_train, y_train, x_test, y_pred
 
 

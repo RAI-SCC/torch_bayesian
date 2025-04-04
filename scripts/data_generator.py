@@ -5,26 +5,28 @@ from torch.utils.data import Dataset
 from torch.distributions import Normal, Uniform, StudentT, Gamma, Bernoulli
 
 
-def data_generator(x_lims, dist, width, size, dof=5):
-
+def data_generator(x_lims, dist, size):
+    width = 9
     x_true = torch.linspace(np.min(x_lims), np.max(x_lims), size)
-    y_true = ( x_true**3 +5*x_true**2  )/100
+    y_true = ( x_true**3 )
 
     if dist == "normal":
-        errors = Normal(0, width)
+        errors = Normal(0, 3)
         y_true = y_true + errors.sample(torch.Size([len(x_true)]))
     elif dist == "uniform":
         errors = Uniform(-width/2, width*1/2)
         y_true = y_true + errors.sample(torch.Size([len(x_true)]))
     elif dist == "student_t":
-        errors = StudentT(dof, 0, width)
+        dof = 3
+        scale = torch.sqrt(torch.tensor(9*(dof-2)/dof))
+        errors = StudentT(dof, 0, scale=scale)
         y_true = y_true + errors.sample(torch.Size([len(x_true)]))
     elif dist == "gamma":
         mean = torch.abs(y_true)
-        alpha = 2.0
-        beta = 0.5
+        alpha = 9.0
+        beta = 1.0
         errors = Gamma(alpha, beta)
-        y_true = y_true + errors.sample(torch.Size([len(x_true)]))
+        y_true = y_true + errors.sample(torch.Size([len(x_true)])) -9
     elif dist == "mixture_gaussian":
         p = Bernoulli(0.5).sample(torch.Size([len(x_true)]))
 
