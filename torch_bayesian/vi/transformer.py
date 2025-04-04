@@ -18,6 +18,10 @@ from .variational_distributions import MeanFieldNormalVarDist, VariationalDistri
 class VIMultiheadAttention(VIBaseModule):
     """Alpha implementation of VIMultiheadAttention."""
 
+    __constants__ = ["batch_first"]
+    bias_k: Optional[torch.Tensor]
+    bias_v: Optional[torch.Tensor]
+
     def __init__(
         self,
         embed_dim: int,
@@ -95,7 +99,7 @@ class VIMultiheadAttention(VIBaseModule):
         key: Tensor,
         value: Tensor,
         attn_mask: Optional[Tensor] = None,
-        need_weights: bool = True,
+        # need_weights: bool = True,
         key_padding_mask: Optional[Tensor] = None,
         average_attn_weights: bool = True,
         is_causal: bool = False,
@@ -170,7 +174,7 @@ class VIMultiheadAttention(VIBaseModule):
                 out_proj_bias=out_proj_bias,
                 training=self.training,
                 key_padding_mask=key_padding_mask,
-                need_weights=need_weights,
+                need_weights=True,
                 attn_mask=attn_mask,
                 use_separate_proj_weight=True,
                 q_proj_weight=q_proj_weight,
@@ -202,7 +206,7 @@ class VIMultiheadAttention(VIBaseModule):
                 out_proj_bias=out_proj_bias,
                 training=self.training,
                 key_padding_mask=key_padding_mask,
-                need_weights=need_weights,
+                need_weights=True,
                 attn_mask=attn_mask,
                 average_attn_weights=average_attn_weights,
                 is_causal=is_causal,
@@ -228,8 +232,8 @@ class VITransformerEncoderLayer(VIModule):
         dim_feedforward: int = 512,
         activation: Module = ReLU(),
         layer_norm_eps: float = 1e-5,
-        norm_first: bool = False,
         batch_first: bool = True,
+        norm_first: bool = False,
         bias: bool = True,
         variational_distribution: VariationalDistribution = MeanFieldNormalVarDist(),
         prior: Prior = MeanFieldNormalPrior(),
@@ -299,24 +303,24 @@ class VITransformerEncoderLayer(VIModule):
             (x1, _), lps1 = self._sa_block(
                 self.norm1(x), src_mask, src_key_padding_mask, is_causal=is_causal
             )
-            x = x + x1
-            x2, lps2 = self._ff_block(self.norm2(x))
-            x = x2
+            x2 = x + x1
+            x3, lps2 = self._ff_block(self.norm2(x2))
+            x4 = x3
 
             lps1, lps2 = cast(Tuple[Tensor, Tensor], (lps1, lps2))
             log_probs = lps1 + lps2
-            return x, log_probs
+            return x4, log_probs
         elif self._return_log_probs:
             (x1, _), lps1 = self._sa_block(
                 x, src_mask, src_key_padding_mask, is_causal=is_causal
             )
-            x = x + x1
-            x2, lps2 = self._ff_block(self.norm1(x))
-            x = self.norm2(x2)
+            x2 = x + x1
+            x3, lps2 = self._ff_block(self.norm1(x2))
+            x4 = self.norm2(x3)
 
             lps1, lps2 = cast(Tuple[Tensor, Tensor], (lps1, lps2))
             log_probs = lps1 + lps2
-            return x, log_probs
+            return x4, log_probs
         elif self.norm_first:
             x = (
                 x
@@ -349,7 +353,6 @@ class VITransformerEncoderLayer(VIModule):
             x,
             attn_mask=attn_mask,
             key_padding_mask=key_padding_mask,
-            need_weights=False,
             is_causal=is_causal,
         )
         return x
@@ -506,7 +509,6 @@ class VITransformerDecoderLayer(VIModule):
             attn_mask=attn_mask,
             key_padding_mask=key_padding_mask,
             is_causal=is_causal,
-            need_weights=False,
         )
         return x
 
@@ -525,7 +527,6 @@ class VITransformerDecoderLayer(VIModule):
             attn_mask=attn_mask,
             key_padding_mask=key_padding_mask,
             is_causal=is_causal,
-            need_weights=False,
         )
         return x
 
@@ -721,8 +722,8 @@ class VITransformer(VIModule):
                 dim_feedforward,
                 activation,
                 layer_norm_eps,
-                norm_first,
                 batch_first,
+                norm_first,
                 bias,
                 **vikwargs,
             )

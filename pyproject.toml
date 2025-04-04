@@ -140,3 +140,6 @@ convention = "numpy"
 testpaths = [
     "tests",
 ]
+filterwarnings = [
+    'ignore:There is a performance drop because we have not yet implemented the batching rule for aten*:UserWarning'
+]
