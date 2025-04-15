@@ -93,7 +93,8 @@ if __name__ == "__main__":
     batch_size = 32
     epochs = 10
     random_seed = 42
-    all_sample_num = 4
+    all_sample_num = 64
+    print(all_sample_num)
     # mp.set_start_method("fork", force=True)
     df = pl.read_csv("data/ENTSOEEnergyLoads/de.csv",
                      dtypes={"start": pl.Datetime, "end": pl.Datetime, "load": pl.Float32},
@@ -118,6 +119,7 @@ if __name__ == "__main__":
         if torch.backends.mps.is_available()
         else "cpu"
     )
+    torch.device(device)
     model = NeuralNetwork(input_length, hidden1, hidden2, output_length,
                           variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
     model.return_log_probs(False)

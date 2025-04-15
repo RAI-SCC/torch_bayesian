@@ -108,7 +108,7 @@ if __name__ == "__main__":
     batch_size = 64
     epochs = 5
     random_seed = 42
-    all_sample_num = 4
+    all_sample_num = 16
     lr = 1e-3
     # mp.set_start_method("fork", force=True)
     training_data = datasets.MNIST(
@@ -138,6 +138,7 @@ if __name__ == "__main__":
         if torch.backends.mps.is_available()
         else "cpu"
     )
+    torch.device(device)
     model = NeuralNetwork(in_channel, hidden1, hidden2, output_length,
                           variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
     model.return_log_probs(False)

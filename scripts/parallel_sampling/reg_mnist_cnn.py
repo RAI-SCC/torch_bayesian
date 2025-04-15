@@ -127,6 +127,7 @@ if __name__ == "__main__":
         if torch.backends.mps.is_available()
         else "cpu"
     )
+    torch.device(device)
     model = NeuralNetwork(in_channel, hidden1, hidden2, output_length).to(device)
 
     print(f"Using {device} device")

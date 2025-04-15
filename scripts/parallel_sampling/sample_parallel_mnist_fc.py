@@ -174,7 +174,8 @@ if __name__ == "__main__":
     batch_size = 256
     epochs = 5
     random_seed = 42
-    all_sample_num = 64
+    all_sample_num = 256
+    print(all_sample_num)
     lr = 1e-3
     #mp.set_start_method("fork", force=True)
     training_data = datasets.MNIST(
@@ -214,6 +215,7 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=0)
 
     sample_num = int(all_sample_num / world_size)
+    print(sample_num)
 
     setup(rank, world_size)
 

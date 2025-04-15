@@ -161,8 +161,8 @@ if __name__ == "__main__":
     local_rank = int(os.environ["SLURM_LOCALID"])
     world_size = int(os.environ["SLURM_NTASKS"])
     #torch.cuda.set_device(local_rank)
-    set_device = "cuda:" + str(local_rank)
-    torch.device(set_device)
+    device = "cuda:" + str(local_rank)
+    torch.device(device)
 
     input_length = 50
     output_length = 10
@@ -171,7 +171,8 @@ if __name__ == "__main__":
     batch_size = 32
     epochs = 10
     random_seed = 42
-    all_sample_num = 64
+    all_sample_num = 1024
+    print(all_sample_num)
     #mp.set_start_method("fork", force=True)
     df = pl.read_csv("data/ENTSOEEnergyLoads/de.csv",
                      dtypes={"start": pl.Datetime, "end": pl.Datetime, "load": pl.Float32},
@@ -189,6 +190,7 @@ if __name__ == "__main__":
     test_dataloader = DataLoader(dataset=dataset_test, batch_size=batch_size, shuffle=True)
 
     # Get cpu, gpu or mps device for training.
+    
     device = (
         "cuda"
         if torch.cuda.is_available()
@@ -196,6 +198,7 @@ if __name__ == "__main__":
         if torch.backends.mps.is_available()
         else "cpu"
     )
+    
     model = NeuralNetwork(input_length, hidden1, hidden2, output_length,
                           variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
     model.return_log_probs(False)
@@ -206,6 +209,7 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=0)
 
     sample_num = int(all_sample_num / world_size)
+    print(sample_num)
 
     setup(rank, world_size)
     
