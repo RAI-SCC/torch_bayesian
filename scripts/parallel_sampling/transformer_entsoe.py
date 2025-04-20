@@ -9,6 +9,8 @@ import torch.distributed as dist
 from entsoe_data_load import TimeseriesDataset
 import torch_bayesian.vi as vi
 from torch_bayesian.vi.variational_distributions import MeanFieldNormalVarDist
+from timing_utils import cuda_time_function, print_cuda_timing_summary
+
 def setup(rank, world_size):
     # Initialize distributed backend
     dist.init_process_group(
@@ -33,7 +35,6 @@ sampling_state = None
 batch_size = 32
 seq_length = 50
 forecast_horizon = 10
-sample_num = 4
 df = pl.read_csv("data/ENTSOEEnergyLoads/de.csv",
                      dtypes={"start": pl.Datetime, "end": pl.Datetime, "load": pl.Float32},
                      )
@@ -88,7 +89,7 @@ model_dim = 64
 num_heads = 4
 num_layers = 2
 random_seed = 42
-all_sample_num = 64
+all_sample_num = 1
 model = TransformerTimeSeries(input_dim, model_dim, num_heads, num_layers, variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
 model.return_log_probs(False)
 if rank==0:
@@ -154,6 +155,7 @@ def test_model(model, test_loader, sampling_state):
     model.eval()
     test_loss = 0.0
     predictions, actuals = [], []
+    num_batches = len(test_loader)
     with torch.no_grad():
         for batch_x, batch_y in test_loader:
             batch_x, batch_y = batch_x.to(device), batch_y.to(device)
@@ -168,16 +170,16 @@ def test_model(model, test_loader, sampling_state):
             for t in range(forecast_horizon):  # Autoregressive decoding
                 tgt_mask = (generate_square_subsequent_mask(tgt_input.size(1))).to(device)
                 output = model(src, tgt_input, tgt_mask=tgt_mask, samples = sample_num)
-                next_pred = output[:, -1:].unsqueeze(-1)
-                tgt_input = torch.cat((tgt_input, next_pred), dim=1)
+                #next_pred = output[:, -1:].unsqueeze(-1)
+                #tgt_input = torch.cat((tgt_input, next_pred), dim=1)
 
-            predictions.append(tgt_input[:, 1:].squeeze())
+            #predictions.append(tgt_input[:, 1:].squeeze())
             sampling_state = torch.get_rng_state()
             torch.set_rng_state(regular_state)
-            dist.all_reduce(predictions, op=dist.ReduceOp.SUM)
+            dist.all_reduce(output, op=dist.ReduceOp.SUM)
             if rank == 0:
-                predictions /= world_size
-                test_loss += loss_fn(predictions, batch_y).item()
+                output /= world_size
+                test_loss += loss_fn(output, batch_y).item()
     if rank == 0:
         test_loss /= num_batches
 
@@ -191,3 +193,4 @@ def test_model(model, test_loader, sampling_state):
 
 test_model(model, test_dataloader, sampling_state)
 cleanup()
+print_cuda_timing_summary()
