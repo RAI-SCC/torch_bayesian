@@ -4,7 +4,7 @@ from torch.distributions import Categorical
 from torch_bayesian.vi.predictive_distributions import CategoricalPredictiveDistribution
 
 
-def test_categorical_predictive_distribution() -> None:
+def test_categorical_predictive_distribution(device: torch.device) -> None:
     """Test CategoricalPredictiveDistribution."""
     predictive_dist = CategoricalPredictiveDistribution()
     predictive_prob = CategoricalPredictiveDistribution(input_type="probs")
@@ -12,14 +12,16 @@ def test_categorical_predictive_distribution() -> None:
     samples = 4
     batch = 3
     categories = 5
-    probs = torch.rand((samples, batch, categories))
-    target = torch.randint(0, categories, (batch,))
+    probs = torch.rand((samples, batch, categories), device=device)
+    target = torch.randint(0, categories, (batch,), device=device)
 
     p1 = predictive_dist.predictive_parameters_from_samples(probs.log())
     p2 = predictive_prob.predictive_parameters_from_samples(probs)
     assert p1.shape == (batch, categories)
     assert p2.shape == (batch, categories)
     assert torch.allclose(p1, p2)
+    assert p1.device == device
+    assert p2.device == device
 
     ref_dist1 = Categorical(probs=probs)
     assert torch.allclose(p1, ref_dist1.probs.mean(dim=0))
@@ -36,3 +38,5 @@ def test_categorical_predictive_distribution() -> None:
     assert log_prob1.shape == (batch,)
     assert torch.allclose(log_prob1, target_log_prob1)
     assert torch.allclose(log_prob2, target_log_prob2)
+    assert log_prob1.device == device
+    assert log_prob2.device == device
