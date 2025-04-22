@@ -64,6 +64,7 @@ class _VIConvNd(VIBaseModule):
         kaiming_initialization: bool = True,
         prior_initialization: bool = False,
         return_log_probs: bool = True,
+        freeze_nr: Optional[int] = None,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -147,7 +148,15 @@ class _VIConvNd(VIBaseModule):
         else:
             self.random_variables = ("weight",)
 
-        super().__init__(variable_shapes=variable_shapes, **vikwargs)
+        if freeze_nr is None:
+            super().__init__(variable_shapes=variable_shapes, **vikwargs)
+        else:
+            super().__init__(
+                variable_shapes=variable_shapes,
+                frozen_vars=("weight",),
+                freeze_nr=freeze_nr,
+                **vikwargs,
+            )
 
     def __setstate__(self, state: Any) -> None:
         super().__setstate__(state)
@@ -202,6 +211,7 @@ class VIConv1d(_VIConvNd):
         kaiming_initialization: bool = True,
         prior_initialization: bool = False,
         return_log_probs: bool = True,
+        freeze_nr: Optional[int] = None,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -233,6 +243,7 @@ class VIConv1d(_VIConvNd):
             groups,
             bias,
             padding_mode,
+            freeze_nr=freeze_nr,
             **vikwargs,
         )
 
@@ -339,6 +350,7 @@ class VIConv2d(_VIConvNd):
         kaiming_initialization: bool = True,
         prior_initialization: bool = False,
         return_log_probs: bool = True,
+        freeze_nr: Optional[int] = None,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -368,6 +380,7 @@ class VIConv2d(_VIConvNd):
             groups,
             bias,
             padding_mode,
+            freeze_nr=freeze_nr,
             **vikwargs,
         )
 
@@ -474,6 +487,7 @@ class VIConv3d(_VIConvNd):
         kaiming_initialization: bool = True,
         prior_initialization: bool = False,
         return_log_probs: bool = True,
+        freeze_nr: Optional[int] = None,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -503,6 +517,7 @@ class VIConv3d(_VIConvNd):
             groups,
             bias,
             padding_mode,
+            freeze_nr=freeze_nr,
             **vikwargs,
         )
 

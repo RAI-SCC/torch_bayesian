@@ -1,6 +1,6 @@
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 
 import torch
 import torch.utils.hooks as hooks
@@ -312,6 +312,8 @@ class VIBaseModule(VIModule):
         kaiming_initialization: bool = True,
         prior_initialization: bool = False,
         return_log_probs: bool = True,
+        frozen_vars: Optional[Tuple[str, ...]] = None,
+        freeze_nr: int = 2,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
@@ -346,21 +348,30 @@ class VIBaseModule(VIModule):
         self._rescale_prior = rescale_prior
         self._prior_init = prior_initialization
         self._return_log_probs = return_log_probs
+        self._masks: Optional[Dict[str, Tensor]] = (
+            None if frozen_vars is None else dict()
+        )
 
         for variable, vardist in zip(
             self.random_variables, self.variational_distribution
         ):
             assert variable in variable_shapes, f"shape of {variable} is missing"
             shape = variable_shapes[variable]
+
+            if frozen_vars is not None and variable in frozen_vars:
+                self._masks = cast(Dict[str, Tensor], self._masks)
+                mask = self._create_mask(shape, freeze_nr, device, dtype)
+                self._masks[variable] = mask
+            else:
+                mask = None
             for variational_parameter in vardist.variational_parameters:
                 parameter_name = self.variational_parameter_name(
                     variable, variational_parameter
                 )
-                setattr(
-                    self,
-                    parameter_name,
-                    Parameter(torch.empty(shape, **factory_kwargs)),
-                )
+                param = Parameter(torch.empty(shape, **factory_kwargs))
+                if mask is not None:
+                    param.register_hook(lambda grad: self.masks[variable] * grad)
+                setattr(self, parameter_name, param)
 
         self.reset_parameters()
 
@@ -427,3 +438,48 @@ class VIBaseModule(VIModule):
             variational_parameters = self.get_variational_parameters(variable)
             params.append(vardist.sample(*variational_parameters))
         return params
+
+    @staticmethod
+    def _create_mask(
+        shape: Tuple[int, ...],
+        freeze_nr: int = 2,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
+    ) -> Tensor:
+        """
+        Create a mask to freeze weight for symmetry breaking.
+
+        Parameters
+        ----------
+        shape: Tuple[int, ...]
+            Shape of the Tensor to mask. The first dimension is assumed to be the number
+            output channels or features.
+        freeze_nr: int, default: 2
+            Number of weights to freeze per output channel/feature.
+
+        Returns
+        -------
+        Tensor
+            The mask.
+        """
+        out_features = shape[0]
+        mask_shape = shape[1:]
+        mask_features = torch.tensor(mask_shape).prod().item()
+
+        assert (
+            mask_features < freeze_nr
+        ), f"The specified freeze_nr ({freeze_nr}) would the whole layer."
+        assert (
+            mask_features > 3
+        ), "For less than 3 weights per output feature/channel freezing cannot break all symmetries."
+
+        mask_base = torch.ones(mask_features, device=device, dtype=dtype)
+        mask_base[:freeze_nr] = 0.0
+
+        mask_stack = []
+        for i in range(out_features):
+            mask_stack.append(
+                mask_base[torch.randperm(mask_features)].reshape(mask_shape)
+            )
+
+        return torch.stack(mask_stack)
