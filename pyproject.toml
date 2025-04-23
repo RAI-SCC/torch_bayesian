@@ -27,10 +27,6 @@ classifiers = [
 ]
 dependencies = [
     "torch",
-    "sphinx",
-    "sphinx-rtd-theme",
-    "sphinx-autoapi",
-    "myst-parser",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +36,12 @@ dev = [
     "mypy",
     "pytest",
     "coverage",
+]
+docs = [
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinx-autoapi",
+    "myst-parser",
 ]
 scripts = [
     "matplotlib",

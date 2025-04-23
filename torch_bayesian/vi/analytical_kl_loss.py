@@ -37,7 +37,21 @@ def _forward_unimplemented(
 
 
 class KullbackLeiblerModule(ABC):
-    """Base class for modules calculating the Kullback-Leibler divergence from distribution parameters."""
+    """
+    Base class for modules calculating the Kullback-Leibler divergence from distribution parameters.
+
+    A KullbackLeiblerModule calculates the analytical Kullback-Leibler divergence
+    between a :func:`Prior<torch_bayesian.vi.priors.Prior>` and a
+    :func:`VariationalDistribution<torch_bayesian.vi.variational_distributions.VariationalDistribution>`
+    based on their parameters. They are mainly intended for use with the
+    :func:`AnalyticalKullbackLeiblerLoss<torch_bayesian.vi.AnalyticalKullbackLeiblerLoss>`.
+
+    Each subclass must define a forward function that is passed, as positional arguments,
+    the parameters of the :func:`Prior<torch_bayesian.vi.priors.Prior>` in the order
+    specified in its ``distribution_parameters`` attribute followed by the parameters of
+    the :func:`VariationalDistribution<torch_bayesian.vi.variational_distributions.VariationalDistribution>`
+    in the order specified in its ``variational_parameters`` attribute.
+    """
 
     forward: Callable[..., Tensor] = _forward_unimplemented
 
@@ -51,7 +65,13 @@ class KullbackLeiblerModule(ABC):
 
 
 class NormalNormalDivergence(KullbackLeiblerModule):
-    """Kullback-Leibler divergence between two normal distributions."""
+    """
+    Kullback-Leibler divergence between two normal distributions.
+
+    Calculates the KL-Divergence between a
+    :func:`MeanFieldNormalPrior<torch_bayesian.vi.priors.MeanFiledNormalPrior>` and a
+    :func:`MeanFieldNormalVariationalDistribution<torch_bayesian.vi.variational_distributions.MeanFieldNormalVariationalDistribution>`.
+    """
 
     @staticmethod
     def forward(
@@ -63,8 +83,6 @@ class NormalNormalDivergence(KullbackLeiblerModule):
         """
         Calculate the Kullback-Leibler divergence.
 
-        Calculates the KL-Divergence between a normal prior and a normal variational distribution.
-        Both distributions are expected to be uncorrelated, i.e. have diagonal variance.
         All input tensors must have the same shape.
 
         Parameters
@@ -99,23 +117,41 @@ class NormalNormalDivergence(KullbackLeiblerModule):
 
 
 class NonBayesianDivergence(KullbackLeiblerModule):
-    """Placeholder Kullback-Leibler divergence for non-Bayesian models."""
+    """
+    Placeholder Kullback-Leibler divergence for non-Bayesian models.
+
+    This module can be used to disable the prior matching term of the
+    :func:`AnalyticalKullbackLeiblerLoss<torch_bayesian.vi.AnalyticalKullbackLeiblerLoss>`.
+    Together with a
+    :func:`NonBayesianPredictiveDistribution<torch_bayesian.predictive_distributions.NonBayesianPredictiveDistribution>`
+    it yields a non-Bayesian loss.
+    """
 
     @staticmethod
     def forward(*args: Tensor) -> Tensor:
-        """Return placeholder zero."""
+        """
+        Return placeholder zero.
+
+        At least one argument of type Tensor is expected, since the device of the last
+        one is used to define the device of the output Tensor.
+        """
         return torch.tensor([0.0], device=args[-1].device)
 
 
 class UniformNormalDivergence(KullbackLeiblerModule):
-    """Kullback-Leibler divergence between a uniform and normal distribution."""
+    """
+    Kullback-Leibler divergence between a uniform and normal distribution.
+
+    Calculates the KL-Divergence between a
+    :func:`UniformPrior<torch_bayesian.vi.priors.UniformPrior>` and a
+    :func:`MeanFieldNormalVariationalDistribution<torch_bayesian.vi.variational_distributions.MeanFieldNormalVariationalDistribution>`.
+    """
 
     @staticmethod
     def forward(variational_mean: Tensor, variational_log_std: Tensor) -> Tensor:
         """
         Calculate the Kullback-Leibler divergence.
 
-        Calculates the KL-Divergence between a uniform prior and a normal, uncorrelated variational distribution.
         All input tensors must have the same shape.
 
         Parameters
@@ -143,7 +179,83 @@ _kl_div_dict: Dict[str, Type[KullbackLeiblerModule]] = dict(
 
 
 class AnalyticalKullbackLeiblerLoss(Module):
-    """Analytical Kullback Leibler Loss function."""
+    """
+    Analytical Kullback-Leibler loss function.
+
+    A version of the Kullback-Leibler loss function that calculates the prior matching
+    term analytically from the prior and variational parameters. To that end it stores a
+    reference to the model for access to the parameters. Furthermore, only specific
+    combinations of :func:`Prior<torch_bayesian.vi.priors.Prior>` and
+    :func:`VariationalDistribution<torch_bayesian.vi.variational_distributions.VariationalDistribution>`
+    are supported (see table below). Additionally, it can emulate a non-Bayesian loss,
+    when provided a model with :func:`NonBayesian<torch_bayesian.vi.variational_distributions.NonBayesian>`
+    variational distribution and a
+    :func:`NonBayesianPredictiveDistribution<torch_bayesian.vi.predictive_distributions.NonBayesianPredictiveDistribution>`.
+
+    .. list-table:: Supported class combinations
+        :widths: 33 33 33
+        :header-rows: 1
+
+        * - Prior
+          - Variational distribution
+          - Kullback-Leibler module
+        * - :func:`MeanFieldNormalPrior<torch_bayesian.vi.priors.MeanFiledNormalPrior>`
+          - :func:`MeanFieldNormalVariationalDistribution<torch_bayesian.vi.variational_distributions.MeanFieldNormalVariationalDistribution>`
+          - :func:`NormalNormalDivergence<torch_bayesian.vi.NormalNormalDivergence>`
+        * - :func:`UniformPrior<torch_bayesian.vi.priors.UniformPrior>`
+          - :func:`MeanFieldNormalVariationalDistribution<torch_bayesian.vi.variational_distributions.MeanFieldNormalVariationalDistribution>`
+          - :func:`UniformNormalDivergence<torch_bayesian.vi.UniformNormalDivergence>`
+
+    Parameters
+    ----------
+    model: :func:`VIModule<torch_bayesian.vi.VIModule>`
+        The model to be trained.
+    predictive_distribution: :func:`PredictiveDistribution<torch_bayesian.vi.predictive_distributions.PredictiveDistribution>`
+        The kind of distribution to assume for the forecasts. This is closely related to
+        the non-Bayesian losses, e.g.
+        :func:`MeanFieldNormalPredictiveDistribution<torch_bayesian.vi.predictive_distributions.MeanFieldNormalPredictiveDistribution>`
+        corresponds to MSE loss, while
+        :func:`CategoricalPredictiveDistribution<torch_bayesian.vi.predictive_distributions.CategoricalPredictiveDistribution>`
+        corresponds to cross-entropy loss.
+    dataset_size: Optional[int], default: None
+        Number of samples in the training dataset. If not provided here it must be
+        provided during the forward call (which also takes precedence if both are
+        provided).
+    divergence_type: Optional[:func:`KullbackLeiblerModule<torch_bayesian.vi.KullbackLeiblerModule>`], default: None
+        If ``None`` the correct
+        :func:`KullbackLeiblerModule<torch_bayesian.vi.KullbackLeiblerModule>` is
+        selected from the integrated options, if available. Otherwise, this is used to
+        manually specify the used
+        :func:`KullbackLeiblerModule<torch_bayesian.vi.KullbackLeiblerModule>`,
+        typically to integrate custom modules.
+    heat: float, default: 1.0
+        A factor multiplied with the prior matching term. Set smaller than 1. to produce
+        a "cold posterior" loss.
+    track: bool, default: False
+        If ``True`` the loss components are tracked for every forward pass in ``self.log``.
+        This can be enabled, disabled and re-enable with the ``self.track`` method. Any
+        stored data will remain even if disabled and re-enabled.
+
+    Attributes
+    ----------
+    log: Optional[Dict[str, List[Tensor]]]
+        If tracking was never enabled this is ``None``. Otherwise, it is a dictionary
+        with the keys `data_fitting` and `prior_matching`. These two components are
+        appended every forward pass while tracking is enabled. Their sum is the total
+        loss.
+
+    Raises
+    ------
+    AssertionError:
+        If ``divergence_type`` is ``None`` and prior and variational distribution
+        are not consistent in all submodules, since this is not supported yet.
+    NotImplementedError:
+        If ``divergence_type`` is ``None`` and the combination of prior and variational
+        distribution is not supported.
+    ValueError:
+        If ``divergence_type`` is ``None`` and the model does not contain any
+        :func:`VIBaseModule<torch_bayesian.vi.VIBaseModule>`, i.e. is non-Bayesian.
+    """
 
     def __init__(
         self,
@@ -192,12 +304,16 @@ class AnalyticalKullbackLeiblerLoss(Module):
         """
         Enable or disable loss tracking.
 
-        Any existing loss history is kept and continued if tracking is reenabled.
+        Any existing loss history is kept and continued if tracking is re-enabled.
 
         Parameters
         ----------
         mode: bool, default: True
             If ``True``, enable loss tracking if ``False`` disable it.
+
+        Returns
+        -------
+        None
         """
         if mode and self.log is None:
             self._init_log()
@@ -231,7 +347,14 @@ class AnalyticalKullbackLeiblerLoss(Module):
         return _kl_div_dict[prior_name + vardist_name + "Divergence"]()
 
     def prior_matching(self) -> Tensor:
-        """Calculate the prior matching KL-Divergence of ``self.model``."""
+        """
+        Calculate the prior matching KL-Divergence of ``self.model``.
+
+        Returns
+        -------
+        Tensor
+            The prior matching KL-Divergence of ``self.model``.
+        """
         total_kl = None
         for module in self.model.modules():
             if not isinstance(module, VIBaseModule):
@@ -262,13 +385,13 @@ class AnalyticalKullbackLeiblerLoss(Module):
         Parameters
         ----------
         model_output: Tensor
-            The model output in with return_log_probs = False, i.e. the sampled model
-            prediction. Shape: (N, \*)
+            The model output with ``model.return_log_probs`` = ``False``, i.e. the
+            sampled model prediction. Shape: (N, \*)
         target: Tensor
             Target prediction. Shape (\*)
         dataset_size: Optional[int], default: None
-            Total number of samples in the dataset. Used in place of self.dataset_size
-            if provided.
+            Total number of samples in the dataset. Used in place of ``self.dataset_size``
+            if provided. Must be specified if ``self.dataset_size`` is ``None``.
 
         Returns
         -------
