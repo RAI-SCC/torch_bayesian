@@ -84,8 +84,12 @@ def train(
     # Communication variables
     global sampling_state  # Randomness switch
     model.train()
-
+    print(len(dataloader))
+    counter = 0
     for batch, (x, y) in enumerate(dataloader):
+        counter += 1
+        if counter%100 == 0:
+            print(counter)
         x, y = x.to(device), y.to(device)
         # Switch to process specific randomness
         regular_state = torch.get_rng_state()

@@ -89,7 +89,7 @@ model_dim = 64
 num_heads = 4
 num_layers = 2
 random_seed = 42
-all_sample_num = 1
+all_sample_num = 32
 model = TransformerTimeSeries(input_dim, model_dim, num_heads, num_layers, variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
 model.return_log_probs(False)
 if rank==0:

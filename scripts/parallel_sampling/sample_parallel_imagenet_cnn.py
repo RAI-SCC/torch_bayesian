@@ -10,55 +10,64 @@ import torch.nn.functional as F
 import os
 import torch.multiprocessing as mp
 from torchvision.transforms import ToTensor
-from torchvision import datasets
+from torchvision import datasets, transforms
+from torchvision.datasets import ImageFolder
 sampling_state = None
 train_loss_list = []
 test_loss_list = []
+from timing_utils import cuda_time_function, print_cuda_timing_summary
 
+# Define a subclass of ImageFolder that filters classes
+class SubsetImageFolder(ImageFolder):
+    def __init__(self, root, classes_to_keep, transform=None):
+        super().__init__(root, transform=transform)
+        # Build class to index map for selected classes
+        self.classes = classes_to_keep
+        self.class_to_idx = {cls_name: i for i, cls_name in enumerate(self.classes)}
+        # Filter samples
+        filtered_samples = []
+        for path, _ in self.samples:
+            class_name = os.path.basename(os.path.dirname(path))
+            if class_name in self.class_to_idx:
+                filtered_samples.append((path, self.class_to_idx[class_name]))
+        
+        self.samples = filtered_samples
+        self.targets = [s[1] for s in self.samples]
 
-class CIFAR10CNN(vi.VIModule):
+class IMAGENETCNN(vi.VIModule):
     def __init__(self, variational_distribution=MeanFieldNormalVarDist()):
         super().__init__()
 
         # Convolutional Block 1
-        self.conv1 = vi.VIConv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1,
+        self.conv1 = vi.VIConv2d(in_channels=3, out_channels=32, kernel_size=7, padding=3,
                         variational_distribution=variational_distribution)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)    
 
         # Convolutional Block 2
         self.conv2 = vi.VIConv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1,
                         variational_distribution=variational_distribution)
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
 
         # Convolutional Block 3
         self.conv3 = vi.VIConv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1,
                         variational_distribution=variational_distribution)
+        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)                 # 28 → 14
 
-        # Flatten layer
-        self.flatten = nn.Flatten()
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))  # Output: [B, 128, 1, 1]
+        self.fc = vi.VILinear(128, 1000, variational_distribution=variational_distribution)  
 
-        # Fully connected layers
-        self.fc1 = vi.VILinear(128 * 4 * 4, 256, variational_distribution=variational_distribution)
-        self.fc2 = vi.VILinear(256, 10, variational_distribution=variational_distribution)
 
     def forward(self, x):
-        # Block 1
-        x = self.pool(F.relu(self.conv1(x)))  # (32, 16, 16)
-
-        # Block 2
-        x = self.pool(F.relu(self.conv2(x)))  # (64, 8, 8)
-
-        # Block 3
-        x = self.pool(F.relu(self.conv3(x)))  # (128, 4, 4)
-
-        # Flatten
-        x = self.flatten(x)
-
-        # Fully connected layers
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-
+        x = F.relu(self.conv1(x))
+        x = self.pool1(x)
+        x = F.relu(self.conv2(x))
+        x = self.pool2(x)
+        x = F.relu(self.conv3(x))
+        x = self.pool3(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)  # flatten to [B, 128]
+        x = self.fc(x)
         return x
-
 
 
 def setup(rank, world_size):
@@ -91,8 +100,12 @@ def train(
     # Communication variables
     global sampling_state  # Randomness switch
     model.train()
-
+    print(len(dataloader))
+    counter = 0
     for batch, (x, y) in enumerate(dataloader):
+        counter += 1
+        if counter%100 == 0:
+            print(counter)
         x, y = x.to(device), y.to(device)
         # Switch to process specific randomness
         regular_state = torch.get_rng_state()
@@ -109,8 +122,8 @@ def train(
         torch.set_rng_state(regular_state)
 
         mean_model_output = pred.mean(dim=0)
-        probs = F.softmax(mean_model_output, dim=1)
-        loss = loss_fn(probs, y)
+        #probs = F.softmax(mean_model_output, dim=1)
+        loss = loss_fn(mean_model_output, y)
         # Backpropagation
         loss.backward()
 
@@ -173,7 +186,7 @@ def test(dataloader: DataLoader,
                 mean_model_output = torch.tensor(samples_global, dtype=samples.dtype).mean(dim=0)
                 samples = F.softmax(mean_model_output, dim=1)
                 correct += (samples.argmax(1) == y).type(torch.float).sum().item()
-                test_loss += loss_fn(samples, y).item()
+                test_loss += loss_fn(mean_model_output, y).item()
 
     if rank == 0:
         test_loss /= num_batches
@@ -196,18 +209,31 @@ if __name__ == "__main__":
     set_device = "cuda:" + str(local_rank)
     torch.device(set_device)
     
-    batch_size = 32
-    epochs = 5
+    batch_size = 128
+    epochs = 3
     random_seed = 42
-    all_sample_num = 32
+    all_sample_num = 16
     print(all_sample_num)
     lr = 1e-3
-    
-    training_data = datasets.CIFAR10(
-    root='./data', train=True, download=True, transform=ToTensor())
 
-    test_data = datasets.CIFAR10(
-    root='./data', train=False, download=True, transform=ToTensor())
+    imagenet_train_path = "/hkfs/home/dataset/datasets/imagenet-2012/original/imagenet-raw/ILSVRC/Data/CLS-LOC/train"
+    imagenet_val_path = "/hkfs/home/dataset/datasets/imagenet-2012/original/imagenet-raw/ILSVRC/Data/CLS-LOC/val"
+
+
+    # Get the first 100 class folder names (sorted alphabetically for consistency)
+    all_classes = sorted(os.listdir(imagenet_train_path))
+    subset_classes = all_classes[:100]
+
+
+    transform = transforms.Compose([
+    transforms.RandomResizedCrop(224),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor()])
+    
+    # Create the training and validation datasets
+    training_data = SubsetImageFolder(imagenet_train_path, subset_classes, transform=transform)
+    test_data = SubsetImageFolder(imagenet_val_path, subset_classes, transform=transform)
+
 
     # Create data loaders.
     train_dataloader = DataLoader(dataset=training_data, batch_size=batch_size, shuffle=True)
@@ -221,7 +247,7 @@ if __name__ == "__main__":
         if torch.backends.mps.is_available()
         else "cpu"
     )
-    model = CIFAR10CNN(variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
+    model = IMAGENETCNN(variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
     model.return_log_probs(False)
 
     print(f"Using {device} device")
@@ -243,5 +269,5 @@ if __name__ == "__main__":
         test(test_dataloader, model, loss_fn, sample_num, test_loss_list,rank, world_size, device)
 
     cleanup()
-    
+    print_cuda_timing_summary()
 

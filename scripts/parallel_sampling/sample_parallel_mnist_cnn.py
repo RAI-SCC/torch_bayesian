@@ -14,7 +14,49 @@ from torchvision import datasets
 sampling_state = None
 train_loss_list = []
 test_loss_list = []
+class MNISTCNN(vi.VIModule):
+    def __init__(self, variational_distribution=MeanFieldNormalVarDist()):
+        super().__init__()
 
+        # Convolutional Block 1
+        self.conv1 = vi.VIConv2d(in_channels=1, out_channels=32, kernel_size=3, padding=1,
+                        variational_distribution=variational_distribution)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        # Convolutional Block 2
+        self.conv2 = vi.VIConv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1,
+                        variational_distribution=variational_distribution)
+
+        # Convolutional Block 3
+        self.conv3 = vi.VIConv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1,
+                        variational_distribution=variational_distribution)
+
+        # Flatten layer
+        self.flatten = nn.Flatten()
+
+        # Fully connected layers
+        self.fc1 = vi.VILinear(128 * 7 * 7, 256, variational_distribution=variational_distribution)
+        self.fc2 = vi.VILinear(256, 10, variational_distribution=variational_distribution)
+
+    def forward(self, x):
+        # Block 1
+        x = self.pool(F.relu(self.conv1(x)))  # (32, 14, 14)
+
+        # Block 2
+        x = self.pool(F.relu(self.conv2(x)))  # (64, 7, 7)
+
+        # Block 3
+        x = F.relu(self.conv3(x))  # (128, 7, 7)
+
+        # Flatten
+        x = self.flatten(x)
+
+        # Fully connected layers
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+
+        return x
+'''
 
 class NeuralNetwork(vi.VIModule):
     def __init__(self, in_channel, hidden1, hidden2, output_length,
@@ -36,7 +78,7 @@ class NeuralNetwork(vi.VIModule):
     def forward(self, x_: Tensor) -> Tensor:
         logits = self.conv_stack(x_)
         return logits
-
+'''
 def setup(rank, world_size):
     # Initialize distributed backend
     dist.init_process_group(
@@ -172,14 +214,10 @@ if __name__ == "__main__":
     set_device = "cuda:" + str(local_rank)
     torch.device(set_device)
     
-    in_channel = 1
-    output_length = 10
-    hidden1 = 8
-    hidden2 = 16
     batch_size = 64
-    epochs = 10
+    epochs = 5
     random_seed = 42
-    all_sample_num = 256
+    all_sample_num = 32
     print(all_sample_num)
     lr = 1e-3
     #mp.set_start_method("fork", force=True)
@@ -210,8 +248,7 @@ if __name__ == "__main__":
         if torch.backends.mps.is_available()
         else "cpu"
     )
-    model = NeuralNetwork(in_channel, hidden1, hidden2, output_length,
-                          variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
+    model = MNISTCNN(variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
     model.return_log_probs(False)
 
     print(f"Using {device} device")

@@ -15,51 +15,63 @@ sampling_state = None
 train_loss_list = []
 test_loss_list = []
 
+class BasicBlock(vi.VIModule):
+    def __init__(self, inchannels, outchannels, stride=1, variational_distribution=MeanFieldNormalVarDist()):
+        super(BasicBlock, self).__init__()
+        self.conv1 = vi.VIConv2d(inchannels, outchannels, kernel_size=3, stride=stride, padding=1, bias=False, variational_distribution=variational_distribution)
+        self.bn1 = nn.BatchNorm2d(outchannels, track_running_stats=False)
+        self.conv2 = vi.VIConv2d(outchannels, outchannels, 3, 1, 1, bias=False, variational_distribution=variational_distribution)
+        self.bn2 = nn.BatchNorm2d(outchannels, track_running_stats=False)
 
-class CIFAR10CNN(vi.VIModule):
-    def __init__(self, variational_distribution=MeanFieldNormalVarDist()):
+        self.shortcut = vi.VISequential()
+        if stride != 1 or inchannels != outchannels:
+            self.shortcut = vi.VISequential(
+                vi.VIConv2d(inchannels, outchannels, 1, stride, bias=False, variational_distribution=MeanFieldNormalVarDist()),
+                nn.BatchNorm2d(outchannels, track_running_stats=False),
+            )
+
+    
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out += self.shortcut(x)
+        return F.relu(out)
+
+class ResNet10(vi.VIModule):
+    def __init__(self, num_classes=10, variational_distribution=MeanFieldNormalVarDist()):
         super().__init__()
+        self.inchannels = 64
 
-        # Convolutional Block 1
-        self.conv1 = vi.VIConv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1,
-                        variational_distribution=variational_distribution)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.conv = vi.VIConv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False, variational_distribution=variational_distribution)
+        self.bn = nn.BatchNorm2d(64, track_running_stats=False)
 
-        # Convolutional Block 2
-        self.conv2 = vi.VIConv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1,
-                        variational_distribution=variational_distribution)
+        # ResNet-10: one block per layer group
+        self.layer1 = self._make_layer(64, 1, stride=1)
+        self.layer2 = self._make_layer(128, 1, stride=2)
+        self.layer3 = self._make_layer(256, 1, stride=2)
+        self.layer4 = self._make_layer(512, 1, stride=2)
 
-        # Convolutional Block 3
-        self.conv3 = vi.VIConv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1,
-                        variational_distribution=variational_distribution)
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = vi.VILinear(512, num_classes, variational_distribution=variational_distribution)
 
-        # Flatten layer
-        self.flatten = nn.Flatten()
-
-        # Fully connected layers
-        self.fc1 = vi.VILinear(128 * 4 * 4, 256, variational_distribution=variational_distribution)
-        self.fc2 = vi.VILinear(256, 10, variational_distribution=variational_distribution)
+    def _make_layer(self, outchannels, blocks, stride):
+        strides = [stride] + [1] * (blocks - 1)
+        layers = []
+        for s in strides:
+            layers.append(BasicBlock(self.inchannels, outchannels, stride=s))
+            self.inchannels = outchannels
+        return nn.Sequential(*layers)
 
     def forward(self, x):
-        # Block 1
-        x = self.pool(F.relu(self.conv1(x)))  # (32, 16, 16)
-
-        # Block 2
-        x = self.pool(F.relu(self.conv2(x)))  # (64, 8, 8)
-
-        # Block 3
-        x = self.pool(F.relu(self.conv3(x)))  # (128, 4, 4)
-
-        # Flatten
-        x = self.flatten(x)
-
-        # Fully connected layers
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-
-        return x
-
-
+        out = F.relu(self.bn(self.conv(x)))
+        out = self.layer1(out)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = self.layer4(out)
+        out = self.avgpool(out)
+        out = torch.flatten(out, 1)
+        out = self.fc(out)
+        return out
 
 def setup(rank, world_size):
     # Initialize distributed backend
@@ -196,8 +208,8 @@ if __name__ == "__main__":
     set_device = "cuda:" + str(local_rank)
     torch.device(set_device)
     
-    batch_size = 32
-    epochs = 5
+    batch_size = 64
+    epochs = 10
     random_seed = 42
     all_sample_num = 32
     print(all_sample_num)
@@ -221,7 +233,7 @@ if __name__ == "__main__":
         if torch.backends.mps.is_available()
         else "cpu"
     )
-    model = CIFAR10CNN(variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
+    model = ResNet10(variational_distribution=MeanFieldNormalVarDist(initial_std=1.)).to(device)
     model.return_log_probs(False)
 
     print(f"Using {device} device")

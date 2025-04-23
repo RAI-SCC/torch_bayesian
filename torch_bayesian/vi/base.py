@@ -18,6 +18,7 @@ from torch.nn.modules.module import (
 
 from .utils import PostInitCallMeta
 from .utils.common_types import VIReturn, _prior_any_t, _vardist_any_t
+from timing_utils import cuda_time_function, print_cuda_timing_summary
 
 
 def _forward_unimplemented(self: Module, *input_: Optional[Tensor]) -> VIReturn[Tensor]:
@@ -53,6 +54,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
             input_ = torch.tensor(False)
         return input_.expand(samples, *input_.shape)
 
+    @cuda_time_function
     def sampled_forward(
         self, *input_: Optional[Tensor], samples: int = 10, **kwargs: Any
     ) -> VIReturn[_tensor_list_t]:

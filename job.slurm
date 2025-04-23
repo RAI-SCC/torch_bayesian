@@ -3,18 +3,18 @@
 #SBATCH --job-name=parallel_sampling
 #SBATCH --partition="normal"
 #SBATCH --gres=gpu:4
-#SBATCH --time=01:00:00
+#SBATCH --time=00:15:00
 #SBATCH --mem=16G 
 #SBATCH --nodes=1
 #SBATCH --ntasks=4
-#SBATCH --cpus-per-task=4 
+#SBATCH --cpus-per-task=4
 #SBATCH --exclude=haicn1701
 #SBATCH --output=/home/scc/bl7340/res/slurm-%j.out # Change to your output directory
 #SBATCH --error=/home/scc/bl7340/res/error-%j.log          # Error log
 
 
 # Load necessary modules
-
+module restore new_base_modules
 
 # Change 5-digit MASTER_PORT as you wish, SLURM will raise Error if duplicated with others.
 export MASTER_PORT=29500
@@ -23,11 +23,12 @@ export MASTER_PORT=29500
 master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 export MASTER_ADDR=$master_addr
 echo "MASTER_ADDR="$MASTER_ADDR
+echo "MCD RESNET10 CIFAR10 4 GPUs 32 Samples"
 
 export PYDIR=/hkfs/work/workspace_haic/scratch/bl7340-parallel_sampling/torch_bayesian # Set path to your python scripts.
 
 # Activate environment
-source $PYDIR/myvenv/bin/activate
+source $PYDIR/newvenv/bin/activate
 
 # Launch distributed training
 #srun --nodes=$SLURM_NNODES --ntasks=$SLURM_NTASKS \
@@ -41,5 +42,5 @@ source $PYDIR/myvenv/bin/activate
 srun --ntasks=4 bash -c '
   export CUDA_VISIBLE_DEVICES=$SLURM_LOCALID
   echo "Rank $SLURM_PROCID using GPU $CUDA_VISIBLE_DEVICES on node $SLURM_NODEID"
-  python $PYDIR/scripts/parallel_sampling/transformer_entsoe.py
+  python -u $PYDIR/scripts/parallel_sampling/sample_parallel_cifar10_resnet10.py
 '
