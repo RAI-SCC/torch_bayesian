@@ -14,21 +14,24 @@ class KullbackLeiblerLoss(Module):
 
     Calculates the Evidence Lower Bound (ELBO) loss which minimizes the KL-divergence
     between the variational distribution and the true posterior. Requires external
-    calculation of prior and variational log probability, i.e. modules must have
+    calculation of prior and variational log probability, i.e., modules must have
     return_log_probs = True.
 
     Parameters
     ----------
     predictive_distribution: PredictiveDistribution
-        Assumed distribution of the outputs. Typically, `CategoricalPredictiveDistribution`
-        for classification and `MeanFieldNormalPredictiveDistribution` for regression.
+        Assumed distribution of the outputs. Typically,
+        :func:`CategoricalPredictiveDistribution<torch_bayesian.vi.predictive_distributions.CategoricalPredictiveDistribution>`
+        for classification and
+        :func:`MeanFieldNormalPredictiveDistribution<torch_bayesian.vi.predictive_distributions.MeanFieldNormalPredictiveDistribution>`
+        for regression.
     dataset_size: Optional[int]
         Size of the training dataset. Required for loss calculation. If not provided,
         it must be provided to the forward method.
     heat: float, default: 1.0
         Temperature in the sense of the Cold Posterior effect.
     track: bool, default: False
-        Set True to track the loss components. The log is stored as a dictionary in
+        Set ``True`` to track the loss components. The log is stored as a dictionary in
         `self.log`. Loss history is stored for three components as lists accessible via
         the respective keys:
 
@@ -61,12 +64,12 @@ class KullbackLeiblerLoss(Module):
         """
         Enable or disable loss tracking.
 
-        Any existing loss history is kept and continued if tracking is reenabled.
+        Any existing loss history is kept and continued if tracking is re-enabled.
 
         Parameters
         ----------
         mode: bool, default: True
-            If `True`, enable loss tracking if `False` disable it.
+            If ``True``, enable loss tracking if ``False`` disable it.
         """
         if mode and self.log is None:
             self._init_log()

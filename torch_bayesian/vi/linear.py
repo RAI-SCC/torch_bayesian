@@ -12,32 +12,19 @@ from .variational_distributions import MeanFieldNormalVarDist
 
 class VILinear(VIBaseModule):
     """
-    Equivalent of nn.Linear with variational inference.
+    Applies an affine linear transformation to the incoming data: :math:`y = xA^T + b`.
 
-    Called with the same arguments as nn.Linear, but accepts additional arguments.
+    Equivalent of ``nn.Linear`` with variational inference. See its
+    `documentation <https://pytorch.org/docs/stable/generated/torch.nn.Linear.html>`__
+    for usage.
+
+    In addition to those arguments, this class accepts
+    :func:`VIkwargs<torch_bayesian.vi.VIkwargs>`.
+
     This module's random variables are
 
     - ("weight", "bias") if bias == True
     - ("weight", )       if bias == False
-
-    Parameters
-    ----------
-    variational_distribution: Union[VarDist, List[VarDist]], default: :func:`MeanFieldNormalVarDist()<torch_bayesian.vi.variational_distributions.MeanFieldNormalVarDist>`
-        Variational distribution which specifies the assumed weight distribution. A list of
-        distributions may be provided to specify different choices for each random variable.
-    prior: Union[Prior, List[Prior]], default: :func:`MeanFieldNormalPrior()<torch_bayesian.vi.priors.MeanFieldNormalPrior>`
-        Prior distribution which specifies the previous knowledge about the weight distribution.
-        A list of distributions may be provided to specify different choices for each random
-        variable.
-    rescale_prior: bool, default: False
-        If True prior._scaling_parameters are scaled with the sqrt of the layer width.
-        This may be necessary to maintain normalization for wide layers.
-    prior_initialization: bool, default: False
-        If True parameters are initialized according to the prior. If False parameters are
-        initialized similar to non-Bayesian networks.
-    return_log_probs: bool, default: True
-        If True the model forward pass returns the log probability of the sampled weight.
-        This is required for the standard loss calculation.
     """
 
     __constants__ = ["in_features", "out_features"]
@@ -103,15 +90,14 @@ class VILinear(VIBaseModule):
 
         Returns
         -------
-        output, log_probs if ``return_log_probs`` else output
-
         output: Tensor
             Output tensor of shape (\*, out_features).
             Auto-sampling will add a sample dimension at the start for the overall output.
         log_probs: Tensor
             Tensor of shape (2,) containing the total prior and variational log
             probability (in that order) of the sampled weights and biases.
-            Only returned if ``return_log_probs``.
+
+            Only returned if ``return_log_probs``. Otherwise, only **output** is returned.
         """
         # Check for and perform fast path if possible:
         if (not self._return_log_probs) and self._fast_path:
@@ -129,7 +115,7 @@ class VILinear(VIBaseModule):
             return output
 
     def _fast_forward(self, input_: Tensor) -> Tensor:
-        """Perform stable fast path for Gaussian variational distribution."""
+        """Perform the stable fast path for Gaussian variational distribution."""
         weight_mean = self._weight_mean
         weight_variance = (2 * self._weight_log_std).exp()
         if "bias" in self.random_variables:
