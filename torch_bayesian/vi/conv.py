@@ -157,32 +157,19 @@ class _VIConvNd(VIBaseModule):
 
 class VIConv1d(_VIConvNd):
     """
-    Equivalent of nn.Conv1d with variational inference.
+    Applies a 1D convolution over an input signal composed of several input planes.
 
-    Called with the same arguments as nn.VIConv1d, but accepts additional arguments.
+    Equivalent of ``nn.Conv1d`` with variational inference. See its
+    `documentation <https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html>`__
+    for usage.
+
+    In addition to those arguments, this class accepts
+    :func:`VIkwargs<torch_bayesian.vi.VIkwargs>`.
+
     This module's random variables are
 
     - ("weight", "bias") if bias == True
     - ("weight", )       if bias == False
-
-    Parameters
-    ----------
-    variational_distribution: Union[VarDist, List[VarDist]], default: :func:`MeanFieldNormalVarDist()<torch_bayesian.vi.variational_distributions.MeanFieldNormalVarDist>`
-        Variational distribution which specifies the assumed weight distribution. A list of
-        distributions may be provided to specify different choices for each random variable.
-    prior: Union[Prior, List[Prior]], default: :func:`MeanFieldNormalPrior()<torch_bayesian.vi.priors.MeanFieldNormalPrior>`
-        Prior distribution which specifies the previous knowledge about the weight distribution.
-        A list of distributions may be provided to specify different choices for each random
-        variable.
-    rescale_prior: bool, default: False
-        If True prior._scaling_parameters are scaled with the sqrt of the layer width.
-        This may be necessary to maintain normalization for wide layers.
-    prior_initialization: bool, default: False
-        If True parameters are initialized according to the prior. If False parameters are
-        initialized similar to non-Bayesian networks.
-    return_log_probs: bool, default: True
-        If True the model forward pass returns the log probability of the sampled weight.
-        This is required for the standard loss calculation.
     """
 
     def __init__(
@@ -261,8 +248,8 @@ class VIConv1d(_VIConvNd):
         """
         Forward computation.
 
-        Applies a 1D convolution to a tensor of shape [N, C_in, W_in]. Where
-        N is the batch size, C are channels, and W the width of the input.
+        Applies a 1D convolution to a tensor of shape [N, C_in, W_in]. Where N is the
+        batch size, C are channels, and W the width of the input.
 
         Parameters
         ----------
@@ -271,15 +258,14 @@ class VIConv1d(_VIConvNd):
 
         Returns
         -------
-        output, log_probs if ``return_log_probs`` else output
-
         output: Tensor
             Output tensor of shape [N, C_out, W_out].
             Auto-sampling will add a sample dimension at the start for the overall output.
         log_probs: Tensor
             Tensor of shape (2,) containing the total prior and variational log
             probability (in that order) of the sampled weights and biases.
-            Only returned if ``return_log_probs``.
+
+            Only returned if ``return_log_probs``. Otherwise, only **output** is returned.
         """
         params = self.sample_variables()
 
@@ -294,32 +280,19 @@ class VIConv1d(_VIConvNd):
 
 class VIConv2d(_VIConvNd):
     """
-    Equivalent of nn.Conv2d with variational inference.
+    Applies a 2D convolution over an input signal composed of several input planes.
 
-    Called with the same arguments as nn.VIConv2d, but accepts additional arguments.
+    Equivalent of ``nn.Conv2d`` with variational inference. See its
+    `documentation <https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html>`__
+    for usage.
+
+    In addition to those arguments, this class accepts
+    :func:`VIkwargs<torch_bayesian.vi.VIkwargs>`.
+
     This module's random variables are
 
     - ("weight", "bias") if bias == True
     - ("weight", )       if bias == False
-
-    Parameters
-    ----------
-    variational_distribution: Union[VarDist, List[VarDist]], default: :func:`MeanFieldNormalVarDist()<torch_bayesian.vi.variational_distributions.MeanFieldNormalVarDist>`
-        Variational distribution which specifies the assumed weight distribution. A list of
-        distributions may be provided to specify different choices for each random variable.
-    prior: Union[Prior, List[Prior]], default: :func:`MeanFieldNormalPrior()<torch_bayesian.vi.priors.MeanFieldNormalPrior>`
-        Prior distribution which specifies the previous knowledge about the weight distribution.
-        A list of distributions may be provided to specify different choices for each random
-        variable.
-    rescale_prior: bool, default: False
-        If True prior._scaling_parameters are scaled with the sqrt of the layer width.
-        This may be necessary to maintain normalization for wide layers.
-    prior_initialization: bool, default: False
-        If True parameters are initialized according to the prior. If False parameters are
-        initialized similar to non-Bayesian networks.
-    return_log_probs: bool, default: True
-        If True the model forward pass returns the log probability of the sampled weight.
-        This is required for the standard loss calculation.
     """
 
     def __init__(
@@ -396,8 +369,8 @@ class VIConv2d(_VIConvNd):
         """
         Forward computation.
 
-        Applies a 2D convolution to a tensor of shape [N, C_in, H_in, W_in]. Where
-        N is the batch size, C are channels, and [H, W] are height and width of the input.
+        Applies a 2D convolution to a tensor of shape [N, C_in, H_in, W_in]. Where N is
+        the batch size, C are channels, and [H, W] are height and width of the input.
 
         Parameters
         ----------
@@ -406,15 +379,14 @@ class VIConv2d(_VIConvNd):
 
         Returns
         -------
-        output, log_probs if ``return_log_probs`` else output
-
         output: Tensor
             Output tensor of shape [N, C_out, H_out, W_out].
             Auto-sampling will add a sample dimension at the start for the overall output.
         log_probs: Tensor
             Tensor of shape (2,) containing the total prior and variational log
             probability (in that order) of the sampled weights and biases.
-            Only returned if ``return_log_probs``.
+
+            Only returned if ``return_log_probs``. Otherwise, only **output** is returned.
         """
         params = self.sample_variables()
 
@@ -429,32 +401,19 @@ class VIConv2d(_VIConvNd):
 
 class VIConv3d(_VIConvNd):
     """
-    Equivalent of nn.Conv3d with variational inference.
+    Applies a 3D convolution over an input signal composed of several input planes.
 
-    Called with the same arguments as nn.VIConv3d, but accepts additional arguments.
+    Equivalent of ``nn.Conv3d`` with variational inference. See its
+    `documentation <https://pytorch.org/docs/stable/generated/torch.nn.Conv3d.html>`__
+    for usage.
+
+    In addition to those arguments, this class accepts
+    :func:`VIkwargs<torch_bayesian.vi.VIkwargs>`.
+
     This module's random variables are
 
     - ("weight", "bias") if bias == True
     - ("weight", )       if bias == False
-
-    Parameters
-    ----------
-    variational_distribution: Union[VarDist, List[VarDist]], default: :func:`MeanFieldNormalVarDist()<torch_bayesian.vi.variational_distributions.MeanFieldNormalVarDist>`
-        Variational distribution which specifies the assumed weight distribution. A list of
-        distributions may be provided to specify different choices for each random variable.
-    prior: Union[Prior, List[Prior]], default: :func:`MeanFieldNormalPrior()<torch_bayesian.vi.priors.MeanFieldNormalPrior>`
-        Prior distribution which specifies the previous knowledge about the weight distribution.
-        A list of distributions may be provided to specify different choices for each random
-        variable.
-    rescale_prior: bool, default: False
-        If True prior._scaling_parameters are scaled with the sqrt of the layer width.
-        This may be necessary to maintain normalization for wide layers.
-    prior_initialization: bool, default: False
-        If True parameters are initialized according to the prior. If False parameters are
-        initialized similar to non-Bayesian networks.
-    return_log_probs: bool, default: True
-        If True the model forward pass returns the log probability of the sampled weight.
-        This is required for the standard loss calculation.
     """
 
     def __init__(
@@ -532,7 +491,8 @@ class VIConv3d(_VIConvNd):
         Forward computation.
 
         Applies a 3D convolution to a tensor of shape [N, C_in, D_in, H_in, W_in]. Where
-        N is the batch size, C are channels, and [D, H, W] are depth, height and width of the input.
+        N is the batch size, C are channels, and [D, H, W] are depth, height, and width
+        of the input.
 
         Parameters
         ----------
@@ -541,15 +501,14 @@ class VIConv3d(_VIConvNd):
 
         Returns
         -------
-        output, log_probs if ``return_log_probs`` else output
-
         output: Tensor
             Output tensor of shape [N, C_out, D_out, H_out, W_out].
             Auto-sampling will add a sample dimension at the start for the overall output.
         log_probs: Tensor
             Tensor of shape (2,) containing the total prior and variational log
             probability (in that order) of the sampled weights and biases.
-            Only returned if ``return_log_probs``.
+
+            Only returned if ``return_log_probs``. Otherwise, only **output** is returned.
         """
         params = self.sample_variables()
 
