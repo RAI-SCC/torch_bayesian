@@ -11,7 +11,7 @@ from .base import VIBaseModule, VIModule
 from .linear import VILinear
 from .priors import MeanFieldNormalPrior, Prior
 from .sequential import VIResidualConnection
-from .utils.common_types import VIReturn, _prior_any_t, _vardist_any_t, _VIkwargs
+from .utils.common_types import VIkwargs, VIReturn, _prior_any_t, _vardist_any_t
 from .variational_distributions import MeanFieldNormalVarDist, VariationalDistribution
 
 
@@ -41,7 +41,7 @@ class VIMultiheadAttention(VIBaseModule):
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
-        vikwargs: _VIkwargs = dict(
+        vikwargs: VIkwargs = dict(
             variational_distribution=variational_distribution,
             prior=prior,
             kaiming_initialization=kaiming_initialization,
@@ -245,7 +245,7 @@ class VITransformerEncoderLayer(VIModule):
         dtype: Optional[torch.dtype] = None,
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
-        vikwargs: _VIkwargs = dict(
+        vikwargs: VIkwargs = dict(
             variational_distribution=variational_distribution,
             prior=prior,
             rescale_prior=rescale_prior,
@@ -381,7 +381,7 @@ class VITransformerDecoderLayer(VIModule):
         dtype: Optional[torch.dtype] = None,
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
-        vikwargs: _VIkwargs = dict(
+        vikwargs: VIkwargs = dict(
             variational_distribution=variational_distribution,
             prior=prior,
             rescale_prior=rescale_prior,
@@ -702,7 +702,7 @@ class VITransformer(VIModule):
     ) -> None:
         super().__init__()
         factory_kwargs = {"device": device, "dtype": dtype}
-        vikwargs: _VIkwargs = dict(
+        vikwargs: VIkwargs = dict(
             variational_distribution=variational_distribution,
             prior=prior,
             rescale_prior=rescale_prior,

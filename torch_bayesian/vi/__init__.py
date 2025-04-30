@@ -20,6 +20,7 @@ from .transformer import (
     VITransformerEncoder,
     VITransformerEncoderLayer,
 )
+from .utils.common_types import VIkwargs
 
 __all__ = [
     "AnalyticalKullbackLeiblerLoss",
@@ -42,4 +43,5 @@ __all__ = [
     "NonBayesian",
     "NormalNormalDivergence",
     "UniformNormalDivergence",
+    "VIkwargs",
 ]

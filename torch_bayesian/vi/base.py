@@ -88,7 +88,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
         This will automatically be called by the outermost module. Instead of the
         ``forward`` method. It grabs the ``samples`` argument, if provided, and copies
-        the input batch the specified number of times. The ``forward is performed
+        the input batch the specified number of times. The ``forward`` is performed
         vectorized over that additional sample dimension.
 
         Parameters
@@ -342,7 +342,7 @@ class VIBaseModule(VIModule):
     variable.
 
     Random variables are specified in by ``self.random_variables`` and should be set
-    before `suoer().__init__` is called. Generally, this is any Tensor that would be a
+    before `super().__init__` is called. Generally, this is any Tensor that would be a
     ``Parameter`` in pytorch, like the `weight` and `bias` Tensor. The Tensor shape is
     specified by the argument `variable_shapes`.
 
@@ -353,19 +353,14 @@ class VIBaseModule(VIModule):
     The names of these attributes can be discovered using the
     ``variational_parameter_name`` method.
 
+    This class accepts :func:`VIkwargs<torch_bayesian.vi.VIkwargs>` , but has no default
+    for `variational_distribution` and `prior`.
+
     Parameters
     ----------
     variable_shapes: Dict[str, Tuple[int, ...]]
         Shape specifications for all random variables. Keys should match the values in
         `self.random_variables`. Additional keys are ignored.
-    variational_distribution: _vardist_any_t
-        Either one
-        :func:`VariationalDistribution<torch_bayesian.vi.variational_distributionss.VariationalDistribution>`,
-        which is used for all random variables, or a list of them, one for each random
-        variable.
-    prior: _prior_any_t
-        Either one :func:`Prior<torch_bayesian.vi.priors.Prior>`, which is used for all
-        random variables, or a list of them, one for each random variable.
     """
 
     random_variables: Tuple[str, ...] = ("weight", "bias")

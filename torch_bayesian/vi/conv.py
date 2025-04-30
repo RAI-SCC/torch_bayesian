@@ -8,7 +8,7 @@ from torch.nn.modules.utils import _pair, _reverse_repeat_tuple, _single, _tripl
 
 from .base import VIBaseModule
 from .priors import MeanFieldNormalPrior
-from .utils.common_types import VIReturn, _prior_any_t, _vardist_any_t, _VIkwargs
+from .utils.common_types import VIkwargs, VIReturn, _prior_any_t, _vardist_any_t
 from .variational_distributions import MeanFieldNormalVarDist
 
 
@@ -67,7 +67,7 @@ class _VIConvNd(VIBaseModule):
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
-        vikwargs: _VIkwargs = dict(
+        vikwargs: VIkwargs = dict(
             variational_distribution=variational_distribution,
             prior=prior,
             rescale_prior=rescale_prior,
@@ -205,7 +205,7 @@ class VIConv1d(_VIConvNd):
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
-        vikwargs: _VIkwargs = dict(
+        vikwargs: VIkwargs = dict(
             variational_distribution=variational_distribution,
             prior=prior,
             rescale_prior=rescale_prior,
@@ -342,7 +342,7 @@ class VIConv2d(_VIConvNd):
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
-        vikwargs: _VIkwargs = dict(
+        vikwargs: VIkwargs = dict(
             variational_distribution=variational_distribution,
             prior=prior,
             rescale_prior=rescale_prior,
@@ -477,7 +477,7 @@ class VIConv3d(_VIConvNd):
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ) -> None:
-        vikwargs: _VIkwargs = dict(
+        vikwargs: VIkwargs = dict(
             variational_distribution=variational_distribution,
             prior=prior,
             rescale_prior=rescale_prior,
