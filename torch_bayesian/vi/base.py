@@ -38,7 +38,34 @@ def _forward_unimplemented(self: Module, *input_: Optional[Tensor]) -> VIReturn[
 
 
 class VIModule(Module, metaclass=PostInitCallMeta):
-    """Base class for Modules using Variational Inference."""
+    """
+    Base class for Modules using Variational Inference.
+
+    Conceptually, this class takes the place of ``torch.nn.Module`` for BNNs. It is used
+    for any module that has no Bayesian parameters of its own. If the module should have
+    Bayesian parameters, use ``VIBaseModule`` instead, which is an extension of this
+    class.
+
+    ``VIModule`` contains some additional functionality.
+    Firstly, it keeps track of whether the model should return the log probability of
+    the sampled weight (i.e., the log probability to obtain these specific values when
+    sampling from the prior or variational distribution).These are needed for loss
+    calculation by :func:`KullbackLeiblerLoss<torch_bayesian.vi.KullbackLeiblerLoss>`.
+    If your module contains multiple submodules make sure to add all log probabilities
+    and return them, if required by ``_return_log_probs``. This attribute can be changed
+    with ``self.return_log_probs``.
+
+    Secondly, a model of nested ``VIModules`` automatically identifies the outermost
+    Module and sets the ``_has_sampling_responsibility`` flag. This makes the outermost
+    module always accept the keyword argument `samples` which defaults to 10.
+    Since BNNs require multiple samples for each forward pass, the input batch is
+    duplicated accordingly and the forward pass is performed vectorized on all samples.
+    While this is significantly faster than serial evaluation, it naturally requires
+    more memory. Additionally, a certain few operations do not function correctly with
+    the vectorization and should not be used in ``VIModules``. Most importantly, this
+    affects the operators ``+=``, ``-=``, ``*=``, and ``/=``. However, their longform
+    versions work fine, e.g. ``a = a + b`` instead of ``a += b``.
+    """
 
     forward: Callable[..., VIReturn] = _forward_unimplemented
     _return_log_probs: bool = True
@@ -58,6 +85,11 @@ class VIModule(Module, metaclass=PostInitCallMeta):
     ) -> VIReturn[_tensor_list_t]:
         """
         Forward pass of the module evaluating multiple weight samples.
+
+        This will automatically be called by the outermost module. Instead of the
+        ``forward`` method. It grabs the ``samples`` argument, if provided, and copies
+        the input batch the specified number of times. The ``forward is performed
+        vectorized over that additional sample dimension.
 
         Parameters
         ----------
@@ -299,7 +331,42 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
 
 class VIBaseModule(VIModule):
-    """Base class for VIModules that draw weights from a variational distribution."""
+    """
+    Base class for VIModules that draw weights from a variational distribution.
+
+    Conceptually, this class takes the place of ``torch.nn.Module`` for BNNs.It is used
+    for any module that has Bayesian parameters of its own. If the module should not have
+    Bayesian parameters, use ``VIModule`` instead.
+
+    It dynamically initializes a separate attribute for each parameter of each random
+    variable.
+
+    Random variables are specified in by ``self.random_variables`` and should be set
+    before `suoer().__init__` is called. Generally, this is any Tensor that would be a
+    ``Parameter`` in pytorch, like the `weight` and `bias` Tensor. The Tensor shape is
+    specified by the argument `variable_shapes`.
+
+    For each random variable a number of attributes are initialized according to the
+    number of entries of `variational_parameters` of the associated
+    :func:`VariationalDistribution<torch_bayesian.vi.base.VariationalDistribution>`.
+
+    The names of these attributes can be discovered using the
+    ``variational_parameter_name`` method.
+
+    Parameters
+    ----------
+    variable_shapes: Dict[str, Tuple[int, ...]]
+        Shape specifications for all random variables. Keys should match the values in
+        `self.random_variables`. Additional keys are ignored.
+    variational_distribution: _vardist_any_t
+        Either one
+        :func:`VariationalDistribution<torch_bayesian.vi.variational_distributionss.VariationalDistribution>`,
+        which is used for all random variables, or a list of them, one for each random
+        variable.
+    prior: _prior_any_t
+        Either one :func:`Prior<torch_bayesian.vi.priors.Prior>`, which is used for all
+        random variables, or a list of them, one for each random variable.
+    """
 
     random_variables: Tuple[str, ...] = ("weight", "bias")
 
@@ -380,12 +447,39 @@ class VIBaseModule(VIModule):
 
     @staticmethod
     def variational_parameter_name(variable: str, variational_parameter: str) -> str:
-        """Obtain the attribute name of the variational parameter for the specified variable."""
+        """
+        Get the attribute name of the variational parameter for the specified variable.
+
+        Parameters
+        ----------
+        variable: str
+            Random variable name as specified in `self.random_variables`.
+        variational_parameter: str
+            Variational parameter name as specified by the variational distribution.
+
+        Returns
+        -------
+        str
+            The attribute name of the specified parameter.
+        """
         spec = ["", variable, variational_parameter]
         return "_".join(spec)
 
     def get_variational_parameters(self, variable: str) -> List[Tensor]:
-        """Obtain all variational parameters for the specified variable."""
+        """
+        Get all variational parameters for the specified variable.
+
+        Parameters
+        ----------
+        variable: str
+            Random variable name as specified in `self.random_variables`.
+
+        Returns
+        -------
+        List[Tensor]
+            All variational parameters for the specified variable in the order specified
+            by the associated variational distribution.
+        """
         vardist = self.variational_distribution[self.random_variables.index(variable)]
         return [
             getattr(self, self.variational_parameter_name(variable, param))
@@ -393,7 +487,24 @@ class VIBaseModule(VIModule):
         ]
 
     def get_log_probs(self, sampled_params: List[Tensor]) -> Tensor:
-        """Get prior and variational log prob of the sampled parameters."""
+        """
+        Get prior and variational log prob of the sampled parameters.
+
+        Accepts the sampled parameters as returned by the `self.sample_variables` method
+        and calculates the total prior and variational log probability.
+
+        Parameters
+        ----------
+        sampled_params: List[Tensor]
+            Sampled parameters as returned by the `self.sample_variables` method.
+
+        Returns
+        -------
+        Tensor
+            A Tensor containing two values: the the log probability of the sampled
+            values, if they were drawn from the prior or variational distribution (in
+            that order).
+        """
         device = sampled_params[0].device
         variational_log_prob = torch.tensor([0.0], device=device)
         prior_log_prob = torch.tensor([0.0], device=device)
@@ -419,7 +530,16 @@ class VIBaseModule(VIModule):
         return torch.cat([prior_log_prob, variational_log_prob])
 
     def sample_variables(self) -> List[Tensor]:
-        """Draw one sample from the variational distribution of each random variable."""
+        """
+        Draw one sample from the variational distribution of each random variable.
+
+        The variables are returned in the same order as `self.random_variables`.
+
+        Returns
+        -------
+        List[Tensor]
+            The sampled variables.
+        """
         params = []
         for variable, vardist in zip(
             self.random_variables, self.variational_distribution
