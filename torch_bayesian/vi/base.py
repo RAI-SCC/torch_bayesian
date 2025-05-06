@@ -370,7 +370,7 @@ class VIBaseModule(VIModule):
                 )
                 param = Parameter(torch.empty(shape, **factory_kwargs))
                 if mask is not None:
-                    param.register_hook(lambda grad: self.masks[variable] * grad)
+                    param.register_hook(lambda grad: self._masks[variable].to(grad.device) * grad)
                 setattr(self, parameter_name, param)
 
         self.reset_parameters()
@@ -465,10 +465,9 @@ class VIBaseModule(VIModule):
         out_features = shape[0]
         mask_shape = shape[1:]
         mask_features = torch.tensor(mask_shape).prod().item()
-
         assert (
-            mask_features < freeze_nr
-        ), f"The specified freeze_nr ({freeze_nr}) would the whole layer."
+            mask_features > freeze_nr
+        ), f"The specified freeze_nr ({freeze_nr}) would freeze all {mask_features} mask_features."
         assert (
             mask_features > 3
         ), "For less than 3 weights per output feature/channel freezing cannot break all symmetries."
