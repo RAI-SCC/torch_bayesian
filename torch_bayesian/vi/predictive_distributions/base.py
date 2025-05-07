@@ -16,15 +16,15 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
     classification might use a probability for each class.
     Furthermore, the distribution must be able to assign a probability to each possible
     prediction given the expected prediction. This is required for loss calculation.
-    Typically, it is sufficient for subclasses to define `log_prob_from_parameters` and
-    `predictive_parameters_from_samples`, which the class automatically uses to first
-    calculate the predictive parameters from the provided samples and then the log
+    Typically, it is sufficient for subclasses to define ``log_prob_from_parameters``
+    and ``predictive_parameters_from_samples``, which the class automatically uses to
+    first calculate the predictive parameters from the provided samples and then the log
     probability of those samples from the parameters. In case this detour does not work
-    `log_prob_from_samples` can be overwritten. However,
-    `predictive_parameters_from_samples` should still be defined to allow extracting
+    ``log_prob_from_samples`` can be overwritten. However,
+    ``predictive_parameters_from_samples`` should still be defined to allow extracting
     predictions.
 
-    Attributes
+    Parameters
     ----------
     predictive_parameters: Tuple[str, ...]
         String names of the predictive parameters. Mainly for documentation purposes.
@@ -35,10 +35,38 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
         Abstract method that accepts the output of a model as Tensor of shape (S, \*), where S is
         the number of samples. Calculates the predictive parameters implied by the
         samples.
+
+    Parameters
+    ----------
+        samples: Tensor
+            The model output as Tensor of shape (S, B, \*), where S is the number of
+            samples and B is the batch size.
+
+    Returns
+    -------
+        Union[Tensor, Tuple[Tensor, ...]]
+            One Tensor for each predictive parameter in the order specified in
+            ``self.predictive_parameters``.
+
     log_prob_from_parameters: Callable[[Tensor, Union[Tensor, Tuple[Tensor, ...]]], Tensor]
-        Accepts a reference and the predictive parameters as calculated by
-        ``predictive_parameters_from_samples``. Calculates the log probability of the
-        reference.
+        Abstract method that accepts a reference and the predictive parameters as
+        calculated by ``predictive_parameters_from_samples`` and calculates the log
+        likelihood of the reference under the predicted distribution.
+
+    Parameters
+    ----------
+        reference: Tensor
+            The ground truth or label as Tensor of shape (B, \*), where B is the batch
+            size.
+        parameters: Union[Tensor, Tuple[Tensor, ...]]
+            The parameters specifying the predicted distribution in the order specified
+            by ``self.predictive_parameters``.
+
+    Returns
+    -------
+        Tensor
+            The log likelihood of the reference under the predicted distribution.
+            Shape: (1,).
     """
 
     predictive_parameters: Tuple[str, ...]
@@ -50,7 +78,7 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
     ]
 
     def __post_init__(self) -> None:
-        """Ensure instance has required attributes."""
+        """Ensure the instance has all required attributes."""
         if not hasattr(self, "predictive_parameters"):
             raise NotImplementedError("Subclasses must define predictive_parameters")
         if not hasattr(self, "predictive_parameters_from_samples"):
@@ -62,7 +90,7 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
 
     def log_prob_from_samples(self, reference: Tensor, samples: Tensor) -> Tensor:
         r"""
-        Calculate the log probability for reference given a set of samples.
+        Calculate the log likelihood for reference given a set of samples.
 
         Usually combines `predictive_parameters_from_samples` and `log_prob_from_parameters`,
         but can be redefined, if needed.
@@ -77,7 +105,8 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
         Returns
         -------
         Tensor
-            Reference log probability. Shape: (1,)
+            The log likelihood of the reference under the predicted distribution.
+            Shape: (1,).
         """
         params = self.predictive_parameters_from_samples(samples)
         return self.log_prob_from_parameters(reference, params)
