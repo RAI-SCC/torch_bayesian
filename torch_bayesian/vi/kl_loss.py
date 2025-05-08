@@ -15,30 +15,32 @@ class KullbackLeiblerLoss(Module):
     Calculates the Evidence Lower Bound (ELBO) loss which minimizes the KL-divergence
     between the variational distribution and the true posterior. Requires external
     calculation of prior and variational log probability, i.e., modules must have
-    return_log_probs = True.
+    `return_log_probs` = ``True``.
 
     Parameters
     ----------
-    predictive_distribution: PredictiveDistribution
+    predictive_distribution: :class:`~.predictive_distributions.PredictiveDistribution`
         Assumed distribution of the outputs. Typically,
-        :func:`CategoricalPredictiveDistribution<torch_bayesian.vi.predictive_distributions.CategoricalPredictiveDistribution>`
-        for classification and
-        :func:`MeanFieldNormalPredictiveDistribution<torch_bayesian.vi.predictive_distributions.MeanFieldNormalPredictiveDistribution>`
-        for regression.
+        :class:`~.predictive_distributions.CategoricalPredictiveDistribution` for
+        classification and
+        :class:`~.predictive_distributions.MeanFieldNormalPredictiveDistribution` for
+        regression.
     dataset_size: Optional[int]
         Size of the training dataset. Required for loss calculation. If not provided,
-        it must be provided to the forward method.
+        it must be provided to the :meth:`~forward` method.
     heat: float, default: 1.0
-        Temperature in the sense of the Cold Posterior effect.
+        A factor multiplied with the prior matching term. Set smaller than 1. to produce
+        a "cold posterior" loss. Set to 0. to disable the prior matching term to imitate
+        a non-Bayesian loss.
     track: bool, default: False
         Set ``True`` to track the loss components. The log is stored as a dictionary in
-        `self.log`. Loss history is stored for three components as lists accessible via
-        the respective keys:
+        :attr:`~self.log`. Loss history is stored for three components as lists
+        accessible via the respective keys:
 
-        - data_fitting: data log likelihood
-        - prior_matching: the Kullback-Leibler divergence of prior anc variational
+        - `data_fitting`: data log likelihood
+        - `prior_matching`: the Kullback-Leibler divergence of prior anc variational
           distribution
-        - log_probs: the raw prior and variational distribution log probabilities of
+        - `log_probs`: the raw prior and variational distribution log probabilities of
           the sampled weights.
 
     """
@@ -93,16 +95,16 @@ class KullbackLeiblerLoss(Module):
         Parameters
         ----------
         model_output: Tuple[Tensor, Tensor]
-            The model output in with return_log_probs = True. The first Tensor is the
-            sampled model prediction (Shape: (N, \*). The second Tensor contains
-            prior_log_prob and variational_log_prob - the log probability of the sampled
+            The model output in with `return_log_probs` = ``True``. The first Tensor is
+            the sampled model prediction (Shape: (N, \*). The second Tensor contains
+            prior_log_prob and variational_log_prob - the log likelihood of the sampled
             weights under the prior and variational distribution respectively - and has
             shape (N, 2).
         target: Tensor
             Target prediction. Shape (\*)
         dataset_size: Optional[int], default: None
-            Total number of samples in the dataset. Used in place of self.dataset_size
-            if provided.
+            Total number of samples in the dataset. Used in place of
+            :attr:`~self.dataset_size` if provided.
 
         Returns
         -------

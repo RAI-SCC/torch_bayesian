@@ -41,30 +41,30 @@ class VIModule(Module, metaclass=PostInitCallMeta):
     """
     Base class for Modules using Variational Inference.
 
-    Conceptually, this class takes the place of ``torch.nn.Module`` for BNNs. It is used
-    for any module that has no Bayesian parameters of its own. If the module should have
-    Bayesian parameters, use ``VIBaseModule`` instead, which is an extension of this
-    class.
+    Conceptually, this class takes the place of :class:`torch.nn.Module` for BNNs. It is
+    used for any module that has no Bayesian parameters of its own. If the module should
+    have Bayesian parameters, use :class:`~.VIBaseModule` instead, which is an extension
+    of this class.
 
-    ``VIModule`` contains some additional functionality.
-    Firstly, it keeps track of whether the model should return the log probability of
-    the sampled weight (i.e., the log probability to obtain these specific values when
-    sampling from the prior or variational distribution).These are needed for loss
-    calculation by :func:`KullbackLeiblerLoss<torch_bayesian.vi.KullbackLeiblerLoss>`.
-    If your module contains multiple submodules make sure to add all log probabilities
-    and return them, if required by ``_return_log_probs``. This attribute can be changed
-    with ``self.return_log_probs``.
+    :class:`~.VIModule` contains some additional functionality. Firstly, it keeps track
+    of whether the model should return the log probability of the sampled weight (i.e.,
+    the log likelihood to obtain these specific values when sampling from the prior or
+    variational distribution).These are needed for loss calculation by
+    :class:`~.KullbackLeiblerLoss`. If your module contains multiple submodules make
+    sure to add all log probabilities and return them, if required by
+    :attr:`~self._return_log_probs`. This attribute can be changed with
+    :meth:`~return_log_probs`.
 
-    Secondly, a model of nested ``VIModules`` automatically identifies the outermost
-    Module and sets the ``_has_sampling_responsibility`` flag. This makes the outermost
-    module always accept the keyword argument `samples` which defaults to 10.
-    Since BNNs require multiple samples for each forward pass, the input batch is
-    duplicated accordingly and the forward pass is performed vectorized on all samples.
-    While this is significantly faster than serial evaluation, it naturally requires
-    more memory. Additionally, a certain few operations do not function correctly with
-    the vectorization and should not be used in ``VIModules``. Most importantly, this
-    affects the operators ``+=``, ``-=``, ``*=``, and ``/=``. However, their longform
-    versions work fine, e.g. ``a = a + b`` instead of ``a += b``.
+    Secondly, a model of nested :class:`~.VIModule` automatically identifies the
+    outermost module and sets the :attr:`~self._has_sampling_responsibility` flag. This
+    makes the outermost module always accept the keyword argument `samples`, which
+    defaults to 10. Since BNNs require multiple samples for each forward pass, the input
+    batch is duplicated accordingly and the forward pass is performed vectorized on all
+    samples. While this is significantly faster than serial evaluation, it naturally
+    requires more memory. Additionally, a certain few operations do not function
+    correctly with the vectorization and should not be used in :class:`~.VIModule`.
+    Most importantly, this affects the operators ``+=``, ``-=``, ``*=``, and ``/=``.
+    However, their longform versions work fine, e.g. ``a = a + b`` instead of ``a += b``.
     """
 
     forward: Callable[..., VIReturn] = _forward_unimplemented
@@ -87,9 +87,9 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         Forward pass of the module evaluating multiple weight samples.
 
         This will automatically be called by the outermost module. Instead of the
-        ``forward`` method. It grabs the ``samples`` argument, if provided, and copies
-        the input batch the specified number of times. The ``forward`` is performed
-        vectorized over that additional sample dimension.
+        :meth:`~forward` method. It grabs the ``samples`` argument, if provided,
+        and copies the input batch the specified number of times. The :meth:`~forward`
+        is performed vectorized over that additional sample dimension.
 
         Parameters
         ----------
@@ -117,7 +117,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         Parameters
         ----------
         mode : bool, default: True
-            Whether to enable (`True`) or disable (`False`) returning of log probs.
+            Whether to enable (``True``) or disable (``False``) returning of log probs.
         """
         for module in self.modules():
             if isinstance(module, VIModule):

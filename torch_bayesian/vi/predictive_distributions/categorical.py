@@ -26,7 +26,7 @@ class CategoricalPredictiveDistribution(PredictiveDistribution):
 
     Raises
     ------
-    AssertionError
+    :exc:`AssertionError`
         If ``input_type`` is neither "logits" nor "probs".
     """
 
@@ -79,7 +79,7 @@ class CategoricalPredictiveDistribution(PredictiveDistribution):
             and may be one.
         parameters: Tensor
             The predictive class probabilities as Tensor of shape (B, C) as returned by
-            ``predictive_parameters_from_samples``.
+            :meth:`~predictive_parameters_from_samples`.
         eps: float, default: 1e-5
             Epsilon for numerical stability.
 

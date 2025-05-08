@@ -9,17 +9,16 @@ from .base import VIModule
 
 class VISequential(VIModule, Sequential):
     """
-    Sequential container for ``VIModules``.
+    Sequential container for :class:`~.VIModule`.
 
-    Equivalent to ``nn.Sequential``, that manages
-    :func:`VIModules<torch_bayesian.vi.VIModule>` too. See its
+    Equivalent to :class:`nn.Sequential`, that manages :class:`~.VIModule` too. See its
     `documentation <https://pytorch.org/docs/stable/generated/torch.nn.Sequential.html>`__
     for usage.
 
     Detects and aggregates prior_log_prob and variational_log_prob from submodules, if
     needed. Then passes on only the output to the next module. This makes mixed
-    sequences of :func:`VIModules<torch_bayesian.vi.VIModule>` and ``nn.Modules``
-    work with and without ``return_log_probs``.
+    sequences of :class:`~.VIModule` and :class:`nn.Module` work with and without
+    ``return_log_probs``.
     """
 
     @overload
@@ -95,15 +94,15 @@ class VISequential(VIModule, Sequential):
 
 class VIResidualConnection(VISequential):
     """
-    A version of VISequential that supports residual connections.
+    A version of :class:`~.VISequential` that supports residual connections.
 
-    This class is identical to :func:`VISequential<torch_bayesian.vi.VISequential>`, but
-    adds the input to the output. Importantly, it manages log prob tracking, if required.
-    Note that a single module can also be wrapped to add a residual connection around it.
+    This class is identical to :class:`~.VISequential`, but adds the input to the
+    output. Importantly, it manages log prob tracking, if required. Note that a single
+    module can also be wrapped to add a residual connection around it.
 
     Raises
     ------
-    RuntimeError
+    :exc:`RuntimeError`
         If the output shape does not match the input shape during the forward pass.
     """
 

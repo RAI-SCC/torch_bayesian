@@ -60,6 +60,7 @@ autoapi_type = "python"
 autoapi_dirs = ["../../torch_bayesian/"]
 autoapi_ignore = ["*/tests/*"]  # , "*[!_].py"]
 autoapi_template_dir = "_templates/"
+autoapi_own_page_level = "class"
 
 templates_path = ["_templates"]
 # exclude_patterns = []

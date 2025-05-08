@@ -159,12 +159,11 @@ class VIConv1d(_VIConvNd):
     """
     Applies a 1D convolution over an input signal composed of several input planes.
 
-    Equivalent of ``nn.Conv1d`` with variational inference. See its
+    Equivalent of :class:`~nn.Conv1d` with variational inference. See its
     `documentation <https://pytorch.org/docs/stable/generated/torch.nn.Conv1d.html>`__
     for usage.
 
-    In addition to those arguments, this class accepts
-    :func:`VIkwargs<torch_bayesian.vi.VIkwargs>`.
+    In addition to those arguments, this class accepts :class:`~.VIkwargs`.
 
     This module's random variables are
 
@@ -282,12 +281,11 @@ class VIConv2d(_VIConvNd):
     """
     Applies a 2D convolution over an input signal composed of several input planes.
 
-    Equivalent of ``nn.Conv2d`` with variational inference. See its
+    Equivalent of :class:`~nn.Conv2d` with variational inference. See its
     `documentation <https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html>`__
     for usage.
 
-    In addition to those arguments, this class accepts
-    :func:`VIkwargs<torch_bayesian.vi.VIkwargs>`.
+    In addition to those arguments, this class accepts :class:`~.VIkwargs`.
 
     This module's random variables are
 
@@ -403,12 +401,11 @@ class VIConv3d(_VIConvNd):
     """
     Applies a 3D convolution over an input signal composed of several input planes.
 
-    Equivalent of ``nn.Conv3d`` with variational inference. See its
+    Equivalent of :class:`~nn.Conv3d` with variational inference. See its
     `documentation <https://pytorch.org/docs/stable/generated/torch.nn.Conv3d.html>`__
     for usage.
 
-    In addition to those arguments, this class accepts
-    :func:`VIkwargs<torch_bayesian.vi.VIkwargs>`.
+    In addition to those arguments, this class accepts :class:`~.VIkwargs`.
 
     This module's random variables are
 

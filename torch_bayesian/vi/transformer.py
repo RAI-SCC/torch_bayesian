@@ -19,13 +19,12 @@ class VIMultiheadAttention(VIBaseModule):
     """
     Allows the model to jointly attend to information from different representation subspaces.
 
-    Equivalent of ``nn.MultiheadAttention`` with variational inference. See its
+    Equivalent of :class:`nn.MultiheadAttention` with variational inference. See its
     `documentation <https://pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html>`__
     for usage.
 
     This does not support the ``dropout`` argument.
-    In addition to all other arguments, this class accepts
-    :func:`VIkwargs<torch_bayesian.vi.VIkwargs>`.
+    In addition to all other arguments, this class accepts :class:`~.VIkwargs`.
 
     This module's random variables are:
 
@@ -132,7 +131,7 @@ class VIMultiheadAttention(VIBaseModule):
 
         Supports optional parameters for padding, masks and attention weights. See
         `documentation <https://pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html>`__
-        of ``nn.MultiheadAttention`` for details. For technical reasons
+        of :class:`nn.MultiheadAttention` for details. For technical reasons
         ``need_weights`` is hardcoded as ``True``.
 
         This implementation also currently does not support the torch fastpath.
@@ -258,13 +257,12 @@ class VITransformerEncoderLayer(VIModule):
     """
     TransformerEncoderLayer is made up of self-attn and feedforward network.
 
-    Equivalent of ``nn.TransformerEncoderLayer`` with variational inference. See its
+    Equivalent of :class:`nn.TransformerEncoderLayer` with variational inference. See its
     `documentation <https://pytorch.org/docs/stable/generated/torch.nn.TransformerEncoderLayer.html>`__
     for usage.
 
-    This does not support the `dropout` argument.
-    In addition to all other arguments, this class accepts
-    :class:`~torch_bayesian.vi.VIkwargs`.
+    This does not support the ``dropout`` argument.
+    In addition to all other arguments, this class accepts :class:`~.VIkwargs`.
     """
 
     def __init__(
@@ -326,7 +324,7 @@ class VITransformerEncoderLayer(VIModule):
         Pass the input through the encoder layer.
 
         See `documentation <https://pytorch.org/docs/stable/generated/torch.nn.TranformerEncoderLayer.html>`__
-        of ``nn.TranformerEncoderLayer`` for details.
+        of :class:`nn.TranformerEncoderLayer` for details.
 
         This implementation also currently does not support the torch fastpath.
         """
@@ -411,13 +409,12 @@ class VITransformerDecoderLayer(VIModule):
     """
     TransformerDecoderLayer is made up of self-attn, multi-head-attn and feedforward network.
 
-    Equivalent of ``nn.TransformerDecoderLayer`` with variational inference. See its
+    Equivalent of :class:`nn.TransformerDecoderLayer` with variational inference. See its
     `documentation <https://pytorch.org/docs/stable/generated/torch.nn.TransformerDecoderLayer.html>`__
     for usage.
 
-    This does not support the `dropout` argument.
-    In addition to all other arguments, this class accepts
-    :class:`~torch_bayesian.vi.VIkwargs`.
+    This does not support the ``dropout`` argument.
+    In addition to all other arguments, this class accepts :class:`~.VIkwargs`.
     """
 
     def __init__(
@@ -496,7 +493,7 @@ class VITransformerDecoderLayer(VIModule):
         Pass the input through the decoder layer.
 
         See `documentation <https://pytorch.org/docs/stable/generated/torch.nn.TranformerDecoderLayer.html>`__
-        of ``nn.TranformerDecoderLayer`` for details.
+        of :class:`nn.TranformerDecoderLayer` for details.
 
         This implementation also currently does not support the torch fastpath.
         """
@@ -601,7 +598,7 @@ class VITransformerDecoder(VIModule):
     """
     TransformerDecoder is a stack of N decoder layers.
 
-    Equivalent of ``nn.TransformerDecoder`` with variational inference. See its
+    Equivalent of :class:`nn.TransformerDecoder` with variational inference. See its
     `documentation <https://pytorch.org/docs/stable/generated/torch.nn.TransformerDecoder.html>`__
     for usage.
     """
@@ -636,7 +633,7 @@ class VITransformerDecoder(VIModule):
         Pass the input through the decoder layers in turn.
 
         See `documentation <https://pytorch.org/docs/stable/generated/torch.nn.TranformerDecoder.html>`__
-        of ``nn.TransformerDecoder`` for details.
+        of :class:`nn.TransformerDecoder` for details.
 
         This implementation also currently does not support the torch fastpath.
         """
@@ -683,7 +680,7 @@ class VITransformerEncoder(VIModule):
     """
     TransformerEncoder is a stack of N encoder layers.
 
-    Equivalent of ``nn.TransformerEncoder`` with variational inference. See its
+    Equivalent of :class:`nn.TransformerEncoder` with variational inference. See its
     `documentation <https://pytorch.org/docs/stable/generated/torch.nn.TransformerEncoder.html>`__
     for usage.
     """
@@ -714,7 +711,7 @@ class VITransformerEncoder(VIModule):
         Pass the input through the encoder layers in turn.
 
         See `documentation <https://pytorch.org/docs/stable/generated/torch.nn.TranformerEncoder.html>`__
-        of ``nn.TransformerEncoder`` for details.
+        of :class:`nn.TransformerEncoder` for details.
 
         This implementation also currently does not support the torch fastpath.
         """
@@ -770,13 +767,12 @@ class VITransformer(VIModule):
     """
     A Bayesian Transformer model.
 
-    Equivalent of ``nn.Transformer`` with variational inference. See its
+    Equivalent of :class:`nn.Transformer` with variational inference. See its
     `documentation <https://pytorch.org/docs/stable/generated/torch.nn.Transformer.html>`__
     for usage.
 
     This does not support the ``dropout`` argument.
-    In addition to all other arguments, this class accepts
-    :class:`~torch_bayesian.vi.VIkwargs`.
+    In addition to all other arguments, this class accepts :class:`~.VIkwargs`.
     """
 
     def __init__(
@@ -879,7 +875,7 @@ class VITransformer(VIModule):
         Take in and process masked source/target sequences.
 
         See `documentation <https://pytorch.org/docs/stable/generated/torch.nn.Tranformer.html>`__
-        of ``nn.Transformer`` for details.
+        of :class:`nn.Transformer` for details.
 
         This implementation also currently does not support the torch fastpath.
         """

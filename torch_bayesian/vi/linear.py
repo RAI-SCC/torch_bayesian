@@ -14,12 +14,11 @@ class VILinear(VIBaseModule):
     """
     Applies an affine linear transformation to the incoming data: :math:`y = xA^T + b`.
 
-    Equivalent of ``nn.Linear`` with variational inference. See its
+    Equivalent of :class:`nn.Linear` with variational inference. See its
     `documentation <https://pytorch.org/docs/stable/generated/torch.nn.Linear.html>`__
     for usage.
 
-    In addition to those arguments, this class accepts
-    :func:`VIkwargs<torch_bayesian.vi.VIkwargs>`.
+    In addition to those arguments, this class accepts :class:`~.VIkwargs`.
 
     This module's random variables are
 
@@ -91,8 +90,8 @@ class VILinear(VIBaseModule):
         Returns
         -------
         output: Tensor
-            Output tensor of shape (\*, out_features).
-            Auto-sampling will add a sample dimension at the start for the overall output.
+            Output tensor of shape (\*, out_features). Auto-sampling will add a sample
+            dimension at the start for the overall output.
         log_probs: Tensor
             Tensor of shape (2,) containing the total prior and variational log
             probability (in that order) of the sampled weights and biases.

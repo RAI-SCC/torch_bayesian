@@ -11,9 +11,10 @@ class NonBayesianPredictiveDistribution(PredictiveDistribution):
     When used with :class:`~torch_bayesian.vi.KullbackLeiblerLoss` or
     :class:`~torch_bayesian.vi.AnalyticalKullbackLeiblerLoss` this distribution
     allows training with a non-Bayesian loss up to the prior term, which can be disabled
-    by setting `heat` = 0. It can reproduce MSE (L2) and MAE (L1) loss. To reproduce
-    cross-entropy loss, use :class:`~torch_bayesian.vi.CategoricalPredictiveDistribution`
-    a set `heat` = 0.
+    by setting :attr:`~torch_bayesian.vi.KullbackLeiblerLoss.heat` = 0. It can reproduce
+    MSE (L2) and MAE (L1) loss. To reproduce cross-entropy loss, use
+    :class:`~.CategoricalPredictiveDistribution` and set
+    :attr:`~torch_bayesian.vi.KullbackLeiblerLoss.heat` = 0.
 
     Parameters
     ----------
@@ -23,7 +24,7 @@ class NonBayesianPredictiveDistribution(PredictiveDistribution):
 
     Raises
     ------
-    ValueError
+    :exc:`ValueError`
         If the specified loss type is not supported.
     """
 
@@ -67,7 +68,7 @@ class NonBayesianPredictiveDistribution(PredictiveDistribution):
             The ground truth label as Tensor of the same shape as `parameters`.
         parameters: Tensor
             The predictive means as Tensor of shape as `reference` and as returned by
-            ``predictive_parameters_from_samples``.
+            :meth:`~predictive_parameters_from_samples`.
 
         Returns
         -------

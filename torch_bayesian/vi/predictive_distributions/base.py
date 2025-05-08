@@ -14,15 +14,16 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
     Each distribution must define which parameters are used to represent a prediction.
     For example, regression might use a predictive mean and standard deviation, while
     classification might use a probability for each class.
+
     Furthermore, the distribution must be able to assign a probability to each possible
     prediction given the expected prediction. This is required for loss calculation.
-    Typically, it is sufficient for subclasses to define ``log_prob_from_parameters``
-    and ``predictive_parameters_from_samples``, which the class automatically uses to
-    first calculate the predictive parameters from the provided samples and then the log
-    probability of those samples from the parameters. In case this detour does not work
-    ``log_prob_from_samples`` can be overwritten. However,
-    ``predictive_parameters_from_samples`` should still be defined to allow extracting
-    predictions.
+    Typically, it is enough for subclasses to define :meth:`~log_prob_from_parameters`
+    and :meth:`~predictive_parameters_from_samples`, which the class automatically uses
+    to first calculate the predictive parameters from the provided samples and then the
+    log likelihood of those samples from the parameters. In case this detour does not
+    work :meth:`~log_prob_from_samples` can be overwritten. However,
+    :meth:`~predictive_parameters_from_samples` should still be defined to allow
+    extracting predictions.
 
     Parameters
     ----------
@@ -32,9 +33,9 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
     Methods
     -------
     predictive_parameters_from_samples: Callable[[Tensor], Union[Tensor, Tuple[Tensor, ...]]]
-        Abstract method that accepts the output of a model as Tensor of shape (S, \*), where S is
-        the number of samples. Calculates the predictive parameters implied by the
-        samples.
+        Abstract method that accepts the output of a model as Tensor of shape (S, \*),
+        where S is the number of samples. Calculates the predictive parameters implied
+        by the samples.
 
     Parameters
     ----------
@@ -46,11 +47,11 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
     -------
         Union[Tensor, Tuple[Tensor, ...]]
             One Tensor for each predictive parameter in the order specified in
-            ``self.predictive_parameters``.
+            :attr:`~self.predictive_parameters`.
 
     log_prob_from_parameters: Callable[[Tensor, Union[Tensor, Tuple[Tensor, ...]]], Tensor]
         Abstract method that accepts a reference and the predictive parameters as
-        calculated by ``predictive_parameters_from_samples`` and calculates the log
+        calculated by :meth:`~predictive_parameters_from_samples` and calculates the log
         likelihood of the reference under the predicted distribution.
 
     Parameters
@@ -60,7 +61,7 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
             size.
         parameters: Union[Tensor, Tuple[Tensor, ...]]
             The parameters specifying the predicted distribution in the order specified
-            by ``self.predictive_parameters``.
+            in :attr:`~self.predictive_parameters`.
 
     Returns
     -------
@@ -92,8 +93,8 @@ class PredictiveDistribution(metaclass=PostInitCallMeta):
         r"""
         Calculate the log likelihood for reference given a set of samples.
 
-        Usually combines `predictive_parameters_from_samples` and `log_prob_from_parameters`,
-        but can be redefined, if needed.
+        Usually combines :meth:`~predictive_parameters_from_samples` and
+        :meth:`~log_prob_from_parameters`, but can be redefined, if needed.
 
         Parameters
         ----------

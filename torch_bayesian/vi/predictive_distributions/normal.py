@@ -63,7 +63,7 @@ class MeanFieldNormalPredictiveDistribution(PredictiveDistribution):
             `parameters`.
         parameters: Tuple[Tensor, Tensor]
             A tuple containing the predictive means and standard deviation as two
-            Tensors as returned by ``predictive_parameters_from_samples``.
+            Tensors as returned by :meth:`~predictive_parameters_from_samples`.
 
         Returns
         -------

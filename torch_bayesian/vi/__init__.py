@@ -3,7 +3,7 @@
 from .analytical_kl_loss import (
     AnalyticalKullbackLeiblerLoss,
     KullbackLeiblerModule,
-    NonBayesian,
+    NonBayesianDivergence,
     NormalNormalDivergence,
     UniformNormalDivergence,
 )
@@ -40,7 +40,7 @@ __all__ = [
     "VITransformerEncoder",
     "VITransformerEncoderLayer",
     "KullbackLeiblerModule",
-    "NonBayesian",
+    "NonBayesianDivergence",
     "NormalNormalDivergence",
     "UniformNormalDivergence",
     "VIkwargs",
