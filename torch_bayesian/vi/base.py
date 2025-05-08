@@ -351,29 +351,52 @@ class VIBaseModule(VIModule):
         self._masks: Optional[Dict[str, Tensor]] = (
             None if frozen_vars is None else dict()
         )
+        self.variable_shapes = variable_shapes
+        self.frozen_vars = frozen_vars
+        self.freeze_nr = freeze_nr
+        self.device = device
+        self.dtype = dtype
+        self.factory_kwargs = factory_kwargs
 
         for variable, vardist in zip(
             self.random_variables, self.variational_distribution
         ):
-            assert variable in variable_shapes, f"shape of {variable} is missing"
-            shape = variable_shapes[variable]
+            assert variable in self.variable_shapes, f"shape of {variable} is missing"
+            shape = self.variable_shapes[variable]
 
-            if frozen_vars is not None and variable in frozen_vars:
-                self._masks = cast(Dict[str, Tensor], self._masks)
-                mask = self._create_mask(shape, freeze_nr, device, dtype)
-                self._masks[variable] = mask
-            else:
-                mask = None
             for variational_parameter in vardist.variational_parameters:
                 parameter_name = self.variational_parameter_name(
                     variable, variational_parameter
                 )
-                param = Parameter(torch.empty(shape, **factory_kwargs))
-                if mask is not None:
-                    param.register_hook(lambda grad: self._masks[variable].to(grad.device) * grad)
+                param = Parameter(torch.empty(shape, **self.factory_kwargs))
                 setattr(self, parameter_name, param)
-
         self.reset_parameters()
+
+    def register_hooks(self, fixed_mask: Optional[Dict[str, Tensor]] = None):
+        """
+        Register hooks on parameters to freeze weights.
+        Either generate a mask or use the provided one. Returns the masks for further use.
+        """
+        masks = {}
+        for variable, vardist in zip(
+            self.random_variables, self.variational_distribution
+        ):
+            shape = self.variable_shapes[variable]
+            for variational_parameter in vardist.variational_parameters:
+                parameter_name = self.variational_parameter_name(
+                    variable, variational_parameter
+                )
+                param = getattr(self, parameter_name)
+                if self.frozen_vars is not None and variable in self.frozen_vars:
+                    if fixed_mask is None:
+                        mask = self._create_mask(shape, self.freeze_nr, self.device, self.dtype)
+                    else:
+                        mask = fixed_mask[parameter_name]
+
+                    param.register_hook(lambda grad, mask=mask: mask.to(grad.device) * grad)
+                    masks[parameter_name] = mask
+                    setattr(self, parameter_name, param)
+        return masks
 
     def reset_parameters(self) -> None:
         """Reset or initialize the parameters of the Module."""
