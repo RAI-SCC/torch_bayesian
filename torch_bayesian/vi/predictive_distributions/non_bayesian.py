@@ -62,6 +62,8 @@ class NonBayesianPredictiveDistribution(PredictiveDistribution):
         """
         Calculate the loss of the mean prediction with respect to reference.
 
+        This is not affected by :data:`_globals._USE_NORM_CONSTANTS`.
+
         Parameters
         ----------
         reference: Tensor

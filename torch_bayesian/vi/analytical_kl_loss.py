@@ -86,6 +86,8 @@ class NormalNormalDivergence(KullbackLeiblerModule):
 
         All input tensors must have the same shape.
 
+        This is not affected by :data:`_globals._USE_NORM_CONSTANTS`.
+
         Parameters
         ----------
         prior_mean: Union[Tensor, float]
@@ -134,6 +136,8 @@ class NonBayesianDivergence(KullbackLeiblerModule):
 
         At least one argument of type Tensor is expected, since the device of the last
         one is used to define the device of the output Tensor.
+
+        This is not affected by :data:`_globals._USE_NORM_CONSTANTS`.
         """
         return torch.tensor([0.0], device=args[-1].device)
 
@@ -152,6 +156,9 @@ class UniformNormalDivergence(KullbackLeiblerModule):
         Calculate the Kullback-Leibler divergence.
 
         All input tensors must have the same shape.
+
+        This calculation is affected by :data:`_globals._USE_NORM_CONSTANTS`, which can
+        be set with :func:`~torch_bayesian.vi.utils.use_norm_constants`.
 
         Parameters
         ----------

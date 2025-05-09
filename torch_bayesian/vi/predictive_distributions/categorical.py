@@ -72,6 +72,8 @@ class CategoricalPredictiveDistribution(PredictiveDistribution):
         """
         Calculate the log likelihood of the label based on the class probabilities.
 
+        This is not affected by :data:`_globals._USE_NORM_CONSTANTS`.
+
         Parameters
         ----------
         reference: Tensor
