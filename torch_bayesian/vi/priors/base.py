@@ -20,8 +20,8 @@ class Prior(metaclass=PostInitCallMeta):
     an important role. Mathematically, this prior pull can take the same role as weight
     decay.
 
-    Each prior must define the :attr:`~self.distribution_parameters` that define it as
-    well as the way to calculate the log probability of a weight configuration in the
+    Each prior must name the :attr:`~self.distribution_parameters` that define it as
+    well as the way to calculate the log likelihood of a weight configuration in the
     :meth:`~self.log_prob` method.
 
     Generally, each name in :attr:`~self.distribution_parameters` should also be an
