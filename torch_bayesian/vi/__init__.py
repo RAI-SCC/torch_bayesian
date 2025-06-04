@@ -1,6 +1,12 @@
 """This module provides basic layers and loss functions for BNN-training with Variational Inference."""
 
-from .analytical_kl_loss import AnalyticalKullbackLeiblerLoss, KullbackLeiblerModule
+from .analytical_kl_loss import (
+    AnalyticalKullbackLeiblerLoss,
+    KullbackLeiblerModule,
+    NonBayesianDivergence,
+    NormalNormalDivergence,
+    UniformNormalDivergence,
+)
 from .base import VIBaseModule, VIModule
 from .conv import VIConv1d, VIConv2d, VIConv3d
 from .kl_loss import KullbackLeiblerLoss
@@ -14,11 +20,11 @@ from .transformer import (
     VITransformerEncoder,
     VITransformerEncoderLayer,
 )
+from .utils.common_types import VIkwargs
 
 __all__ = [
     "AnalyticalKullbackLeiblerLoss",
     "KullbackLeiblerLoss",
-    "KullbackLeiblerModule",
     "VIBaseModule",
     "VIConv1d",
     "VIConv2d",
@@ -33,4 +39,9 @@ __all__ = [
     "VITransformerDecoderLayer",
     "VITransformerEncoder",
     "VITransformerEncoderLayer",
+    "KullbackLeiblerModule",
+    "NonBayesianDivergence",
+    "NormalNormalDivergence",
+    "UniformNormalDivergence",
+    "VIkwargs",
 ]
