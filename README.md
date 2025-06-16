@@ -52,7 +52,20 @@ $ pip install -e .[scripts]
 
 ## Documentation
 
-Documentation is not yet hosted online, but is included in the repository. Just open `docs/source/index.rst` in any browser.
+Documentation is not yet hosted online, but can easily be build locally with sphinx.
+Run
+
+```console
+$ pip install -e .[docs]
+```
+
+Then navigate to ``torch_bayesian/docs/`` and run:
+
+```console
+sphinx-build -T -E -b html ./source ./build
+```
+
+You can then open ``torch_bayesian/docs/build/index.html`` to start browsing.
 
 
 ## Quickstart
