@@ -62,7 +62,7 @@ $ pip install -e .[docs]
 Then navigate to ``torch_bayesian/docs/`` and run:
 
 ```console
-sphinx-build -T -E -b html ./source ./build
+$ sphinx-build -T -E -b html ./source ./build
 ```
 
 You can then open ``torch_bayesian/docs/build/index.html`` to start browsing.
