@@ -1,5 +1,6 @@
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union, cast
+import warnings
 
 import torch
 from torch import Tensor
@@ -568,6 +569,10 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         else:
             loop = checked_dict = variable_shapes  # type:ignore[assignment]
 
+        if len(loop) == 0:
+            raise NoVariablesError("All module variables are set to None.")
+
+
         for var in cast(Tuple[str, ...], loop):
             if checked_dict[var] is None:
                 continue
@@ -580,7 +585,13 @@ class VIModule(Module, metaclass=PostInitCallMeta):
                 shape_dummy = getattr(self, weight_name)
             else:
                 shape_dummy = torch.zeros(variable_shapes[var])
+
+            if shape_dummy.dim() < 2:
+                continue
+
             fan_in, _ = init._calculate_fan_in_and_fan_out(shape_dummy)
             return fan_in
+        else:
+            warnings.warn("only one-dimensional Parameters where found, assuming fan_in to be 1")
+            return 1
 
-        raise NoVariablesError("All module variables are set to None.")
