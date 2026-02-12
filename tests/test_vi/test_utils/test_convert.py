@@ -10,6 +10,15 @@ from torch_blue.vi.distributions import MeanFieldNormal, NonBayesian, StudentT
 from torch_blue.vi.utils import convert
 
 
+class BiasOnlyModule(nn.Module):
+    def __init__(self, dim: int) -> None:
+        super().__init__()
+
+        self.bias = nn.Parameter(torch.zeros(dim))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x + self.bias
+
 @pytest.mark.parametrize(
     "module,n_args",
     [
@@ -17,6 +26,7 @@ from torch_blue.vi.utils import convert
         (nn.Linear(5, 6, bias=False), 1),
         (nn.MultiheadAttention(5, 1), 3),
         (nn.Transformer(5, 1, 1, 1, 5), 2),
+        (BiasOnlyModule(5), 1)
     ],
 )
 def test_convert_to_vimodule(module: nn.Module, n_args: int) -> None:
