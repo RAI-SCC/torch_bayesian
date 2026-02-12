@@ -19,17 +19,48 @@ class BiasOnlyModule(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x + self.bias
 
+
+class NestedModule(nn.Module):
+    def __init__(self, dim: int) -> None:
+        super().__init__()
+
+        self.sequence = nn.Sequential(
+            BiasOnlyModule(dim),
+            nn.Linear(dim, dim),
+            nn.Sequential(
+                nn.Linear(dim, dim),
+                nn.Linear(dim, dim)
+            )
+        )
+
+        self.modulelist = nn.ModuleList([
+            BiasOnlyModule(dim),
+            nn.Sequential(
+                nn.Linear(dim, dim),
+                nn.Linear(dim, dim)
+            )
+        ])
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.sequence(x)
+        for module in self.modulelist:
+            x = x + module(x)
+
+        return x
+
+
 @pytest.mark.parametrize(
-    "module,n_args",
+    "module,n_args,custom_module",
     [
-        (nn.Linear(5, 6, bias=True), 1),
-        (nn.Linear(5, 6, bias=False), 1),
-        (nn.MultiheadAttention(5, 1), 3),
-        (nn.Transformer(5, 1, 1, 1, 5), 2),
-        (BiasOnlyModule(5), 1)
+        (nn.Linear(5, 6, bias=True), 1, False),
+        (nn.Linear(5, 6, bias=False), 1, False),
+        (nn.MultiheadAttention(5, 1), 3, False),
+        (nn.Transformer(5, 1, 1, 1, 5), 2, False),
+        (BiasOnlyModule(5), 1, True),
+        (NestedModule(5), 1, True),
     ],
 )
-def test_convert_to_vimodule(module: nn.Module, n_args: int) -> None:
+def test_convert_to_vimodule(module: nn.Module, n_args: int, custom_module: bool) -> None:
     """Test autoconversion to vi module."""
     sample = []
     for _ in range(n_args):
@@ -37,19 +68,29 @@ def test_convert_to_vimodule(module: nn.Module, n_args: int) -> None:
 
     module1 = deepcopy(module)
     convert_to_vimodule(module1)
-    ref_class = getattr(torch_blue.vi, "VI" + module.__class__.__name__)
-    assert ref_class == type(module1)
+    if custom_module:
+        ref_class = getattr(torch_blue.vi.utils.convert, "AVI" + module.__class__.__name__)
+        assert ref_class == module1.__class__
+    else:
+        ref_class = getattr(torch_blue.vi, "VI" + module.__class__.__name__)
+        assert ref_class == type(module1)
+
     module1(*sample)
 
     # Test no log prob mode
     module1.return_log_probs = False
     module1(*sample)
 
-    convert.ban_convert(module.__class__, ban_mode="replace")
-    module2 = deepcopy(module)
-    convert_to_vimodule(module2)
-    assert ref_class != type(module2)
-    module2(*sample)
+    if custom_module:
+        module2 = deepcopy(module)
+        convert_to_vimodule(module2)
+        module2(*sample)
+    else:
+        convert.ban_convert(module.__class__, ban_mode="replace")
+        module2 = deepcopy(module)
+        convert_to_vimodule(module2)
+        assert ref_class != type(module2)
+        module2(*sample)
 
     module3 = deepcopy(module)
     convert_to_vimodule(module3)
@@ -136,6 +177,36 @@ def test_ban_convert(ban_norms: bool) -> None:
     convert.ban_convert(module_list, unban=True)
     for module in module_list:
         assert module not in convert._blacklist
+
+
+def test_ban_submodule():
+    """Test adding and removing modules from submodule blacklist."""
+    module = NestedModule(5)
+    sample = torch.randn(2, 3, 5)
+
+    module1 = deepcopy(module)
+    convert_to_vimodule(module1)
+    module1(sample)
+
+    module2 = deepcopy(module)
+    convert.ban_convert(module.__class__, ban_mode="ban")
+    convert_to_vimodule(module2)
+    module2(sample)
+    assert module1.sequence.__class__ == module2.sequence.__class__
+
+    module3 = deepcopy(module)
+    convert.ban_convert(module.__class__, ban_mode="submodule")
+    convert_to_vimodule(module3)
+    module3(sample)
+    assert module1.sequence.__class__ != module3.sequence.__class__
+    assert module.sequence.__class__ == module3.sequence.__class__
+
+    module4 = deepcopy(module)
+    convert.ban_convert(module.__class__, ban_mode="ban", unban=True)
+    convert.ban_convert(module.__class__, ban_mode="submodule", unban=True)
+    convert_to_vimodule(module4)
+    assert module1.sequence.__class__ == module4.sequence.__class__
+    assert module1.__class__ == module4.__class__
 
 
 @pytest.mark.parametrize("mode", ["replace", "reuse"])
