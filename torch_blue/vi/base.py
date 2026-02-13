@@ -569,13 +569,13 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         else:
             loop = checked_dict = variable_shapes  # type:ignore[assignment]
 
-        if len(loop) == 0:
-            raise NoVariablesError("All module variables are set to None.")
-
+        all_none = True
 
         for var in cast(Tuple[str, ...], loop):
             if checked_dict[var] is None:
                 continue
+
+            all_none = False
 
             if variable_shapes is None:
                 weight_name = self.variational_parameter_name(
@@ -592,6 +592,9 @@ class VIModule(Module, metaclass=PostInitCallMeta):
             fan_in, _ = init._calculate_fan_in_and_fan_out(shape_dummy)
             return fan_in
         else:
-            warnings.warn("only one-dimensional Parameters where found, assuming fan_in to be 1")
-            return 1
+            if all_none:
+                raise NoVariablesError("All module variables are set to None.")
+            else:
+                warnings.warn("only one-dimensional Parameters where found, assuming fan_in to be 1")
+                return 1
 
