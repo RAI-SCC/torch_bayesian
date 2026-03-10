@@ -153,11 +153,12 @@ def test_keep_weights(module: nn.Module, n_args: int) -> None:
         sample.append(torch.randn(2, 3, 5))
 
     ref = module(*sample)
+    module1 = deepcopy(module)
     convert_to_vimodule(
-        module, variational_distribution=NonBayesian(), keep_weights=True
+        module1, variational_distribution=NonBayesian(), keep_weights=True
     )
 
-    out = module(*sample)
+    out = module1(*sample)
     if isinstance(ref, tuple):
         assert torch.allclose(ref[0], out[0])
         assert torch.allclose(ref[1], out[1])
