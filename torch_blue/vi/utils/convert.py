@@ -229,7 +229,7 @@ def _convert_module(
     return_log_probs: bool = True,
     keep_weights: bool = False,
 ) -> None:
-    if module.__class__ in _blacklist:
+    if module.__class__ in _blacklist or isinstance(module, VIModule):
         return
 
     vikwargs: VIkwargs = dict(
