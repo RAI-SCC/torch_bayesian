@@ -1,5 +1,6 @@
+import warnings
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union, cast
 
 import torch
 from torch import Tensor
@@ -101,7 +102,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
     Parameters
     ----------
-    variable_shapes: Optional[Dict[str, Optional[Tuple[int, ...]]]], default = None
+    variable_shapes: Optional[Mapping[str, Optional[Tuple[int, ...]]]], default = None
         Shape specifications for all random variables. Keys are turned into
         :attr:`self.random_variables` in insertion order.
     VIkwargs
@@ -125,7 +126,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
     def __init__(
         self,
-        variable_shapes: Optional[Dict[str, Optional[Tuple[int, ...]]]] = None,
+        variable_shapes: Optional[Mapping[str, Optional[Tuple[int, ...]]]] = None,
         variational_distribution: _dist_any_t = MeanFieldNormal(),
         prior: _dist_any_t = MeanFieldNormal(),
         rescale_prior: bool = False,
@@ -215,7 +216,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         return tuple(self.variational_distribution.keys())
 
     def _rescale_prior(
-        self, variable_shapes: Dict[str, Optional[Tuple[int, ...]]]
+        self, variable_shapes: Mapping[str, Optional[Tuple[int, ...]]]
     ) -> None:
         """
         Rescale the prior parameters based on the layer width.
@@ -224,7 +225,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
         Parameters
         ----------
-        variable_shapes: Dict[str, Optional[Tuple[int, ...]]]
+        variable_shapes: Mapping[str, Optional[Tuple[int, ...]]]
             The dictionary of random variable names and shapes as passed to __init__.
 
         Returns
@@ -295,14 +296,16 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         Raises
         ------
         NoVariablesError
-            If the module does not have parameters of its own.
+            If the module does not have parameters of its own or the requested variable
+            is None.
         """
         if self.random_variables is None:
             raise NoVariablesError(
                 f"{self.__class__.__name__} has no variational parameters to get"
             )
-
         vardist = self.variational_distribution[variable]
+        if vardist is None:
+            raise NoVariablesError(f"{variable} is None and has no parameters to get")
         return [
             getattr(self, self.variational_parameter_name(variable, param))
             for param in vardist.distribution_parameters
@@ -428,6 +431,9 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         Union[VIReturn, Tuple[VIReturn, ...]]
             One or multiple Tensors with log prob annotation
         """
+        # reset log_probs in case users (or IDEs) have touched attributes
+        self.reset_log_probs()
+
         expanded = [self._expand_to_samples(x, samples=samples) for x in input_]
         out: _tensor_list_t = torch.vmap(self._module_forward, randomness="different")(
             *expanded, **kwargs
@@ -444,6 +450,14 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         for t in out:
             VIReturn.from_tensor(t, log_probs)
         return out
+
+    def reset_log_probs(self) -> None:
+        """Reset all tracked log probabilities."""
+        for module in self.modules():
+            if not hasattr(module, "_log_probs"):
+                continue
+            for var, lps in module._log_probs.items():
+                module._log_probs[var] = []
 
     def gather_log_probs(self) -> Tensor:
         """
@@ -547,7 +561,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         return super().__getattr__(name)
 
     def _calculate_fan_in(
-        self, variable_shapes: Optional[Dict[str, Optional[Tuple[int, ...]]]] = None
+        self, variable_shapes: Optional[Mapping[str, Optional[Tuple[int, ...]]]] = None
     ) -> int:
         if variable_shapes is None:
             loop = self.random_variables
@@ -555,10 +569,12 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         else:
             loop = checked_dict = variable_shapes  # type:ignore[assignment]
 
+        all_none = True
         for var in cast(Tuple[str, ...], loop):
             if checked_dict[var] is None:
                 continue
 
+            all_none = False
             if variable_shapes is None:
                 weight_name = self.variational_parameter_name(
                     var,
@@ -567,7 +583,17 @@ class VIModule(Module, metaclass=PostInitCallMeta):
                 shape_dummy = getattr(self, weight_name)
             else:
                 shape_dummy = torch.zeros(variable_shapes[var])
+
+            if shape_dummy.dim() < 2:
+                continue
+
             fan_in, _ = init._calculate_fan_in_and_fan_out(shape_dummy)
             return fan_in
 
-        raise NoVariablesError("All module variables are set to None.")
+        if all_none:
+            raise NoVariablesError("All module variables are set to None.")
+        else:
+            warnings.warn(
+                "only one-dimensional Parameters where found, assuming fan_in to be 1"
+            )
+            return 1
