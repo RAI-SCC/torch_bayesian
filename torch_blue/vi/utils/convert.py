@@ -16,10 +16,10 @@ __all__ = [
     "ban_convert",
 ]
 
-# Modules in the blacklist will not be converted. The default set contains modules that
+# Modules in the banlist will not be converted. The default set contains modules that
 # do not have Parameters and therefore would not change when converted. Additionally,
 # norms are assumed to be not converted by default.
-_blacklist = {
+_banlist = {
     nn.Identity,
     # activations
     nn.Threshold,
@@ -131,10 +131,10 @@ _torch_norms = {
     nn.GroupNorm,
     nn.RMSNorm,
 }
-_blacklist |= _torch_norms
-_replace_blacklist: Set[nn.Module] = set()
-_reuse_blacklist: Set[nn.Module] = set()
-_submodule_blacklist: Set[nn.Module] = set()
+_banlist |= _torch_norms
+_replace_banlist: Set[nn.Module] = set()
+_reuse_banlist: Set[nn.Module] = set()
+_submodule_banlist: Set[nn.Module] = set()
 
 
 def convert_norms(mode: bool = True) -> None:
@@ -156,11 +156,11 @@ def convert_norms(mode: bool = True) -> None:
     None
 
     """
-    global _blacklist
+    global _banlist
     if mode:
-        _blacklist.difference_update(_torch_norms)
+        _banlist.difference_update(_torch_norms)
     else:
-        _blacklist.update(_torch_norms)
+        _banlist.update(_torch_norms)
 
 
 def ban_convert(
@@ -171,19 +171,19 @@ def ban_convert(
     """
     Ban given class or list of classes from conversions.
 
-    This method adds one or more class names to one of the conversion blacklists. There
+    This method adds one or more class names to one of the conversion banlists. There
     are several different ban modes as defined by the `ban_mode` argument.
 
-    The default blacklist contains a variety to PyTorch modules that do not have
+    The default banlist contains a variety to PyTorch modules that do not have
     parameters and therefore would not change during conversion. Additionally, by
     default PyTorch normalization layers are not converted, since their purpose is only
     stability not learning. If you wish to change this behavior use
-    :func:`~convert_norms` to add or remove all PyTorch norms from the blacklist.
+    :func:`~convert_norms` to add or remove all PyTorch norms from the banlist.
 
     Parameters
     ----------
     class_names: Union[nn.Module, List[nn.Module]]
-        A module class or a list of module classes to add to a blacklist.
+        A module class or a list of module classes to add to a banlist.
     ban_mode: str, default="ban"
         "ban": The module is not changed by auto-conversion, but submodules are still
         converted.
@@ -196,17 +196,17 @@ def ban_convert(
         If `True` this will unban the provided classes instead.
     """
     if ban_mode == "ban":
-        global _blacklist
-        blacklist = _blacklist
+        global _banlist
+        banlist = _banlist
     elif ban_mode == "reuse":
-        global _reuse_blacklist
-        blacklist = _reuse_blacklist
+        global _reuse_banlist
+        banlist = _reuse_banlist
     elif ban_mode == "replace":
-        global _replace_blacklist
-        blacklist = _replace_blacklist
+        global _replace_banlist
+        banlist = _replace_banlist
     elif ban_mode == "submodule":
-        global _submodule_blacklist
-        blacklist = _submodule_blacklist
+        global _submodule_banlist
+        banlist = _submodule_banlist
     else:
         raise ValueError(f"Unknown ban mode: {ban_mode}")
 
@@ -214,9 +214,9 @@ def ban_convert(
         class_names = [class_names]
 
     if unban:
-        blacklist.difference_update(class_names)
+        banlist.difference_update(class_names)
     else:
-        blacklist.update(class_names)
+        banlist.update(class_names)
 
 
 def _convert_module(
@@ -229,7 +229,7 @@ def _convert_module(
     return_log_probs: bool = True,
     keep_weights: bool = False,
 ) -> None:
-    if module.__class__ in _blacklist or isinstance(module, VIModule):
+    if module.__class__ in _banlist or isinstance(module, VIModule):
         return
 
     vikwargs: VIkwargs = dict(
@@ -244,9 +244,9 @@ def _convert_module(
     )
     module_class = module.__class__
     class_name = module_class.__name__
-    if (module_class not in _replace_blacklist) and hasattr(vi, "VI" + class_name):
+    if (module_class not in _replace_banlist) and hasattr(vi, "VI" + class_name):
         new_class = getattr(vi, "VI" + class_name)
-    elif (module_class not in _reuse_blacklist) and "AVI" + class_name in globals():
+    elif (module_class not in _reuse_banlist) and "AVI" + class_name in globals():
         new_class = globals()["AVI" + class_name]
     else:
         new_class_name = "AVI" + class_name
@@ -344,7 +344,7 @@ def convert_to_vimodule(
     Standard PyTorch layers will automatically be converted to the optimized
     implementation of this library. Therefore, you should try to use class names that
     already exist in PyTorch (like "Transformer"). If you cannot do this, you can use
-    :meth:`~.ban_torch_convert` to add classes to a blacklist (or later remove them from
+    :meth:`~.ban_torch_convert` to add classes to a banlist (or later remove them from
     it) that will make them be converted normally.
 
     Advanced note: Auto-conversion will ignore many standard modules from PyTorch since
@@ -398,8 +398,8 @@ def convert_to_vimodule(
     )
     # for m in module.modules():
     #    _convert_module(m, **vikwargs, keep_weights=keep_weights)
-    global _submodule_blacklist
-    if module.__class__ in _submodule_blacklist:
+    global _submodule_banlist
+    if module.__class__ in _submodule_banlist:
         return
 
     for m in module.children():

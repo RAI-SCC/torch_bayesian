@@ -167,46 +167,46 @@ def test_keep_weights(module: nn.Module, n_args: int) -> None:
 
 
 @pytest.mark.parametrize("ban_norms", [True, False])
-def test_blacklist(ban_norms: bool) -> None:
-    """Test basic blacklist and norm setting."""
-    assert torch.nn.ReLU in convert._blacklist
+def test_banlist(ban_norms: bool) -> None:
+    """Test basic banlist and norm setting."""
+    assert torch.nn.ReLU in convert._banlist
     assert torch.nn.LayerNorm in convert._torch_norms
 
     convert.convert_norms(not ban_norms)
     if ban_norms:
-        assert convert._blacklist & convert._torch_norms == convert._torch_norms
+        assert convert._banlist & convert._torch_norms == convert._torch_norms
     else:
-        assert convert._blacklist & convert._torch_norms == set()
+        assert convert._banlist & convert._torch_norms == set()
 
     convert.convert_norms(True)
-    assert convert._blacklist & convert._torch_norms == set()
+    assert convert._banlist & convert._torch_norms == set()
 
 
 @pytest.mark.parametrize("ban_norms", [True, False])
 def test_ban_convert(ban_norms: bool) -> None:
-    """Test adding and removing modules from blacklist."""
+    """Test adding and removing modules from banlist."""
     convert.convert_norms(not ban_norms)
 
     module = torch.nn.Linear
-    assert module not in convert._blacklist
+    assert module not in convert._banlist
     convert.ban_convert(module)
-    assert module in convert._blacklist
+    assert module in convert._banlist
     convert.ban_convert(module, unban=True)
-    assert module not in convert._blacklist
+    assert module not in convert._banlist
 
     module_list = [nn.Conv1d, nn.Conv2d, nn.Conv3d]
     for module in module_list:
-        assert module not in convert._blacklist
+        assert module not in convert._banlist
     convert.ban_convert(module_list)
     for module in module_list:
-        assert module in convert._blacklist
+        assert module in convert._banlist
     convert.ban_convert(module_list, unban=True)
     for module in module_list:
-        assert module not in convert._blacklist
+        assert module not in convert._banlist
 
 
 def test_ban_submodule() -> None:
-    """Test adding and removing modules from submodule blacklist."""
+    """Test adding and removing modules from submodule banlist."""
     module = NestedModule(5)
     sample = torch.randn(2, 3, 5)
 
@@ -244,9 +244,9 @@ def test_ban_submodule() -> None:
 def test_reuse_bans(mode: str) -> None:
     """Test adding and removing modules from reuse lists."""
     if mode == "replace":
-        lst = convert._replace_blacklist
+        lst = convert._replace_banlist
     elif mode == "reuse":
-        lst = convert._reuse_blacklist
+        lst = convert._reuse_banlist
 
     module = nn.Linear
     assert module not in lst
