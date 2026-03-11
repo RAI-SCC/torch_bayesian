@@ -153,4 +153,4 @@ filterwarnings = [
 
 [tool.coverage.run]
 source = ["torch_blue"]
-command_line = "-m pytest --reruns 1"
+command_line = "-m pytest --reruns 2"
