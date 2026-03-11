@@ -352,13 +352,28 @@ def convert_to_vimodule(
     (this mostly applies to norm layers).
 
     While not recommended you can use :meth:`~.convert_norms` to enable or disable
-    conversion of all PyTorch norms. Furthermore, you can add (or remove) any class to
-    the conversion ban list with :meth:`~.ban_convert`.
+    conversion of all PyTorch norms.
 
-    Finally, auto-conversion will try to reuse auto-converted classes. This means if
-    you implemented a custom layer type and used it multiple times all instances will
-    still be instances of the same (converted) class. To disable this behavior you can
-    add (or remove) the original class the reuse ban list with :meth:`~.ban_reuse`.
+    Furthermore, you can add (or remove) any class to the conversion ban list with
+    :meth:`~.ban_convert`. By default, it will add the class to the global banlist so
+    all instances of this class are left non-Bayesian. There are several more specific
+    behaviors that can be disabled for specific classes with this method using the
+    keyword argument `ban_mode`. Note, that it only affects the specific class not any
+    subclasses, so if you wish to stop conversion of only one specific layer you can
+    implement it as a subclass with different name but all methods unchanged.
+
+    Auto-conversion will try to reuse auto-converted classes. This means if you
+    implemented a custom layer type and used it multiple times all instances will still
+    be instances of the same (converted) class. To disable this behavior you can use the
+    keyword argument `ban_mode=reuse`.
+
+    If there is a `torch_blue` implementation of a PyTorch layer auto-convert will use
+    that instead of an automatically created class. Note, that this will cause problems
+    if you name custom classes the same as PyTorch classes. To disable this behavior you
+    can ban the replacement of the custom class with `ban_mode=replace`.
+
+    Finally, you can stop conversion of a module and all of its submodules with
+    `ban_mode=submodule`.
 
     Parameters
     ----------
