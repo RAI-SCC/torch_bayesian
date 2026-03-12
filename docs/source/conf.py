@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.abspath("../../torch_blue"))
 project = "torch_blue"
 copyright = "2026, RAI-SCC"
 author = "RAI-SCC"
-release = "0.9.2"
+release = "1.0.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
