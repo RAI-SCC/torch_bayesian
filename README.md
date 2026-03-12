@@ -2,7 +2,7 @@
 ![torch blue Logo](docs/images/logo-torch-blue-wide-darkmode.svg#gh-dark-mode-only)
 ### A PyTorch-like library for Bayesian learning and uncertainty estimation
 
-[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: BSD-3](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![PyPI](https://img.shields.io/pypi/v/torch-blue)](https://pypi.org/project/torch-blue/)
 [![codecov](https://codecov.io/gh/RAI-SCC/torch_blue/graph/badge.svg?token=0CD3FTVKRC)](https://codecov.io/gh/RAI-SCC/torch_blue)
@@ -27,7 +27,7 @@ most components mirror components from [PyTorch](https://pytorch.org/docs/stable
 
 ## Installation
 
-We heavily recommend installing `torch_blue` in a dedicated `Python3.9+`
+We heavily recommend installing `torch_blue` in a dedicated `Python3.10+`
 [virtual environment](https://docs.python.org/3/library/venv.html). You can install
 `torch_blue` from PyPI:
 

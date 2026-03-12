@@ -7,6 +7,8 @@
 import os
 import sys
 
+from torch_blue import __version__
+
 sys.path.insert(0, os.path.abspath("../../torch_blue"))
 
 
@@ -16,7 +18,7 @@ sys.path.insert(0, os.path.abspath("../../torch_blue"))
 project = "torch_blue"
 copyright = "2026, RAI-SCC"
 author = "RAI-SCC"
-release = "1.0.0"
+release = __version__
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
