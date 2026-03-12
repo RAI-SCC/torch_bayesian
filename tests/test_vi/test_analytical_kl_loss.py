@@ -652,7 +652,10 @@ def test_init(
                 f" {var_dist.__class__.__name__}.",
             ),
             (ValueError, "Provided model is not bayesian."),
-            (UnsupportedDistributionError, "UniformPrior does not support use as predictive distribution"),
+            (
+                UnsupportedDistributionError,
+                "UniformPrior does not support use as predictive distribution",
+            ),
         ]
         error, message = error_list[expected_error]
         with pytest.raises(error, match=message):

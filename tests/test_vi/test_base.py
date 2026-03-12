@@ -503,7 +503,6 @@ class TestVIModuleGeneral:
         ):
             module1.sample_variable("foo")
 
-
     def test_forward_rerouting(self, device: torch.device) -> None:
         """Test method pointer reshuffling that wraps the forward method."""
 
