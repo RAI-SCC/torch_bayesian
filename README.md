@@ -76,7 +76,7 @@ example see `scripts/mnist_tutorial` (as jupyter notebook with comments, or pure
 script), which contains a copy of the PyTorch [Quickstart tutorial](https://pytorch.org/tutorials/beginner/basics/quickstart_tutorial.html) modified to
 train a BNN with variational inference.
 
-Three levels are introduced in this guide:
+Five levels are introduced in this guide:
 - [Level 1](#level-1): PyTorch-Module auto-conversion
 - [Level 2](#level-2): Simple sequential layer stacks
 - [Level 3](#level-3): Customizing Bayesian assumptions and VI kwargs
