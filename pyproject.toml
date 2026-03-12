@@ -18,7 +18,8 @@ authors = [
     {name="RAI", email="rai@kit.edu"},
 ]
 maintainers = [
-    {name="Arvid Weyrauch", email="arvid.weyrauch@kit.edu"}
+    {name="Arvid Weyrauch", email="arvid.weyrauch@kit.edu"},
+    {name="Lars Heyen", email="lars.heyen@kit.edu"},
 ]
 description = "Library for BNNs"
 readme = "README.md"
@@ -115,8 +116,8 @@ exclude = [
 line-length = 88
 indent-width = 4
 
-# Assume Python 3.8.
-target-version = "py39"
+# Assume Python 3.10.
+target-version = "py310"
 
 [tool.ruff.lint]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
