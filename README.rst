@@ -258,21 +258,23 @@ and transform the object back into a ``Tensor``. This needs to be considered whe
 performing further operations on the model output. The simplest way to avoid issues is
 to wrap all operations - except the loss - in a ``VIModule`` since log prob aggregation
 is only performed by the outermost module. For deployment ``return_log_probs`` should be
-set to ``False``. If multiple ``Tensor``s are returned by the model, each will carry all
+set to ``False``. If multiple ``Tensor`` s are returned by the model, each will carry all
 log probs.
 
-.. note:: Always make sure your outermost module is a VIModule and keep in mind that the
+.. note::
+   Always make sure your outermost module is a ``VIModule`` and keep in mind that the
    output of that module will be a ``VIReturn`` object, which behaves like a ``Tensor``,
    but carries weight log probabilities, if ``return_log_probs == True``. Losses in
    ``torch_blue`` expect this format.
 
-.. note:: Due to Autosampling all output Tensors, i.e. each ``VIReturn`` in the model
+.. note::
+   Due to auto-sampling all output Tensors, i.e., each ``VIReturn`` in the model
    output and the ``Tensor`` containing the log probs has an additional dimension at the
    beginning representing the multiple samples necessary to properly evaluate the
-   stochastic forward pass. This is only relevant for VIModules that are not contained
-   within other VIModules. Loss functions are designed to expect and handle this output
-   format, i.e., you can simply feed the model output into the loss and everything will
-   work.
+   stochastic forward pass. This is only relevant for ``VIModule`` s that are not
+   contained within other ``VIModule`` s. Loss functions are designed to expect and
+   handle this output format, i.e., you can simply feed the model output into the loss
+   and everything will work.
 
 
 .. _Level 5:
@@ -286,7 +288,7 @@ different number of weight matrices needs to be created based on the variational
 distribution, the process is completely automated. For ``VIModules`` without weights
 ``super().__init__`` is called without arguments. Modules with random variables expect
 ``VIkwargs`` (which you should be familiar with from `Level 3`_), but defaults are
-used if non are passed. More importantly, ``VIModules`` with weights call
+used if non are passed. More importantly, ``VIModule`` s with weights call
 ``super().__init__`` with the argument ``variable_shapes``. The keys of this dictionary
 are the names of the random variables and the values the shapes of the weight matrices
 as tuple or list. The value may also be set to ``None``, which will then always be the
