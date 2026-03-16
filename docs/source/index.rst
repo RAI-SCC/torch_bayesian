@@ -8,7 +8,7 @@ A PyTorch-based library for Bayesian learning and uncertainty estimation
 
 .. |pypi-version| image:: https://img.shields.io/pypi/v/torch-blue
    :target: https://pypi.org/project/torch-blue/
-.. |python-version| image:: https://img.shields.io/badge/Python-3.9+-blue.svg
+.. |python-version| image:: https://img.shields.io/badge/Python-3.10+-blue.svg
    :target: https://www.python.org/downloads/
 .. |license| image:: https://img.shields.io/badge/License-BSD_3--Clause-blue.svg
    :target: https://opensource.org/licenses/BSD-3-Clause

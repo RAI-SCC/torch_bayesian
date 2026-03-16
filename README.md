@@ -2,7 +2,7 @@
 ![torch blue Logo](docs/images/logo-torch-blue-wide-darkmode.svg#gh-dark-mode-only)
 ### A PyTorch-like library for Bayesian learning and uncertainty estimation
 
-[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: BSD-3](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![PyPI](https://img.shields.io/pypi/v/torch-blue)](https://pypi.org/project/torch-blue/)
 [![codecov](https://codecov.io/gh/RAI-SCC/torch_blue/graph/badge.svg?token=0CD3FTVKRC)](https://codecov.io/gh/RAI-SCC/torch_blue)
@@ -27,7 +27,7 @@ most components mirror components from [PyTorch](https://pytorch.org/docs/stable
 
 ## Installation
 
-We heavily recommend installing `torch_blue` in a dedicated `Python3.9+`
+We heavily recommend installing `torch_blue` in a dedicated `Python3.10+`
 [virtual environment](https://docs.python.org/3/library/venv.html). You can install
 `torch_blue` from PyPI:
 
@@ -76,7 +76,7 @@ example see `scripts/mnist_tutorial` (as jupyter notebook with comments, or pure
 script), which contains a copy of the PyTorch [Quickstart tutorial](https://pytorch.org/tutorials/beginner/basics/quickstart_tutorial.html) modified to
 train a BNN with variational inference.
 
-Three levels are introduced in this guide:
+Five levels are introduced in this guide:
 - [Level 1](#level-1): PyTorch-Module auto-conversion
 - [Level 2](#level-2): Simple sequential layer stacks
 - [Level 3](#level-3): Customizing Bayesian assumptions and VI kwargs
