@@ -127,7 +127,7 @@ PyTorch ``nn.Module`` (and any number of submodules) conversion is performed by 
 
     convert_to_vimodule(model)
 
-Note that many inplace operations, e.g., ``+=``, ``-=``, ``*=`, ``/=``, cannot be used
+Note that many inplace operations, e.g., ``+=``, ``-=``, ``*=``, ``/=``, cannot be used
 in ``torch_blue`` modules for compatibility with PyTorch's ``vmap``. As long as your
 model functions with ``vmap`` auto-conversion should work. If you encounter further
 problems please open an issue on `GitHub`_.
@@ -165,8 +165,8 @@ Level 2
 ^^^^^^^
 
 Many parts of a neural network remain completely unchanged when turning it into a BNN.
-Indeed, only ``Module``s containing ``nn.Parameter``s, need to be changed. Therefore, if
-all PyTorch ``Module``s that have weights and should be Bayesian have ``torch_blue``
+Indeed, only ``Module`` s containing ``nn.Parameter`` s, need to be changed. Therefore,
+if all PyTorch ``Module`` s that have weights and should be Bayesian have ``torch_blue``
 equivalents (see table below) conversion should be relatively straightforward.
 
 +------------------------------------------+-----------------------------------------+
@@ -199,9 +199,9 @@ needs to be adapted as described in `Level 1`_.
 Level 3
 ^^^^^^^
 
-While the interface of ``VIModule``s is kept intentionally similar to PyTorch, there are
-additional arguments that customize the Bayesian assumptions that all provided layers
-accept and custom modules should generally accept and pass on to submodules:
+While the interface of ``VIModule`` s is kept intentionally similar to PyTorch, there
+are additional arguments that customize the Bayesian assumptions that all provided
+layers accept and custom modules should generally accept and pass on to submodules:
 
 - variational_distribution (``Distribution``): defines the weight distribution and
   variational parameters. The default ``MeanFieldNormal`` assumes normal distributed,
@@ -262,7 +262,7 @@ set to ``False``. If multiple ``Tensor``s are returned by the model, each will c
 log probs.
 
 .. note:: Always make sure your outermost module is a VIModule and keep in mind that the
-   output of that module will be a `VIReturn` object, which behaves like a ``Tensor``,
+   output of that module will be a ``VIReturn`` object, which behaves like a ``Tensor``,
    but carries weight log probabilities, if ``return_log_probs == True``. Losses in
    ``torch_blue`` expect this format.
 
@@ -280,7 +280,7 @@ log probs.
 Level 5
 ^^^^^^^
 
-Creating ``VIModule``s with Bayesian weights - which are typically called random
+Creating ``VIModule`` s with Bayesian weights - which are typically called random
 variables in documentation and code - is arguably simpler than in PyTorch. Since a
 different number of weight matrices needs to be created based on the variational
 distribution, the process is completely automated. For ``VIModules`` without weights
