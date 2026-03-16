@@ -12,21 +12,40 @@ packages = [
 
 [project]
 name = "torch_blue"
-version = "0.9.2"
+dynamic = ["version"]
 authors = [
-  { name="RAI", email="rai@kit.edu"},
+    {name="Arvid Weyrauch"},
+    {name="RAI", email="rai@kit.edu"},
+]
+maintainers = [
+    {name="Arvid Weyrauch", email="arvid.weyrauch@kit.edu"},
+    {name="Lars Heyen", email="lars.heyen@kit.edu"},
 ]
 description = "Library for BNNs"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved",
+    "License :: OSI Approved :: BSD License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
     "torch",
 ]
+
+[project.urls]
+Documentation = "https://torch-blue.readthedocs.io"
+Repository = "https://github.com/RAI-SCC/torch_blue"
+Issues = "https://github.com/RAI-SCC/torch_blue/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -34,6 +53,7 @@ dev = [
     "ruff",
     "mypy",
     "pytest",
+    "pytest-rerunfailures",
     "coverage",
     "build",
 ]
@@ -48,8 +68,11 @@ scripts = [
     "torchvision",
 ]
 
+[tool.setuptools.dynamic]
+version = {attr = "torch_blue.__version__"}
+
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 modules = ["torch_blue"]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
@@ -93,8 +116,8 @@ exclude = [
 line-length = 88
 indent-width = 4
 
-# Assume Python 3.8.
-target-version = "py39"
+# Assume Python 3.10.
+target-version = "py310"
 
 [tool.ruff.lint]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
@@ -130,7 +153,7 @@ line-ending = "auto"
 #
 # This is currently disabled by default, but it is planned for this
 # to be opt-out in the future.
-docstring-code-format = false
+docstring-code-format = true
 
 # Set the line length limit used when formatting code snippets in
 # docstrings.
@@ -152,4 +175,4 @@ filterwarnings = [
 
 [tool.coverage.run]
 source = ["torch_blue"]
-command_line = "-m pytest"
+command_line = "-m pytest --reruns 2"

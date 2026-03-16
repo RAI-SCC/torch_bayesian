@@ -1,0 +1,295 @@
+import warnings
+from copy import deepcopy
+
+import pytest
+import torch
+from torch import nn
+
+import torch_blue
+from torch_blue.vi import convert_to_vimodule
+from torch_blue.vi.distributions import MeanFieldNormal, NonBayesian, StudentT
+from torch_blue.vi.utils import convert
+
+
+class BiasOnlyModule(nn.Module):
+    """Dummy class to test fan-in with only 1d parameters."""
+
+    def __init__(self, dim: int) -> None:
+        super().__init__()
+
+        self.bias = nn.Parameter(torch.zeros(dim))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
+        return x + self.bias
+
+
+class NestedModule(nn.Module):
+    """Dummy module to test conversion of more complex custom structures."""
+
+    def __init__(self, dim: int) -> None:
+        super().__init__()
+
+        self.sequence = nn.Sequential(
+            BiasOnlyModule(dim),
+            nn.Linear(dim, dim),
+            nn.Sequential(nn.Linear(dim, dim), nn.Linear(dim, dim)),
+        )
+
+        self.modulelist = nn.ModuleList(
+            [
+                BiasOnlyModule(dim),
+                nn.Sequential(nn.Linear(dim, dim), nn.Linear(dim, dim)),
+            ]
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
+        x = self.sequence(x)
+        for module in self.modulelist:
+            x = x + module(x)
+
+        return x
+
+
+@pytest.mark.parametrize(
+    "module,n_args",
+    [
+        (nn.Linear(5, 6, bias=True), 1),
+        (nn.Linear(5, 6, bias=False), 1),
+        (nn.MultiheadAttention(5, 1), 3),
+        (nn.Transformer(5, 1, 1, 1, 5), 2),
+        (BiasOnlyModule(5), 1),
+        (NestedModule(5), 1),
+    ],
+)
+def test_convert_to_vimodule(module: nn.Module, n_args: int) -> None:
+    """Test autoconversion to vi module."""
+    sample = []
+    for _ in range(n_args):
+        sample.append(torch.randn(2, 3, 5))
+
+    module1 = deepcopy(module)
+    custom_module = not hasattr(nn, module.__class__.__name__)
+
+    if not custom_module:
+        convert_to_vimodule(module1)
+    else:
+        with pytest.warns(
+            UserWarning,
+            match="only one-dimensional Parameters where found, assuming fan_in to be 1",
+        ):
+            convert_to_vimodule(module1)
+        warnings.filterwarnings(
+            "ignore",
+            message="only one-dimensional Parameters where found, assuming fan_in to be 1",
+        )
+
+    if custom_module:
+        ref_class = getattr(
+            torch_blue.vi.utils.convert, "AVI" + module.__class__.__name__
+        )
+    else:
+        ref_class = getattr(torch_blue.vi, "VI" + module.__class__.__name__)
+
+    assert module1.__class__ == type(module1)
+    assert ref_class == type(module1)
+
+    module1(*sample)
+
+    # Test no log prob mode
+    module1.return_log_probs = False
+    module1(*sample)
+
+    convert.ban_convert(module.__class__, ban_mode="replace")
+    module2 = deepcopy(module)
+    convert_to_vimodule(module2)
+    # custom modules should be unaffected by replace ban
+    assert (ref_class == type(module2)) == custom_module
+    module2(*sample)
+
+    module3 = deepcopy(module)
+    convert_to_vimodule(module3)
+    assert type(module2) == type(module3)
+    module3(*sample)
+
+    convert.ban_convert(module.__class__, ban_mode="reuse")
+    module4 = deepcopy(module)
+    convert_to_vimodule(module4)
+    assert type(module4) is not type(module3)
+    module4(*sample)
+    convert.ban_convert(module.__class__, ban_mode="reuse", unban=True)
+    convert.ban_convert(module.__class__, ban_mode="replace", unban=True)
+
+    convert.ban_convert(module.__class__)
+    module9 = deepcopy(module)
+    convert_to_vimodule(module9)
+    assert type(module9) == type(module)
+    convert.ban_convert(module.__class__, unban=True)
+
+    warnings.resetwarnings()
+
+
+def test_invalid_ban_mode_error() -> None:
+    """Test error for when ban mode is invalid."""
+    invalid_mode = "error"
+    with pytest.raises(ValueError, match=f"Unknown ban mode: {invalid_mode}"):
+        convert.ban_convert(nn.Linear, ban_mode=invalid_mode)
+
+
+@pytest.mark.parametrize(
+    "module,n_args",
+    [
+        (nn.Linear(5, 6, bias=True), 1),
+        (nn.Linear(5, 6, bias=False), 1),
+        (nn.MultiheadAttention(5, 1, dropout=0.0), 3),
+        (nn.Transformer(5, 1, 1, 1, 5, dropout=0.0), 2),
+    ],
+)
+def test_keep_weights(module: nn.Module, n_args: int) -> None:
+    """Test weight keeping during autoconversion to vi module."""
+    sample = []
+    for _ in range(n_args):
+        sample.append(torch.randn(2, 3, 5))
+
+    ref = module(*sample)
+    module1 = deepcopy(module)
+    convert_to_vimodule(
+        module1, variational_distribution=NonBayesian(), keep_weights=True
+    )
+
+    out = module1(*sample)
+    if isinstance(ref, tuple):
+        assert torch.allclose(ref[0], out[0])
+        assert torch.allclose(ref[1], out[1])
+    else:
+        assert torch.allclose(ref, out)
+
+
+@pytest.mark.parametrize("ban_norms", [True, False])
+def test_banlist(ban_norms: bool) -> None:
+    """Test basic banlist and norm setting."""
+    assert torch.nn.ReLU in convert._banlist
+    assert torch.nn.LayerNorm in convert._torch_norms
+
+    convert.convert_norms(not ban_norms)
+    if ban_norms:
+        assert convert._banlist & convert._torch_norms == convert._torch_norms
+    else:
+        assert convert._banlist & convert._torch_norms == set()
+
+    convert.convert_norms(True)
+    assert convert._banlist & convert._torch_norms == set()
+
+
+@pytest.mark.parametrize("ban_norms", [True, False])
+def test_ban_convert(ban_norms: bool) -> None:
+    """Test adding and removing modules from banlist."""
+    convert.convert_norms(not ban_norms)
+
+    module = torch.nn.Linear
+    assert module not in convert._banlist
+    convert.ban_convert(module)
+    assert module in convert._banlist
+    convert.ban_convert(module, unban=True)
+    assert module not in convert._banlist
+
+    module_list = [nn.Conv1d, nn.Conv2d, nn.Conv3d]
+    for module in module_list:
+        assert module not in convert._banlist
+    convert.ban_convert(module_list)
+    for module in module_list:
+        assert module in convert._banlist
+    convert.ban_convert(module_list, unban=True)
+    for module in module_list:
+        assert module not in convert._banlist
+
+
+def test_ban_submodule() -> None:
+    """Test adding and removing modules from submodule banlist."""
+    module = NestedModule(5)
+    sample = torch.randn(2, 3, 5)
+
+    warnings.filterwarnings(
+        "ignore",
+        message="only one-dimensional Parameters where found, assuming fan_in to be 1",
+    )
+    module1 = deepcopy(module)
+    convert_to_vimodule(module1)
+
+    module2 = deepcopy(module)
+    convert.ban_convert(module.__class__, ban_mode="ban")
+    convert_to_vimodule(module2)
+    module2(sample)
+    assert module1.sequence.__class__ == module2.sequence.__class__
+    convert.ban_convert(module.__class__, ban_mode="ban", unban=True)
+
+    module3 = deepcopy(module)
+    convert.ban_convert(module.__class__, ban_mode="submodule")
+    convert_to_vimodule(module3)
+    module3(sample)
+    assert module1.sequence.__class__ != module3.sequence.__class__
+    assert module.sequence.__class__ == module3.sequence.__class__
+    convert.ban_convert(module.__class__, ban_mode="submodule", unban=True)
+
+    module4 = deepcopy(module)
+    convert_to_vimodule(module4)
+    assert module1.sequence.__class__ == module4.sequence.__class__
+    assert module1.__class__ == module4.__class__
+
+    warnings.resetwarnings()
+
+
+@pytest.mark.parametrize("mode", ["replace", "reuse"])
+def test_reuse_bans(mode: str) -> None:
+    """Test adding and removing modules from reuse lists."""
+    if mode == "replace":
+        lst = convert._replace_banlist
+    elif mode == "reuse":
+        lst = convert._reuse_banlist
+
+    module = nn.Linear
+    assert module not in lst
+    convert.ban_convert(module, ban_mode=mode)
+    assert module in lst
+    convert.ban_convert(module, ban_mode=mode, unban=True)
+    assert module not in lst
+
+    module_list = [nn.Conv1d, nn.Conv2d, nn.Conv3d]
+    for module in module_list:
+        assert module not in lst
+    convert.ban_convert(module_list, ban_mode=mode)
+    for module in module_list:
+        assert module in lst
+    convert.ban_convert(module_list, ban_mode=mode, unban=True)
+    for module in module_list:
+        assert module not in lst
+
+
+@pytest.mark.parametrize("keep_weights", [True, False])
+def test_dtype_copying(keep_weights: bool, device: torch.device) -> None:
+    """
+    Test copying of inconsistent dtypes during autoconversion.
+
+    This can also be considered as a stand-in for testing copying of inconsistent
+    devices, which follows the same pattern but is quite hard to test due to hardware
+    requirements.
+    """
+    # Set up split dtype/device layer and verify
+    model = nn.Linear(3, 5, bias=True, device=device, dtype=torch.float16)
+    model.bias.data = model.bias.to(device="cpu", dtype=torch.float32)
+    assert model.weight.device == device
+    assert model.bias.device == torch.device("cpu")
+    assert model.weight.dtype == torch.float16
+    assert model.bias.dtype == torch.float32
+
+    # convert and verify
+    convert_to_vimodule(
+        model,
+        variational_distribution=(MeanFieldNormal(), StudentT()),
+        keep_weights=keep_weights,
+    )
+    assert model.weight.device == device
+    assert model.bias.device == torch.device("cpu")
+    assert model.weight.dtype == torch.float16
+    assert model.bias.dtype == torch.float32

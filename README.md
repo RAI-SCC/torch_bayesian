@@ -1,11 +1,13 @@
-# torch_blue - A PyTorch-like library for Bayesian learning and uncertainty estimation
+![torch blue Logo](docs/images/logo-torch-blue-wide.svg#gh-light-mode-only)
+![torch blue Logo](docs/images/logo-torch-blue-wide-darkmode.svg#gh-dark-mode-only)
+### A PyTorch-like library for Bayesian learning and uncertainty estimation
 
-[![status](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![status](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
-[![status](https://img.shields.io/pypi/v/torch-blue)](https://pypi.org/project/torch-blue/)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: BSD-3](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![PyPI](https://img.shields.io/pypi/v/torch-blue)](https://pypi.org/project/torch-blue/)
 [![codecov](https://codecov.io/gh/RAI-SCC/torch_blue/graph/badge.svg?token=0CD3FTVKRC)](https://codecov.io/gh/RAI-SCC/torch_blue)
-[![status](https://readthedocs.org/projects/torch-blue/badge/?version=latest)](https://torch-blue.readthedocs.io/en/latest/?badge=latest)
-[![status](https://joss.theoj.org/papers/68b05d930d43e44aac0675c5bb3aade2/status.svg)](https://joss.theoj.org/papers/68b05d930d43e44aac0675c5bb3aade2)
+[![docs](https://readthedocs.org/projects/torch-blue/badge/?version=latest)](https://torch-blue.readthedocs.io/en/latest/?badge=latest)
+[![JOSS](https://joss.theoj.org/papers/68b05d930d43e44aac0675c5bb3aade2/status.svg)](https://joss.theoj.org/papers/68b05d930d43e44aac0675c5bb3aade2)
 
 ----------------------------------------------------------------------------------------
 
@@ -21,10 +23,11 @@ most components mirror components from [PyTorch](https://pytorch.org/docs/stable
   - [Level 2](#level-2)
   - [Level 3](#level-3)
   - [Level 4](#level-4)
+  - [Level 5](#level-5)
 
 ## Installation
 
-We heavily recommend installing `torch_blue` in a dedicated `Python3.9+`
+We heavily recommend installing `torch_blue` in a dedicated `Python3.10+`
 [virtual environment](https://docs.python.org/3/library/venv.html). You can install
 `torch_blue` from PyPI:
 
@@ -73,37 +76,37 @@ example see `scripts/mnist_tutorial` (as jupyter notebook with comments, or pure
 script), which contains a copy of the PyTorch [Quickstart tutorial](https://pytorch.org/tutorials/beginner/basics/quickstart_tutorial.html) modified to
 train a BNN with variational inference.
 
-Three levels are introduced in this guide:
-- [Level 1](#level-1): Simple sequential layer stacks
-- [Level 2](#level-2): Customizing Bayesian assumptions and VI kwargs
-- [Level 3](#level-3): Non-sequential models and log probabilities
-- [Level 4](#level-4): Custom modules with weights
+Five levels are introduced in this guide:
+- [Level 1](#level-1): PyTorch-Module auto-conversion
+- [Level 2](#level-2): Simple sequential layer stacks
+- [Level 3](#level-3): Customizing Bayesian assumptions and VI kwargs
+- [Level 4](#level-4): Non-sequential models and log probabilities
+- [Level 5](#level-5): Custom modules with weights
 
 ### Level 1
 
-Many parts of a neural network remain completely unchanged when turning it into a BNN.
-Indeed, only `Module`s containing `nn.Parameter`s, need to be changed. Therefore, if all
-PyTorch `Module`s that have weights and should be Bayesian have equivalents in this
-package (see table below) should be relatively straightforward.
+For simple usage and convenience `torch_blue` provides the option to convert PyTorch
+models into Bayesian `torch_blue` models. Given a `model` represented by a single
+PyTorch `nn.Module` (and any number of submodules) conversion is performed by calling
+`convert_to_vimodule`:
+```python
+from torch_blue.vi import convert_to_vimodule
 
-| PyTorch                                | vi replacement                        |
-|----------------------------------------|---------------------------------------|
-| `nn.Linear`                            | `VILinear`                            |
-| `nn.Conv1d`                            | `VIConv1d`                            |
-| `nn.Conv2d`                            | `VIConv2d`                            |
-| `nn.Conv3d`                            | `VIConv3d`                            |
-| `nn.Transformer` (including sublayers) | `VITransformer` (including sublayers) |
+convert_to_vimodule(model)
+```
+Note that many inplace operations, e.g., `+=`, `-=`, `*=`, `/=`, cannot be used in
+`torch_blue` modules for compatibility with PyTorchs `vmap`. As long as your model
+functions with `vmap` auto-conversion should work. If you encounter further problems
+please open an issue on [GitHub](https://github.com/RAI-SCC/torch_blue/issues).
 
-Any custom modules should from `vi.VIModule` instead of `nn.Module`. Then replace all
-layers containing parameters as shown in the table above. For basic usage initialize
-these modules with the same arguments as their PyTorch equivalent. For advanced usage
-see [Quickstart: Level 2](#level-2). Many other layers can be included as-is. In
-particular activation functions, pooling, and padding (even dropout, though they
-should not be necessary since the prior acts as regularization). Currently, recurrent
-and transposed convolution layers are not supported. Normalization layers may have
-parameters depending on their setting, but can likely be left non-Bayesian.
+> [!IMPORTANT]
+> `convert_to_vimodule` is an inplace operation. Additionally, it has several advanced
+> options to control the conversion and the resulting model. Setting the prior and
+> variational distribution is discussed in [Level 3](#level-3). Further options to keep
+> pre-initialized weights and exclude certain layers from conversion are described in
+> its documentation.
 
-Additionally, the loss must be replaced. To start out use `vi.KullbackLeiblerLoss`,
+Additionally, the loss must be replaced. To start out, use `vi.KullbackLeiblerLoss`,
 which requires a `Distribution` with `self.is_predictive_distribution=True` and the size
 of the training dataset (this is important for balancing of assumptions and data).
 Choose your `Distribution` from the table below based on the loss you would use in
@@ -120,6 +123,32 @@ PyTorch.
 
 
 ### Level 2
+
+Many parts of a neural network remain completely unchanged when turning it into a BNN.
+Indeed, only `Module`s containing `nn.Parameter`s, need to be changed. Therefore, if all
+PyTorch `Module`s that have weights and should be Bayesian have equivalents in this
+package (see table below) should be relatively straightforward.
+
+| PyTorch                                | vi replacement                        |
+|----------------------------------------|---------------------------------------|
+| `nn.Linear`                            | `VILinear`                            |
+| `nn.Conv1d`                            | `VIConv1d`                            |
+| `nn.Conv2d`                            | `VIConv2d`                            |
+| `nn.Conv3d`                            | `VIConv3d`                            |
+| `nn.Transformer` (including sublayers) | `VITransformer` (including sublayers) |
+
+Any custom modules should inherit from `vi.VIModule` instead of `nn.Module`. Then
+replace all layers containing parameters as shown in the table above. For basic usage
+initialize these modules with the same arguments as their PyTorch equivalent. For
+advanced usage see [Quickstart: Level 3](#level-3). Many other layers can be included
+as-is. In particular activation functions, pooling, and padding (even dropout, though
+they should not be necessary since the prior acts as regularization). Currently,
+recurrent and transposed convolution layers are not supported. Normalization layers may
+have parameters depending on their setting, but can likely be left non-Bayesian. The
+loss needs to be adapted as described in [Level 1](#level-1).
+
+
+### Level 3
 
 While the interface of `VIModule`s is kept intentionally similar to PyTorch, there are
 additional arguments that customize the Bayesian assumptions that all provided layers
@@ -147,9 +176,9 @@ May help with convergence, but may lead to overconfidence. Current research.
 instead of according to standard non-Bayesian methods. May lead to much faster
 convergence, but can cause the issues Kaiming-initialization counteracts unless
 rescale_prior is also set to True. Current research.
-- return_log_probs (`bool`): This is the topic of [Quickstart: Level 3](#level-3).
+- return_log_probs (`bool`): This is the topic of [Quickstart: Level 4](#level-4).
 
-### Level 3
+### Level 4
 
 For more advanced models one feature of Variational Inference (VI) needs to be taken
 into account. Generally, a loss for VI will require the log probability of the actually
@@ -189,24 +218,24 @@ performed by the outermost module. For deployment `return_log_probs` should be s
 > this output format, i.e. you can simply feed the model output into the loss and
 > everything will work.
 
-### Level 4
+### Level 5
 
 Creating `VIModule`s with Bayesian weights - which are typically called random
 variables in documentation and code - is arguably simpler than in PyTorch. Since a
 different number of weight matrices needs to be created based on the variational
 distribution, the process is completely automated. For `VIModules` without weights
-`super().__init__` is called without arguments. Modules with random variables
-expect `VIkwargs` (which you should be familiar with from [Level 2](#level-2)), but
-defaults are used if non are passed. More importantly, `VIModules` with weights call
+`super().__init__` is called without arguments. Modules with random variables expect
+`VIkwargs` (which you should be familiar with from [Level 3](#level-3)), but defaults
+are used if non are passed. More importantly, `VIModules` with weights call
 `super().__init__` with the argument `variable_shapes`. The keys of this dictionary are
 the names of the random variables and the values the shapes of the weight matrices as
 tuple or list. The value may also be set to `None`, which will always be the value
 returned for that variable.
 
 The insertion order of this dictionary matters, as it becomes the order of the names
-in the module attribute `random_variables`. `random_variables`, the shapes, and a similar
-attribute of the variational distribution call `distribution_parameters` are used to
-dynamically create the weight matrices. The weight matrices can be accesses as
+in the module attribute `random_variables`. `random_variables`, the shapes, and a
+similar attribute of the variational distribution call `distribution_parameters` are
+used to dynamically create the weight matrices. The weight matrices can be accesses as
 attributes of the module, which will cause a sample to be drawn and its log prob to be
 stored if needed.
 
