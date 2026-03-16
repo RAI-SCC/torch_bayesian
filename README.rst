@@ -28,50 +28,60 @@ most components mirror components from `PyTorch`_.
 
 .. _PyTorch: https://pytorch.org/docs/stable/index.html
 
-* :ref:`installation`
-* :ref:`documentation`
-* :ref:`quickstart`
+* `Installation`_
+* `Documentation`_
+* `Quickstart`_
 
-  * :ref:`level-1`
-  * :ref:`level-2`
-  * :ref:`level-3`
-  * :ref:`level-4`
-  * :ref:`level-5`
+  * `Level 1`_
+  * `Level 2`_
+  * `Level 3`_
+  * `Level 4`_
+  * `Level 5`_
 
-.. _installation:
+.. _Installation:
 
 Installation
 ------------
 
 We heavily recommend installing ``torch_blue`` in a dedicated ``Python3.10+``
-`virtual environment`_. You can install ``torch_blue`` from PyPI::
-
-    $ pip install torch-blue
+`virtual environment`_. You can install ``torch_blue`` from PyPI
 
 .. _virtual environment: https://docs.python.org/3/library/venv.html
+
+.. code:: console
+
+    $ pip install torch-blue
 
 Alternatively, you can install ``torch_blue`` locally. To achieve this, there
 are two steps you need to follow:
 
-1. Clone the repository::
+1. Clone the repository
+
+.. code:: console
 
     $ git clone https://github.com/RAI-SCC/torch_blue
 
-2. Install the code locally::
+2. Install the code locally
+
+.. code:: console
 
     $ pip install -e .
 
-To get the development dependencies, run::
+To get the development dependencies, run:
+
+.. code:: console
 
     $ pip install -e .[dev]
 
 For additional dependencies required if you want to run scripts from the scripts
-directory, run::
+directory, run:
+
+.. code:: console
 
     $ pip install -e .[scripts]
 
 
-.. _documentation:
+.. _Documentation:
 
 Documentation
 -------------
@@ -80,7 +90,7 @@ Documentation is available online at `readthedocs`_.
 
 .. _readthedocs: https://torch-blue.readthedocs.io
 
-.. _quickstart:
+.. _Quickstart:
 
 Quickstart
 ----------
@@ -95,13 +105,13 @@ variational inference.
 
 Five levels are introduced in this guide:
 
-* :ref:`level-1`: PyTorch-Module auto-conversion
-* :ref:`level-2`: Simple sequential layer stacks
-* :ref:`level-3`: Customizing Bayesian assumptions and VI kwargs
-* :ref:`level-4`: Non-sequential models and log probabilities
-* :ref:`level-5`: Custom modules with weights
+* `Level 1`_: PyTorch-Module auto-conversion
+* `Level 2`_: Simple sequential layer stacks
+* `Level 3`_: Customizing Bayesian assumptions and VI kwargs
+* `Level 4`_: Non-sequential models and log probabilities
+* `Level 5`_: Custom modules with weights
 
-.. _level-1:
+.. _Level 1:
 
 Level 1
 ^^^^^^^
@@ -109,7 +119,9 @@ Level 1
 For simple usage and convenience ``torch_blue`` provides the option to convert PyTorch
 models into Bayesian ``torch_blue`` models. Given a ``model`` represented by a single
 PyTorch ``nn.Module`` (and any number of submodules) conversion is performed by calling
-``convert_to_vimodule``::
+``convert_to_vimodule``
+
+.. code:: python
 
     from torch_blue.vi import convert_to_vimodule
 
@@ -124,7 +136,7 @@ problems please open an issue on `GitHub`_.
 
 .. important:: ``convert_to_vimodule`` is an inplace operation. Additionally, it has
    several advanced options to control the conversion and the resulting model. Setting
-   the prior and variational distribution is discussed in :ref:`level-3`. Further
+   the prior and variational distribution is discussed in `Level 3`_. Further
    options to keep pre-initialized weights and exclude certain layers from conversion
    are described in its documentation.
 
@@ -147,7 +159,7 @@ PyTorch.
 +-------------------------+--------------------------------------------------+
 
 
-.. _level-2:
+.. _Level 2:
 
 Level 2
 ^^^^^^^
@@ -174,15 +186,15 @@ equivalents (see table below) conversion should be relatively straightforward.
 Any custom modules should inherit from ``vi.VIModule`` instead of ``nn.Module``. Then
 replace all layers containing parameters as shown in the table above. For basic usage
 initialize these modules with the same arguments as their PyTorch equivalent. For
-advanced usage see Quickstart: :ref:`level-3`. Many other layers can be included as-is.
+advanced usage see Quickstart: `Level 3`_. Many other layers can be included as-is.
 In particular activation functions, pooling, and padding (even dropout, though they
 should not be necessary since the prior acts as regularization). Currently, recurrent
 and transposed convolution layers are not supported. Normalization layers may have
 parameters depending on their setting, but can likely be left non-Bayesian. The loss
-needs to be adapted as described in [Level 1](#level-1).
+needs to be adapted as described in `Level 1`_.
 
 
-.. _level-3:
+.. _Level 3:
 
 Level 3
 ^^^^^^^
@@ -217,10 +229,10 @@ accept and custom modules should generally accept and pass on to submodules:
   instead of according to standard non-Bayesian methods. May lead to much faster
   convergence, but can cause the issues unless rescale_prior is also set to True.
   Current research.
-- return_log_probs (``bool``): This is the topic of Quickstart :ref:`level-4`.
+- return_log_probs (``bool``): This is the topic of Quickstart `Level 4`_.
 
 
-.. _level-4:
+.. _Level 4:
 
 Level 4
 ^^^^^^^
@@ -263,7 +275,7 @@ log probs.
    work.
 
 
-.. _level-5:
+.. _Level 5:
 
 Level 5
 ^^^^^^^
@@ -273,7 +285,7 @@ variables in documentation and code - is arguably simpler than in PyTorch. Since
 different number of weight matrices needs to be created based on the variational
 distribution, the process is completely automated. For ``VIModules`` without weights
 ``super().__init__`` is called without arguments. Modules with random variables expect
-``VIkwargs`` (which you should be familiar with from :ref:`level-3`), but defaults are
+``VIkwargs`` (which you should be familiar with from `Level 3`_), but defaults are
 used if non are passed. More importantly, ``VIModules`` with weights call
 ``super().__init__`` with the argument ``variable_shapes``. The keys of this dictionary
 are the names of the random variables and the values the shapes of the weight matrices
