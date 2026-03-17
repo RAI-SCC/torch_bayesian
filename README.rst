@@ -26,8 +26,6 @@ Neural Networks (BNNs). Currently, it only supports Variational Inference (VI), 
 hopefully grow and expand in the future. To make the user experience as easy as possible
 most components mirror components from `PyTorch`_.
 
-.. _PyTorch: https://pytorch.org/docs/stable/index.html
-
 * `Installation`_
 * `Documentation`_
 * `Quickstart`_
@@ -101,6 +99,7 @@ implement the intended model in it. For a (potentially familiar) example see
 which contains a copy of the PyTorch `Quickstart tutorial`_ modified to train a BNN with
 variational inference.
 
+.. _PyTorch: https://pytorch.org/docs/stable/index.html
 .. _Quickstart tutorial: https://pytorch.org/tutorials/beginner/basics/quickstart_tutorial.html
 
 Five levels are introduced in this guide:
