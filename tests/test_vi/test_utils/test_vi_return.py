@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Tuple, cast
 
 import pytest
@@ -35,6 +36,21 @@ class TestVIReturn:
         shape = tuple(torch.randint(1, 10, [3]))
         vi_return, ref_tensor, ref_log_probs = self._init_instance(shape, lp_is_none)
         new = vi_return.clone()
+        assert new is not vi_return
+        assert torch.all(ref_tensor == new)
+
+        if lp_is_none:
+            assert new.log_probs is None
+        else:
+            assert new.log_probs is not vi_return.log_probs
+            assert torch.all(new.log_probs == ref_log_probs)
+
+    @pytest.mark.parametrize("lp_is_none", [True, False])
+    def test_deepcopy(self, lp_is_none: bool) -> None:
+        """Test deepcopy compatibility."""
+        shape = tuple(torch.randint(1, 10, [3]))
+        vi_return, ref_tensor, ref_log_probs = self._init_instance(shape, lp_is_none)
+        new = deepcopy(vi_return)
         assert new is not vi_return
         assert torch.all(ref_tensor == new)
 
