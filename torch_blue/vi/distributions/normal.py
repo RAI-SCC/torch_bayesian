@@ -37,7 +37,7 @@ class MeanFieldNormal(Distribution):
         This is converted to a log std internally. Ignored if used as predictive
         distribution.
     eps: float, default: 1e-10
-        Epsilon for numerical stability. Only relevant if used as prior.
+        Epsilon for numerical stability.
     """
 
     is_prior: bool = True
