@@ -37,7 +37,7 @@ class MeanFieldNormal(Distribution):
         This is converted to a log std internally. Ignored if used as predictive
         distribution.
     eps: float, default: 1e-10
-        Epsilon for numerical stability. Only relevant if used as prior.
+        Epsilon for numerical stability.
     """
 
     is_prior: bool = True
@@ -188,9 +188,8 @@ class MeanFieldNormal(Distribution):
         std = samples.std(dim=0)
         return mean, std
 
-    @staticmethod
     def log_prob_from_parameters(
-        reference: Tensor, parameters: Tuple[Tensor, Tensor]
+        self, reference: Tensor, parameters: Tuple[Tensor, Tensor]
     ) -> Tensor:
         """
         Calculate the log probability of reference given the predictive mean and standard deviation.
@@ -214,7 +213,7 @@ class MeanFieldNormal(Distribution):
             Shape: (1,).
         """
         mean, std = parameters
-        variance = std**2
+        variance = std**2 + self.eps
         data_fitting = (reference - mean) ** 2 / variance
         normalization = torch.log(variance)
         if _globals._USE_NORM_CONSTANTS:

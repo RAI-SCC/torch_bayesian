@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 from torch import Tensor
 
@@ -28,6 +28,10 @@ class VIReturn(Tensor):
     def __init__(self, data: Tensor, log_probs: Optional[Tensor]) -> None:
         super().__init__()
         self.log_probs = log_probs
+
+    def new_empty(self, size: Tuple[int, ...], **kwargs: Any) -> "VIReturn":
+        """Return a VIReturn of size `size` filled with uninitialized data."""
+        return self.__class__(super().new_empty(size, **kwargs), None)
 
     # The doc strings of this and the next method throw warnings. This is inherited
     # from pytorch, but seems to compile correctly.
