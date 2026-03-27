@@ -23,7 +23,9 @@ from torch_blue.vi.distributions import (
     Distribution,
     MeanFieldNormal,
     NonBayesian,
+    Prior,
     UniformPrior,
+    VariationalDistribution,
 )
 from torch_blue.vi.utils import UnsupportedDistributionError, use_norm_constants
 
@@ -112,35 +114,34 @@ def test_normalnormal_klmodule(norm_constants: bool, device: torch.device) -> No
     assert torch.allclose(out, reference.sum())
 
 
-class DummyPrior(Distribution):
+class DummyPrior(Prior):
     """Dummy prior for testing."""
 
-    is_prior = True
+    distribution_parameters = ()
 
     def __init__(self) -> None:
         super().__init__()
-        self.distribution_parameters = ()
 
-    def prior_log_prob(self, *args: Tensor) -> Tensor:
+    def log_prob(self, *args: Tensor) -> Tensor:
         """Return dummy log probability."""
         return torch.zeros(1, device=args[0].device)
 
 
-class DummyVarDist(Distribution):
+class DummyVarDist(VariationalDistribution):
     """Dummy variational distribution for testing."""
 
-    is_variational_distribution = True
+    distribution_parameters = ("mean",)
+    _default_variational_parameters = (0.0,)
 
     def __init__(self) -> None:
         super().__init__()
-        self.distribution_parameters = ("mean",)
-        self._default_variational_parameters = (0.0,)
+        self.mean = None
 
     def sample(self, mean: Tensor) -> Tensor:
         """Return dummy sample."""
         return torch.zeros(1, device=mean.device)
 
-    def variational_log_prob(self, sample: Tensor, mean: Tensor) -> Tensor:
+    def log_prob(self, sample: Tensor, mean: Tensor) -> Tensor:
         """Return dummy log probability."""
         return torch.zeros(1, device=mean.device)
 

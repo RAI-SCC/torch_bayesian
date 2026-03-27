@@ -7,13 +7,13 @@ from torch.nn import init
 
 from torch_blue.vi import _globals
 
-from .base import Distribution
+from .base import PredictiveDistribution, Prior, VariationalDistribution
 
 if TYPE_CHECKING:
     from ..base import VIModule  # pragma: no cover
 
 
-class MeanFieldNormal(Distribution):
+class MeanFieldNormal(Prior, VariationalDistribution, PredictiveDistribution):
     """
     Distribution assuming uncorrelated, normal distributed values.
 
@@ -40,46 +40,24 @@ class MeanFieldNormal(Distribution):
         Epsilon for numerical stability.
     """
 
-    is_prior: bool = True
-    is_variational_distribution: bool = True
-    is_predictive_distribution: bool = True
+    distribution_parameters = ("mean", "log_std")
 
     def __init__(self, mean: float = 0.0, std: float = 1.0, eps: float = 1e-10) -> None:
         super().__init__()
-        self.distribution_parameters = ("mean", "log_std")
         self.mean = mean
         self.log_std = log(std)
         self.eps = eps
-        self._default_variational_parameters = (0.0, log(std))
+
+    @property
+    def _default_variational_parameters(self) -> Tuple[float, float]:
+        return (self.mean, self.log_std)
 
     @property
     def std(self) -> float:
         """Standard deviation of the distribution."""
         return exp(self.log_std)
 
-    def sample(self, mean: Tensor, log_std: Tensor) -> Tensor:
-        """
-        Sample from a Gaussian distribution.
-
-        Parameters
-        ----------
-        mean: Tensor
-            The mean for each sample as Tensor.
-        log_std: Tensor
-            The log standard deviation for each sample as Tensor. Must have the same
-            shape as `mean`.
-
-        Returns
-        -------
-        Tensor
-            The sampled Tensor of teh same shape as `mean`.
-        """
-        std = torch.exp(log_std)
-        return self._normal_sample(mean, std)
-
-    def variational_log_prob(
-        self, sample: Tensor, mean: Tensor, log_std: Tensor
-    ) -> Tensor:
+    def log_prob(self, sample: Tensor, parameters: Tuple[Tensor, Tensor]) -> Tensor:
         """
         Compute the log probability of `sample` based on a normal distribution.
 
@@ -93,16 +71,17 @@ class MeanFieldNormal(Distribution):
         ----------
         sample: Tensor
             The weight configuration to calculate the log probability for.
-        mean: Tensor
-            The means of the reference distribution.
-        log_std: Tensor
-            The log standard deviations of the reference distribution.
+        parameters: Tuple[Tensor, Tensor]
+            The Tensor of means and the Tensor of log standard deviationas of the
+            reference distribution as tuple.
 
         Returns
         -------
         Tensor
-            The log probability of `sample` based on the provided mean and log_std.
+            The log probability of `sample` based on the provided mean and log
+            standard deviation.
         """
+        mean, log_std = parameters
         variance = torch.exp(log_std) ** 2 + self.eps
         data_fitting = (sample - mean) ** 2 / variance
         normalization = 2 * log_std
@@ -110,37 +89,30 @@ class MeanFieldNormal(Distribution):
             normalization = normalization + log(2 * torch.pi)
         return -0.5 * (data_fitting + normalization)
 
+    def sample(self, parameters: Tuple[Tensor, Tensor]) -> Tensor:
+        """
+        Sample from a Gaussian distribution.
+
+        Parameters
+        ----------
+        parameters: Tupel[Tensor, Tensor]
+            A tuple with a Tensor for the mean and one for the standard deviation of
+            each sample.
+
+        Returns
+        -------
+        Tensor
+            The sampled Tensor of the same shape as as the two input Tensors.
+        """
+        mean, log_std = parameters
+        std = torch.exp(log_std)
+        return self._normal_sample(mean, std)
+
     @staticmethod
     def _normal_sample(mean: Tensor, std: Tensor) -> Tensor:
         base_sample = torch.randn_like(mean)
         sample = std * base_sample + mean
         return sample
-
-    def prior_log_prob(self, sample: Tensor) -> Tensor:
-        """
-        Compute the Gaussian log probability of a sample using the prior parameters.
-
-        All Tensors have the same shape.
-
-        This calculation is affected by :data:`_globals._USE_NORM_CONSTANTS`, which can
-        be set with :func:`~torch_blue.vi.utils.use_norm_constants`.
-
-        Parameters
-        ----------
-        sample: Tensor
-            A Tensor of values to calculate the log probability for.
-
-        Returns
-        -------
-        Tensor
-            The log probability of the sample under the prior.
-        """
-        variance = self.std**2 + self.eps
-        data_fitting = (sample - self.mean) ** 2 / variance
-        normalization = 2 * self.log_std
-        if _globals._USE_NORM_CONSTANTS:
-            normalization = normalization + log(2 * torch.pi)
-        return -0.5 * (data_fitting + normalization)
 
     def reset_parameters_to_prior(self, module: "VIModule", variable: str) -> None:
         """
@@ -187,35 +159,3 @@ class MeanFieldNormal(Distribution):
         mean = samples.mean(dim=0)
         std = samples.std(dim=0)
         return mean, std
-
-    def log_prob_from_parameters(
-        self, reference: Tensor, parameters: Tuple[Tensor, Tensor]
-    ) -> Tensor:
-        """
-        Calculate the log probability of reference given the predictive mean and standard deviation.
-
-        This calculation is affected by :data:`_globals._USE_NORM_CONSTANTS`, which can
-        be set with :func:`~torch_blue.vi.utils.use_norm_constants`.
-
-        Parameters
-        ----------
-        reference: Tensor
-            The ground truth label as Tensor of the same shape as each Tensor in
-            `parameters`.
-        parameters: Tuple[Tensor, Tensor]
-            A tuple containing the predictive means and standard deviation as two
-            Tensors as returned by :meth:`~predictive_parameters_from_samples`.
-
-        Returns
-        -------
-        Tensor
-            The log probability of the reference under the predicted normal distribution.
-            Shape: (1,).
-        """
-        mean, std = parameters
-        variance = std**2 + self.eps
-        data_fitting = (reference - mean) ** 2 / variance
-        normalization = torch.log(variance)
-        if _globals._USE_NORM_CONSTANTS:
-            normalization = normalization + log(2 * torch.pi)
-        return -0.5 * (data_fitting + normalization)

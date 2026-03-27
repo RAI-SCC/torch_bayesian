@@ -3,10 +3,10 @@ from typing import Optional
 import torch
 from torch import Tensor, nn
 
-from .base import Distribution
+from .base import PredictiveDistribution, Prior, VariationalDistribution
 
 
-class NonBayesian(Distribution):
+class NonBayesian(Prior, VariationalDistribution, PredictiveDistribution):
     """
     Pseudo-distribution that imitates non-Bayesian behavior.
 
@@ -32,9 +32,6 @@ class NonBayesian(Distribution):
         If loss_type is not supported.
     """
 
-    is_prior = True
-    is_variational_distribution = True
-    is_predictive_distribution = True
     distribution_parameters = ("mean",)
     mean = None
     _default_variational_parameters = (0.0,)
@@ -51,31 +48,7 @@ class NonBayesian(Distribution):
         else:
             raise ValueError(f"Unsupported loss type: {loss_type}")
 
-    @staticmethod
-    def prior_log_prob(sample: Tensor) -> Tensor:
-        """
-        Compute the log probability of a sample based on the prior.
-
-        Since any sample is equally likely, the log probability for each is equal with an
-        infinite normalization constant. Since this is hardly useful for practical use
-        and constants may be offset during training, the log probability is always
-        returned as zero.
-
-        This is not affected by :data:`_globals._USE_NORM_CONSTANTS`.
-
-        Parameters
-        ----------
-        sample: Tensor
-            A Tensor of values to calculate the log probability for.
-
-        Returns
-        -------
-        Tensor
-            The log probability of the sample under the prior, i.e. zero.
-        """
-        return torch.tensor([0.0], device=sample.device)
-
-    def variational_log_prob(self, sample: Tensor, mean: Tensor) -> Tensor:
+    def log_prob(self, sample: Tensor, parameters: Tensor) -> Tensor:
         """
         Return 0 as dummy log probability.
 
@@ -85,7 +58,7 @@ class NonBayesian(Distribution):
         ----------
         sample: Tensor
             The current weight configuration.
-        mean: Tensor
+        parameters: Tensor
             The current weight values. Usually this should be the same as `sample`, but
             this is not enforce.
 
