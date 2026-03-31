@@ -6,8 +6,44 @@ from torch import Tensor, nn
 from .base import PredictiveDistribution, Prior, VariationalDistribution
 
 
-class NonBayesian(Prior, VariationalDistribution, PredictiveDistribution):
+class UniformPrior(Prior):
     """
+    A uniform prior, that gives equal weight to all values.
+
+    While this might seem like a good choice for an unknown prior it typically gives too
+    much weight to larger weight values and a :class:`~.Normal` prior is typically
+    preferable. However, it can be used to imitate nom-Bayesian behavior and is
+    equivalent to :class:`NonBayesian`, when used as prior.
+    """
+
+    distribution_parameters = ("mean",)
+    mean = None
+    _scaling_parameters = ()
+
+    def log_prob(self, sample: Tensor, parameters: Tensor) -> Tensor:
+        r"""
+        Return 0 as dummy log probability.
+
+        Dummy log_prob that returns 0.
+
+        Parameters
+        ----------
+        sample: Tensor
+            The current weight configuration.
+        parameters: Tensor
+            The current weight values. Usually this should be the same as `sample`, but
+            this is not enforce.
+
+        Returns
+        -------
+        Tensor
+            A Tensor of zeroes the same shape as `sample`.
+        """
+        return torch.zeros_like(sample)
+
+
+class NonBayesian(UniformPrior, VariationalDistribution, PredictiveDistribution):
+    r"""
     Pseudo-distribution that imitates non-Bayesian behavior.
 
     This distribution is implemented as prior, variational distribution, and predictive
@@ -32,10 +68,7 @@ class NonBayesian(Prior, VariationalDistribution, PredictiveDistribution):
         If loss_type is not supported.
     """
 
-    distribution_parameters = ("mean",)
-    mean = None
     _default_variational_parameters = (0.0,)
-    _scaling_parameters = ()
 
     def __init__(self, loss_type: Optional[str] = None) -> None:
         super().__init__()
@@ -48,29 +81,8 @@ class NonBayesian(Prior, VariationalDistribution, PredictiveDistribution):
         else:
             raise ValueError(f"Unsupported loss type: {loss_type}")
 
-    def log_prob(self, sample: Tensor, parameters: Tensor) -> Tensor:
-        """
-        Return 0 as dummy log probability.
-
-        Dummy log_prob that returns 0.
-
-        Parameters
-        ----------
-        sample: Tensor
-            The current weight configuration.
-        parameters: Tensor
-            The current weight values. Usually this should be the same as `sample`, but
-            this is not enforce.
-
-        Returns
-        -------
-        Tensor
-            A Tensor of zeroes the same shape as `sample`.
-        """
-        return torch.zeros_like(sample)
-
     def sample(self, mean: Tensor) -> Tensor:
-        """
+        r"""
         Return input as sample.
 
         Dummy sample that returns mean.
@@ -87,8 +99,7 @@ class NonBayesian(Prior, VariationalDistribution, PredictiveDistribution):
         """
         return mean
 
-    @staticmethod
-    def predictive_parameters_from_samples(samples: Tensor) -> Tensor:
+    def predictive_parameters_from_samples(self, samples: Tensor) -> Tensor:
         r"""
         Calculate predictive mean from samples.
 
@@ -107,7 +118,7 @@ class NonBayesian(Prior, VariationalDistribution, PredictiveDistribution):
         return samples.mean(dim=0)
 
     def log_prob_from_parameters(self, reference: Tensor, parameters: Tensor) -> Tensor:
-        """
+        r"""
         Calculate the loss of the mean prediction with respect to reference.
 
         Since the loss works on NEGATIVE log likelihood this is minus the specified
@@ -129,18 +140,3 @@ class NonBayesian(Prior, VariationalDistribution, PredictiveDistribution):
         if self.loss is None:
             raise ValueError("loss_type must be set during initialization")
         return -self.loss(parameters, reference)
-
-
-class UniformPrior(NonBayesian):
-    """
-    Alias for :class:`.NonBayesian` that disables variational and predictive settings.
-
-    While this class has the same functionality as :class:`.NonBayesian`, it disables
-    the flags for variational and predictive settings.
-
-    It is intended for readability, while trying to avoid incorrect usage since it does
-    not represent the behavior of a uniform predictive or variational distribution.
-    """
-
-    is_variational_distribution = False
-    is_predictive_distribution = False

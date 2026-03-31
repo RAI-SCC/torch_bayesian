@@ -53,8 +53,8 @@ class BasicQuietPrior(Prior):
     ) -> None:
         super().__init__()
         self._std_ratio = std_ratio
-        self.mean_mean = mean_mean
-        self.mean_std = mean_std
+        self.mean_mean = torch.tensor(mean_mean)
+        self.mean_std = torch.tensor(mean_std)
         self.eps = eps
 
     def get_parameters(self) -> Tuple[Tensor, Tensor]:

@@ -4,21 +4,27 @@ import pytest
 import torch
 from torch import nn
 
-from torch_blue.vi.distributions import NonBayesian, UniformPrior
+from torch_blue.vi.distributions import (
+    NonBayesian,
+    PredictiveDistribution,
+    Prior,
+    UniformPrior,
+    VariationalDistribution,
+)
 
 shapes = [5, [3, 6], [5, 3, 4]]
 
 
-class TestNonBayesian:
-    """Tests non-Bayesian distribution."""
+class TestUniformPrior:
+    """Tests Uniform Prior."""
 
-    target = NonBayesian
+    target = UniformPrior
 
     def test_flags(self) -> None:
         """Test correct labeling."""
-        assert self.target.is_prior
-        assert self.target.is_variational_distribution
-        assert self.target.is_predictive_distribution
+        assert issubclass(self.target, Prior)
+        assert not issubclass(self.target, VariationalDistribution)
+        assert not issubclass(self.target, PredictiveDistribution)
 
     @pytest.mark.parametrize("shape", shapes)
     def test_prior_log_prob(
@@ -29,8 +35,20 @@ class TestNonBayesian:
         sample = torch.randn(shape)
 
         out = dist.prior_log_prob(sample)
-        assert out == 0.0
+        assert (out == torch.zeros_like(sample)).all()
         assert out.device == device
+
+
+class TestNonBayesian(TestUniformPrior):
+    """Tests non-Bayesian distribution."""
+
+    target = NonBayesian
+
+    def test_flags(self) -> None:
+        """Test correct labeling."""
+        assert issubclass(self.target, Prior)
+        assert issubclass(self.target, VariationalDistribution)
+        assert issubclass(self.target, PredictiveDistribution)
 
     @pytest.mark.parametrize("shape", shapes)
     def test_variational_log_prob(
@@ -109,15 +127,3 @@ class TestNonBayesian:
         assert target_loss.shape == loss.shape
         assert loss.device == device
         assert torch.allclose(target_loss, loss)
-
-
-class TestUniformPrior(TestNonBayesian):
-    """Tests Uniform Prior."""
-
-    target = UniformPrior
-
-    def test_flags(self) -> None:
-        """Test correct labeling."""
-        assert self.target.is_prior
-        assert not self.target.is_variational_distribution
-        assert not self.target.is_predictive_distribution

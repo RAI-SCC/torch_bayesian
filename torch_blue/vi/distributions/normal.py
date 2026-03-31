@@ -1,4 +1,4 @@
-from math import exp, log
+from math import log
 from typing import TYPE_CHECKING, Tuple
 
 import torch
@@ -44,18 +44,18 @@ class MeanFieldNormal(Prior, VariationalDistribution, PredictiveDistribution):
 
     def __init__(self, mean: float = 0.0, std: float = 1.0, eps: float = 1e-10) -> None:
         super().__init__()
-        self.mean = mean
-        self.log_std = log(std)
+        self.mean = torch.tensor(mean)
+        self.log_std = torch.tensor(std).log()
         self.eps = eps
 
     @property
-    def _default_variational_parameters(self) -> Tuple[float, float]:
-        return (self.mean, self.log_std)
+    def _default_variational_parameters(self) -> Tuple[Tensor, Tensor]:
+        return self.mean, self.log_std
 
     @property
-    def std(self) -> float:
+    def std(self) -> Tensor:
         """Standard deviation of the distribution."""
-        return exp(self.log_std)
+        return self.log_std.exp()
 
     def log_prob(self, sample: Tensor, parameters: Tuple[Tensor, Tensor]) -> Tensor:
         """
@@ -72,7 +72,7 @@ class MeanFieldNormal(Prior, VariationalDistribution, PredictiveDistribution):
         sample: Tensor
             The weight configuration to calculate the log probability for.
         parameters: Tuple[Tensor, Tensor]
-            The Tensor of means and the Tensor of log standard deviationas of the
+            The Tensor of means and the Tensor of log standard deviations of the
             reference distribution as tuple.
 
         Returns
@@ -84,7 +84,7 @@ class MeanFieldNormal(Prior, VariationalDistribution, PredictiveDistribution):
         mean, log_std = parameters
         variance = torch.exp(log_std) ** 2 + self.eps
         data_fitting = (sample - mean) ** 2 / variance
-        normalization = 2 * log_std
+        normalization = variance.log()
         if _globals._USE_NORM_CONSTANTS:
             normalization = normalization + log(2 * torch.pi)
         return -0.5 * (data_fitting + normalization)
@@ -132,12 +132,13 @@ class MeanFieldNormal(Prior, VariationalDistribution, PredictiveDistribution):
         None
         """
         mean_name = module.variational_parameter_name(variable, "mean")
-        init.constant_(getattr(module, mean_name), self.mean)
+        init.constant_(getattr(module, mean_name), self.mean.item())
         log_std_name = module.variational_parameter_name(variable, "log_std")
-        init.constant_(getattr(module, log_std_name), self.log_std)
+        init.constant_(getattr(module, log_std_name), self.log_std.item())
 
-    @staticmethod
-    def predictive_parameters_from_samples(samples: Tensor) -> Tuple[Tensor, Tensor]:
+    def predictive_parameters_from_samples(
+        self, samples: Tensor
+    ) -> Tuple[Tensor, Tensor]:
         r"""
         Calculate predictive mean and standard deviation of samples.
 
@@ -159,3 +160,27 @@ class MeanFieldNormal(Prior, VariationalDistribution, PredictiveDistribution):
         mean = samples.mean(dim=0)
         std = samples.std(dim=0)
         return mean, std
+
+    def log_prob_from_samples(self, reference: Tensor, samples: Tensor) -> Tensor:
+        r"""
+        Calculate the log probability for reference given a set of samples.
+
+        Since :meth`~predictive_parameters_from_samples` returns an std instead of a
+        log_std it needs to be converted before being passed to :meth`~log_prob`.
+
+        Parameters
+        ----------
+        reference : Tensor
+            Expected prediction as Tensor of shape (\*)
+        samples : Tensor
+            Model prediction as Tensor of shape (S, \*), where S is the number of samples.
+
+        Returns
+        -------
+        Tensor
+            The log probability of the reference under the predicted distribution.
+            Shape: (1,).
+        """
+        mean, std = self.predictive_parameters_from_samples(samples)
+        log_prob = self.log_prob(reference, (mean, std.log()))
+        return log_prob

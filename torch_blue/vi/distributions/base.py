@@ -210,7 +210,9 @@ class Prior(Distribution):
         """
         return tuple(getattr(self, name) for name in self.distribution_parameters)
 
-    def prior_log_prob(self, sample: Tensor, hyperparameters: _tensor_list_t) -> Tensor:
+    def prior_log_prob(
+        self, sample: Tensor, hyperparameters: _tensor_list_t = ()
+    ) -> Tensor:
         r"""
         Compute the log probability of sample based on the distribution parameters.
 
