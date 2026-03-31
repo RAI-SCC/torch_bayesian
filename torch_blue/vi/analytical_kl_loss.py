@@ -112,27 +112,6 @@ class NormalNormalDivergence(KullbackLeiblerModule):
             - 1
         ) / 2
         return raw_kl.sum()
-    
-    @staticmethod
-    def elementwise_forward(
-        prior_mean,
-        prior_log_std,
-        variational_mean,
-        variational_log_std
-    ):
-        variational_variance = torch.exp(2 * variational_log_std)
-        prior_variance = torch.exp(
-            torch.tensor(2, device=variational_mean.device) * prior_log_std
-        )
-        variance_ratio = prior_variance / variational_variance
-
-        raw_kl = (
-            variance_ratio.log()
-            + (prior_mean - variational_mean).pow(2) / prior_variance
-            + 1 / variance_ratio
-            - 1
-        ) / 2
-        return raw_kl
 
 
 class NonBayesianDivergence(KullbackLeiblerModule):
@@ -336,21 +315,10 @@ class AnalyticalKullbackLeiblerLoss(Module):
         self.log: Optional[Dict[str, List[Tensor]]] = None
         if self._track:
             self._init_log()
-            
+
         # Compile vectorized prior matching for performance
-        if hasattr(self.kl_module, "elementwise_forward"):
-            def _vectorized_prior_matching(prior_means: Tensor, prior_log_stds: Tensor, variational_means: Tensor, variational_log_stds: Tensor) -> Tensor:
-                """Vectorized KL divergence computation using element-wise forward."""
-                # Use the elementwise_forward method directly with vectorized operations
-                kl_values = self.kl_module.elementwise_forward(
-                    prior_means, prior_log_stds, variational_means, variational_log_stds
-                )
-                return torch.sum(kl_values)
-            
-            self.prior_matching_v = torch.compile(_vectorized_prior_matching)
-        else:
-            self.prior_matching_v = None
-        
+        self.prior_matching_v = torch.compile(self.kl_module.forward)
+
     def track(self, mode: bool = True) -> None:
         """
         Enable or disable loss tracking.
@@ -399,48 +367,60 @@ class AnalyticalKullbackLeiblerLoss(Module):
         return _kl_div_dict[prior_name + vardist_name + "Divergence"]()
 
     def _get_flat_params(self) -> tuple[Tensor, ...]:
-
         """Extract all parameters as tensors for vectorized operations."""
-        prior_param_lol = []
-        variational_param_lol = []
+        prior_param_lol: List[List[Tensor]] = []
+        variational_param_lol: List[List[Tensor]] = []
 
         for module in self.model.modules():
             if (
                 not hasattr(module, "random_variables")
             ) or module.random_variables is None:
                 continue
-            
+
             for var, prior in zip(module.random_variables, module.prior.values()):
                 if prior is None:
                     continue
 
                 # Extract prior parameters efficiently
-                prior_params = [getattr(prior, param) for param in prior.distribution_parameters]
+                prior_params = [
+                    getattr(prior, param) for param in prior.distribution_parameters
+                ]
 
                 var_params = module.get_variational_parameters(var)
                 for i, var_param in enumerate(var_params):
                     if len(variational_param_lol) < i + 1:
                         variational_param_lol.append([])
                     variational_param_lol[i].append(var_param.flatten())
-                
-                n_elements = variational_param_lol[0][-1].shape[0]  # Get number of elements in the last variational parameter
-                device = variational_param_lol[0][-1].device  # Get device from the last variational parameter
-                dtype = variational_param_lol[0][-1].dtype  # Get dtype from the last variational parameter
+
+                # Get number of elements in the last variational parameter
+                n_elements = variational_param_lol[0][-1].shape[0]
+                # Get device from the last variational parameter
+                device = variational_param_lol[0][-1].device
+                # Get dtype from the last variational parameter
+                dtype = variational_param_lol[0][-1].dtype
 
                 # Broadcast scalar parameters to match dimensions using tensor ops
                 for i, prior_param in enumerate(prior_params):
                     if len(prior_param_lol) < i + 1:
                         prior_param_lol.append([])
-                    prior_param_lol[i].append(torch.full((n_elements,), prior_param if prior_param else 0.0, dtype=dtype, device=device))
+                    prior_param_lol[i].append(
+                        torch.full(
+                            (n_elements,),
+                            prior_param if prior_param else 0.0,
+                            dtype=dtype,
+                            device=device,
+                        )
+                    )
 
         # Concatenate all tensors at once (more efficient than extending)
         return (
             *(torch.cat(prior_param_list) for prior_param_list in prior_param_lol),
-            *(torch.cat(variational_param_list) for variational_param_list in variational_param_lol)
+            *(
+                torch.cat(variational_param_list)
+                for variational_param_list in variational_param_lol
+            ),
         )
 
-
-        
     def prior_matching(self) -> Tensor:
         """
         Calculate the prior matching KL-Divergence of :attr:`~self.model`.
@@ -450,32 +430,7 @@ class AnalyticalKullbackLeiblerLoss(Module):
         Tensor
             The prior matching KL-Divergence of :attr:`~self.model`.
         """
-        if self.prior_matching_v is not None:
-            return self.prior_matching_v(*self._get_flat_params()).sum()
-        else:
-            total_kl = None
-            for module in self.model.modules():
-                if (
-                    not hasattr(module, "random_variables")
-                ) or module.random_variables is None:
-                    continue
-
-                for var, prior in zip(module.random_variables, module.prior.values()):
-                    if prior is None:
-                        continue
-
-                    prior_params = []
-                    for param in prior.distribution_parameters:
-                        prior_params.append(getattr(prior, param))
-                    variational_params = module.get_variational_parameters(var)
-
-                    variable_kl = self.kl_module(prior_params, variational_params)
-                    if total_kl is None:
-                        total_kl = variable_kl
-                    else:
-                        total_kl = total_kl + variable_kl
-
-            return total_kl
+        return self.prior_matching_v(*self._get_flat_params()).sum()
 
     def forward(
         self, model_output: Tensor, target: Tensor, dataset_size: Optional[int] = None
