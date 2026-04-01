@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 import torch
 from torch import Tensor, nn
@@ -81,7 +81,7 @@ class NonBayesian(UniformPrior, VariationalDistribution, PredictiveDistribution)
         else:
             raise ValueError(f"Unsupported loss type: {loss_type}")
 
-    def sample(self, mean: Tensor) -> Tensor:
+    def sample(self, parameters: Tuple[Tensor]) -> Tensor:
         r"""
         Return input as sample.
 
@@ -89,7 +89,7 @@ class NonBayesian(UniformPrior, VariationalDistribution, PredictiveDistribution)
 
         Parameters
         ----------
-        mean: Tensor
+        parameters: Tuple[Tensor]
             The current weight values.
 
         Returns
@@ -97,6 +97,7 @@ class NonBayesian(UniformPrior, VariationalDistribution, PredictiveDistribution)
         Tensor
             The unchanged weight values.
         """
+        mean = parameters[0]
         return mean
 
     def predictive_parameters_from_samples(self, samples: Tensor) -> Tensor:

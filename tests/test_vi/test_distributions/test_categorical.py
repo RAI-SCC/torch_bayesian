@@ -36,8 +36,9 @@ def test_categorical(device: torch.device) -> None:
     )
     target_log_prob2 = ref_dist3.log_prob(target)
 
+    predictive_dist2 = Categorical(eps=0.0)
     log_prob1 = predictive_dist.log_prob_from_parameters(target, p1)
-    log_prob2 = predictive_dist.log_prob_from_parameters(target, p2, eps=0.0)
+    log_prob2 = predictive_dist2.log_prob_from_parameters(target, p2)
     assert log_prob1.shape == (batch,)
     assert torch.allclose(log_prob1, target_log_prob1)
     assert torch.allclose(log_prob2, target_log_prob2)

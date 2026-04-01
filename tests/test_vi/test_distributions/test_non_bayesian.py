@@ -71,7 +71,7 @@ class TestNonBayesian(TestUniformPrior):
         """Test sample()."""
         dist = self.target()
         mean = torch.randn(shape, device=device)
-        sample = dist.sample(mean)
+        sample = dist.sample((mean,))
         assert sample.shape == mean.shape
         assert torch.allclose(sample, mean)
         assert sample.device == device

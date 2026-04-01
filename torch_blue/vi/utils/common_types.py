@@ -5,9 +5,17 @@ from torch.nn.common_types import _scalar_or_tuple_any_t
 from typing_extensions import TypeAlias
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ..distributions import Distribution
+    from ..distributions import (
+        Distribution,
+        PredictiveDistribution,
+        Prior,
+        VariationalDistribution,
+    )
 
 _dist_any_t: TypeAlias = _scalar_or_tuple_any_t["Distribution"]
+_prior_any_t: TypeAlias = _scalar_or_tuple_any_t["Prior"]
+_vardist_any_t: TypeAlias = _scalar_or_tuple_any_t["VariationalDistribution"]
+_preddist_any_t: TypeAlias = _scalar_or_tuple_any_t["PredictiveDistribution"]
 
 
 class VIkwargs(TypedDict):

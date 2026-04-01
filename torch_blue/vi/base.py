@@ -8,9 +8,9 @@ from torch._C._functorch import get_unwrapped
 from torch.nn import Module, Parameter, init
 from torch.nn.common_types import _tensor_list_t
 
-from .distributions import MeanFieldNormal
+from .distributions import MeanFieldNormal, Prior, VariationalDistribution
 from .utils import NoVariablesError, PostInitCallMeta, UnsupportedDistributionError
-from .utils.common_types import _dist_any_t
+from .utils.common_types import _prior_any_t, _vardist_any_t
 from .utils.vi_return import VIReturn
 
 
@@ -127,8 +127,8 @@ class VIModule(Module, metaclass=PostInitCallMeta):
     def __init__(
         self,
         variable_shapes: Optional[Mapping[str, Optional[Tuple[int, ...]]]] = None,
-        variational_distribution: _dist_any_t = MeanFieldNormal(),
-        prior: _dist_any_t = MeanFieldNormal(),
+        variational_distribution: _vardist_any_t = MeanFieldNormal(),
+        prior: _prior_any_t = MeanFieldNormal(),
         rescale_prior: bool = False,
         kaiming_initialization: bool = True,
         prior_initialization: bool = False,
@@ -150,12 +150,12 @@ class VIModule(Module, metaclass=PostInitCallMeta):
                 len(variational_distribution) == len(random_variables)
             ), "Provide either exactly one variational distribution or exactly one for each random variable"
             for dist in variational_distribution:
-                if not dist.is_variational_distribution:
+                if not isinstance(dist, VariationalDistribution):
                     raise UnsupportedDistributionError(
                         f"{dist.__class__.__name__} does not support use as variational distribution."
                     )
         else:
-            if not variational_distribution.is_variational_distribution:
+            if not isinstance(variational_distribution, VariationalDistribution):
                 raise UnsupportedDistributionError(
                     f"{variational_distribution.__class__.__name__} does not support use as variational distribution."
                 )
@@ -171,12 +171,12 @@ class VIModule(Module, metaclass=PostInitCallMeta):
                 len(prior) == len(random_variables)
             ), "Provide either exactly one prior distribution or exactly one for each random variable"
             for dist in prior:
-                if not dist.is_prior:
+                if not isinstance(dist, Prior):
                     raise UnsupportedDistributionError(
                         f"{dist.__class__.__name__} does not support use as prior."
                     )
         else:
-            if not prior.is_prior:
+            if not isinstance(prior, Prior):
                 raise UnsupportedDistributionError(
                     f"{prior.__class__.__name__} does not support use as prior."
                 )
@@ -345,7 +345,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
         variational_parameters = self.get_variational_parameters(variable)
         variational_log_prob = vardist.variational_log_prob(
-            sample, *variational_parameters
+            sample, variational_parameters
         ).sum()
 
         prior_params = [
@@ -384,7 +384,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
             return None
 
         variational_parameters = self.get_variational_parameters(variable)
-        sample = self.variational_distribution[variable].sample(*variational_parameters)
+        sample = self.variational_distribution[variable].sample(variational_parameters)
 
         if self.return_log_probs:
             log_probs = self.get_log_probs(sample, variable)
