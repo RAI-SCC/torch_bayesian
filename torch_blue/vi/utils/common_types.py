@@ -29,13 +29,13 @@ class VIkwargs(TypedDict):
 
     Parameters
     ----------
-    variational_distribution: Union[Distribution, List[Distribution]], default: :class:`MeanFieldNormal()<torch_blue.vi.distributions.MeanFieldNormal>`
-        Either one :class:`torch_blue.vi.distributions.Distribution` ,
+    variational_distribution: Union[VariationalDistribution, List[VariationalDistribution]], default: :class:`MeanFieldNormal()<torch_blue.vi.distributions.MeanFieldNormal>`
+        Either one :class:`torch_blue.vi.distributions.VariationalDistribution` ,
         which is used for all random variables, or a list of them, one for each random
         variable. This specifies the assumed parametrization of the weight distribution.
-    prior: Union[Distribution, List[Distribution]], default: :class:`MeanFieldNormal()<torch_blue.vi.distributions.MeanFieldNormal>`
-        Either one :class:`~torch_blue.vi.distributions.Distribution` , which is
-        used for all random variables, or a list of them, one for each random variable.
+    prior: Union[Prior, List[Prior]], default: :class:`MeanFieldNormal()<torch_blue.vi.distributions.MeanFieldNormal>`
+        Either one :class:`~torch_blue.vi.distributions.Prior` , which is used for all
+        random variables, or a list of them, one for each random variable.
         This specifies the previous knowledge about the weight distribution.
     rescale_prior: bool, default: False
         If ``True`` , the priors :attr:`_scaling_parameters` are scaled with the sqrt of
@@ -54,8 +54,8 @@ class VIkwargs(TypedDict):
         The torch.dtype of the module parameters.
     """
 
-    variational_distribution: _dist_any_t
-    prior: _dist_any_t
+    variational_distribution: _vardist_any_t
+    prior: _prior_any_t
     rescale_prior: bool
     kaiming_initialization: bool
     prior_initialization: bool

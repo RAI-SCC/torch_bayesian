@@ -9,7 +9,14 @@ from torch.nn import Module
 
 from . import _globals
 from .base import VIModule
-from .distributions import Distribution, MeanFieldNormal, NonBayesian
+from .distributions import (
+    MeanFieldNormal,
+    NonBayesian,
+    PredictiveDistribution,
+    Prior,
+    UniformPrior,
+    VariationalDistribution,
+)
 from .utils import UnsupportedDistributionError
 
 
@@ -265,7 +272,7 @@ class AnalyticalKullbackLeiblerLoss(Module):
     def __init__(
         self,
         model: VIModule,
-        predictive_distribution: Distribution,
+        predictive_distribution: PredictiveDistribution,
         dataset_size: Optional[int] = None,
         divergence_type: Optional["KullbackLeiblerModule"] = None,
         heat: float = 1.0,
@@ -277,7 +284,7 @@ class AnalyticalKullbackLeiblerLoss(Module):
         self.heat = heat
         self._track = track
 
-        if not predictive_distribution.is_predictive_distribution:
+        if not isinstance(predictive_distribution, PredictiveDistribution):
             raise UnsupportedDistributionError(
                 f"{predictive_distribution.__class__.__name__} does not support use as"
                 f" predictive distribution"
@@ -340,11 +347,11 @@ class AnalyticalKullbackLeiblerLoss(Module):
 
     @staticmethod
     def _detect_divergence(
-        prior: Distribution, var_dist: Distribution
+        prior: Prior, var_dist: VariationalDistribution
     ) -> KullbackLeiblerModule:
         if isinstance(prior, MeanFieldNormal):
             prior_name = "Normal"
-        elif isinstance(prior, NonBayesian):
+        elif isinstance(prior, UniformPrior):
             prior_name = "Uniform"
         else:
             prior_name = None
