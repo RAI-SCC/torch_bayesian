@@ -16,7 +16,7 @@ from torch_blue.vi import (
     VITransformerEncoder,
     VITransformerEncoderLayer,
 )
-from torch_blue.vi.distributions import Distribution, MeanFieldNormal
+from torch_blue.vi.distributions import MeanFieldNormal, Prior, VariationalDistribution
 
 
 class Filter(VIModule):
@@ -298,7 +298,7 @@ class Filter(VIModule):
 def test_multihead_attention(
     embed_dim: int,
     num_heads: int,
-    variational_distribution: Distribution,
+    variational_distribution: VariationalDistribution,
     batch_size: Optional[int],
     src_len: int,
     tgt_len: int,
@@ -1212,8 +1212,8 @@ def test_transformer(
     batch_first: bool,
     norm_first: bool,
     bias: bool,
-    variational_distribution: Distribution,
-    prior: Distribution,
+    variational_distribution: VariationalDistribution,
+    prior: Prior,
     prior_initialization: bool,
     rescale_prior: bool,
     return_log_probs: bool,

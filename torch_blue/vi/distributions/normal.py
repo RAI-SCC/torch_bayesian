@@ -124,8 +124,8 @@ class MeanFieldNormal(Prior, VariationalDistribution, PredictiveDistribution):
             The module containing the parameters to reset.
         variable: str
             The name of the random variable to reset as given by
-            :attr:`variational_parameters` of the associated
-            :class:`~torch_blue.vi.distributions.Distribution`.
+            :attr:`distribution_parameters` of the associated
+            :class:`~torch_blue.vi.distributions.Prior`.
 
         Returns
         -------

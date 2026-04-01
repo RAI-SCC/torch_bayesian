@@ -43,17 +43,15 @@ class KullbackLeiblerModule(ABC):
     Base class for modules calculating the Kullback-Leibler divergence from distribution parameters.
 
     A KullbackLeiblerModule calculates the analytical Kullback-Leibler divergence
-    between a :class:`~.priors.Prior` and a
-    :class:`~.variational_distributions.VariationalDistribution` based on their
-    parameters. They are mainly intended for use with the
-    :class:`~.AnalyticalKullbackLeiblerLoss`.
+    between a :class:`~.distributions.Prior` and a
+    :class:`~.distributions.VariationalDistribution` based on their parameters. They are
+    mainly intended for use with the :class:`~.AnalyticalKullbackLeiblerLoss`.
 
     Each subclass must define a forward function that is passed, as positional arguments,
-    the parameters of the :class:`~.priors.Prior` in the order specified in its
-    :attr:`~.prior.Prior.distribution_parameters` attribute followed by the parameters
-    of the :class:`~.variational_distributions.VariationalDistribution` in the order
-    specified in its
-    :attr:`~.variational_distributions.VariationalDistribution.variational_parameters`
+    the parameters of the :class:`~.distributions.Prior` in the order specified in its
+    :attr:`~.distributions.Prior.distribution_parameters` attribute followed by the
+    parameters of the :class:`~.distributions.VariationalDistribution` in the order
+    specified in its :attr:`~.distributions.VariationalDistribution.distribution_parameters`
     attribute.
     """
 
@@ -72,8 +70,8 @@ class NormalNormalDivergence(KullbackLeiblerModule):
     """
     Kullback-Leibler divergence between two normal distributions.
 
-    Calculates the KL-Divergence between a :class:`~.priors.MeanFieldNormalPrior` and a
-    :class:`~.variational_distributions.MeanFieldNormalVarDist`.
+    Calculates the KL-Divergence between a :class:`~.distributions.MeanFieldNormal` and
+    a :class:`~.distributions.MeanFieldNormal`.
     """
 
     @staticmethod
@@ -127,7 +125,7 @@ class NonBayesianDivergence(KullbackLeiblerModule):
 
     This module can be used to disable the prior matching term of the
     :class:`~.AnalyticalKullbackLeiblerLoss`. Together with a
-    :class:`~.predictive_distributions.NonBayesianPredictiveDistribution` it yields a
+    :class:`~.distributions.NonBayesian` predictive distribution it yields a
     non-Bayesian loss.
     """
 
@@ -148,8 +146,8 @@ class UniformNormalDivergence(KullbackLeiblerModule):
     """
     Kullback-Leibler divergence between a uniform and normal distribution.
 
-    Calculates the KL-Divergence between a :class:`~.priors.UniformPrior` and a
-    :class:`~.variational_distributions.MeanFieldNormalVarDist`.
+    Calculates the KL-Divergence between a :class:`~.distributions.UniformPrior` and a
+    :class:`~.distributions.MeanFieldNormal` distribution.
     """
 
     @staticmethod
@@ -197,12 +195,11 @@ class AnalyticalKullbackLeiblerLoss(Module):
     A version of the Kullback-Leibler loss function that calculates the prior matching
     term analytically from the prior and variational parameters. To that end it stores a
     reference to the model for access to the parameters. Furthermore, only specific
-    combinations of :class:`~.priors.Prior` and
-    :class:`~.variational_distributions.VariationalDistribution` are supported (see
-    table below). Additionally, it can emulate a non-Bayesian loss, when provided a
-    model with :class:`~.variational_distributions.NonBayesian`
-    variational distribution and a
-    :class:`~.predictive_distributions.NonBayesianPredictiveDistribution`.
+    combinations of :class:`~.distributions.Prior` and
+    :class:`~.distributions.VariationalDistribution` are supported (see table below).
+    Additionally, it can emulate a non-Bayesian loss, when provided a model with
+    :class:`~.distributions.NonBayesian` variational distribution and a
+    :class:`~.distributions.NonBayesian` prior.
 
     .. list-table:: Supported class combinations
         :widths: 33 33 33
@@ -211,18 +208,18 @@ class AnalyticalKullbackLeiblerLoss(Module):
         * - Prior
           - Variational distribution
           - Kullback-Leibler module
-        * - :class:`~.priors.MeanFieldNormalPrior`
-          - :class:`~.variational_distributions.MeanFieldNormalVarDist`
+        * - :class:`~.distributions.MeanFieldNormal`
+          - :class:`~.distributions.MeanFieldNormal`
           - :class:`~.NormalNormalDivergence`
-        * - :class:`~.priors.UniformPrior`
-          - :class:`~.variational_distributions.MeanFieldNormalVarDist`
+        * - :class:`~.distributions.UniformPrior`
+          - :class:`~.distributions.MeanFieldNormal`
           - :class:`~.UniformNormalDivergence`
 
     Parameters
     ----------
     model: :class:`~.VIModule`
         The model to be trained.
-    predictive_distribution: :class:`~.distributions.Distribution`
+    predictive_distribution: :class:`~.distributions.PredictiveDistribution`
         The kind of distribution to assume for the forecasts. This is closely related to
         the non-Bayesian losses, e.g. :class:`~.distributions.MeanFieldNormal`
         corresponds to MSE loss, while :class:`~.distributions.Categorical`
