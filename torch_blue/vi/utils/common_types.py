@@ -29,11 +29,11 @@ class VIkwargs(TypedDict):
 
     Parameters
     ----------
-    variational_distribution: Union[VariationalDistribution, List[VariationalDistribution]], default: :class:`MeanFieldNormal()<torch_blue.vi.distributions.MeanFieldNormal>`
-        Either one :class:`torch_blue.vi.distributions.VariationalDistribution` ,
+    variational_distribution: Union[VariationalDistribution, List[VariationalDistribution]], default: :class:`~torch_blue.vi.distributions.MeanFieldNormal`
+        Either one :class:`~torch_blue.vi.distributions.VariationalDistribution` ,
         which is used for all random variables, or a list of them, one for each random
         variable. This specifies the assumed parametrization of the weight distribution.
-    prior: Union[Prior, List[Prior]], default: :class:`MeanFieldNormal()<torch_blue.vi.distributions.MeanFieldNormal>`
+    prior: Union[Prior, List[Prior]], default: :class:`~torch_blue.vi.distributions.MeanFieldNormal`
         Either one :class:`~torch_blue.vi.distributions.Prior` , which is used for all
         random variables, or a list of them, one for each random variable.
         This specifies the previous knowledge about the weight distribution.
@@ -46,8 +46,7 @@ class VIkwargs(TypedDict):
         parameters are initialized similar to non-Bayesian networks.
     return_log_probs: bool, default: True
         If ``True`` the model forward pass returns the log probability of the sampled
-        weights. This is required for use of
-        :class:`~torch_blue.vi.KullbackLeiblerLoss`.
+        weights. This is required for use of :class:`~torch_blue.vi.KullbackLeiblerLoss`.
     device: Optional[torch.device], default: None
         The torch.device on which the module should be stored.
     dtype: Optional[torch.dtype], default: None

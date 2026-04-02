@@ -49,9 +49,9 @@ class KullbackLeiblerModule(ABC):
 
     Each subclass must define a forward function that is passed, as positional arguments,
     the parameters of the :class:`~.distributions.Prior` in the order specified in its
-    :attr:`~.distributions.Prior.distribution_parameters` attribute followed by the
-    parameters of the :class:`~.distributions.VariationalDistribution` in the order
-    specified in its :attr:`~.distributions.VariationalDistribution.distribution_parameters`
+    :attr:`~.distributions.Distribution.distribution_parameters` attribute followed by
+    the parameters of the :class:`~.distributions.VariationalDistribution` in the order
+    specified in its :attr:`~.distributions.Distribution.distribution_parameters`
     attribute.
     """
 
@@ -197,7 +197,7 @@ class AnalyticalKullbackLeiblerLoss(Module):
     reference to the model for access to the parameters. Furthermore, only specific
     combinations of :class:`~.distributions.Prior` and
     :class:`~.distributions.VariationalDistribution` are supported (see table below).
-    Additionally, it can emulate a non-Bayesian loss, when provided a model with
+    Additionally, it can emulate a non-Bayesian loss, when provided a model with a
     :class:`~.distributions.NonBayesian` variational distribution and a
     :class:`~.distributions.NonBayesian` prior.
 
@@ -214,6 +214,9 @@ class AnalyticalKullbackLeiblerLoss(Module):
         * - :class:`~.distributions.UniformPrior`
           - :class:`~.distributions.MeanFieldNormal`
           - :class:`~.UniformNormalDivergence`
+        * - :class:`~.distributions.UniformPrior`
+          - :class:`~.distributions.NonBayesian`
+          - :class:`~.NonBayesianDivergence`
 
     Parameters
     ----------
@@ -238,9 +241,9 @@ class AnalyticalKullbackLeiblerLoss(Module):
         a non-Bayesian loss.
     track: bool, default: False
         If ``True`` the loss components are tracked for every forward pass in
-        :attr:`~self.log`. This can be enabled, disabled and re-enable with the
-        :meth:`~self.track` method. Any stored data will remain even if disabled and
-        re-enabled.
+        :attr:`~.AnalyticalKullbackLeiblerLoss.log`. This can be enabled, disabled and
+        re-enable with the :meth:`~.AnalyticalKullbackLeiblerLoss.track` method. Any
+        stored data will remain even if disabled and re-enabled.
 
     Attributes
     ----------
@@ -260,7 +263,7 @@ class AnalyticalKullbackLeiblerLoss(Module):
         distribution is not supported.
     :exc:`ValueError`:
         If ``divergence_type`` is ``None`` and the model does not contain any
-        :class:`~.VIBaseModule`, i.e. is non-Bayesian.
+        :class:`~.VIModule`, i.e. is non-Bayesian.
     :exc:`UnsupportedDistributionError`:
         If ``predictive_distribution`` does not support being use as predictive
         distribution.

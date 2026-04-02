@@ -5,7 +5,7 @@ T = TypeVar("T")
 
 
 class PostInitCallMeta(ABCMeta):
-    r"""Metaclass calling __post_init__ after __init__."""
+    r"""Metaclass calling ``__post_init__`` after ``__init__``."""
 
     def __call__(cls: Type[T], *args: Any, **kwargs: Any) -> T:
         r"""Run __call__ as usual, then call __post_init__."""

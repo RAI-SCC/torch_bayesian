@@ -58,8 +58,8 @@ class VIModule(Module, metaclass=PostInitCallMeta):
     log prob information.
 
     .. IMPORTANT:: When defining custom modules with weights make sure to retrieve them
-        using :meth:`~self.sample_variables` as this will maintain the automatic log
-        prob tracking.
+        only once per use as each access will trigger caculation and storage of log
+        probabilities.
 
     Secondly, a model of nested :class:`~.VIModule` automatically identifies the
     outermost module and sets the :attr:`~self._has_sampling_responsibility` flag. This
@@ -67,15 +67,16 @@ class VIModule(Module, metaclass=PostInitCallMeta):
     defaults to 10. Since BNNs require multiple samples for each forward pass, the input
     batch is duplicated accordingly and the forward pass is performed vectorized on all
     samples. While this is significantly faster than serial evaluation, it naturally
-    requires more memory. Additionally, a certain few operations do not function
-    correctly with the vectorization and should not be used in :class:`~.VIModule`.
-    Most importantly, this affects the operators ``+=``, ``-=``, ``*=``, and ``/=``.
-    However, their longform versions work fine, e.g. ``a = a + b`` instead of ``a += b``.
+    requires more memory. Additionally, a few operations do not function correctly with
+    the vectorization and should not be used in :class:`~.VIModule`. Most importantly,
+    this affects the operators ``+=``, ``-=``, ``*=``, and ``/=``. However, their
+    longform versions work fine, e.g. ``a = a + b`` instead of ``a += b``.
 
     If the constructed module does not have its own weights, :meth:`super().__init__()`
-    is called without arguments. In this setting the methods :meth:`get_log_probs`,
-    :meth:`get_variational_parameters`, :meth:`reset_variational_parameters`, and
-    :meth:`sample_variable` cannot be used and raise
+    is called without arguments. In this setting the methods
+    :meth:`~.VIModule.get_log_probs`, :meth:`~.VIModule.get_variational_parameters`,
+    :meth:`~.VIModule.reset_variational_parameters`, and
+    :meth:`~.VIModule.sample_variable` cannot be used and raise
     :exc:`~torch_blue.vi.utils.NoVariablesError`.
 
     Any weight matrix in a BNN may require multiple parameters (e.g. mean and std).
@@ -89,11 +90,11 @@ class VIModule(Module, metaclass=PostInitCallMeta):
     specified name. Each access will yield a new sample. The shape of a random variable
     can be set to ``None``. In that case accessing it will always return ``None``.
 
-    .. NOTE:: The insertion order of the dictionary becomes the order
-        :attr:`self.random_variables`.
+    .. NOTE:: The insertion order of the dictionary becomes the order of
+        :attr:`~.VIModule.random_variables`.
 
     The names of the created attributes can be discovered using the
-    :meth:`~self.variational_parameter_name()` method.
+    :meth:`~.VIModule.variational_parameter_name` method.
 
     Additionally, a module with random variables accepts arguments from
     :class:`~.VIkwargs` as keyword arguments. If a list of priors or variational
@@ -104,7 +105,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
     ----------
     variable_shapes: Optional[Mapping[str, Optional[tuple[int, ...]]]], default = None
         Shape specifications for all random variables. Keys are turned into
-        :attr:`self.random_variables` in insertion order.
+        :attr:`~.VIModule.random_variables` in insertion order.
     VIkwargs
         Several standard keyword arguments. See :class:`~.VIkwargs` for details.
 

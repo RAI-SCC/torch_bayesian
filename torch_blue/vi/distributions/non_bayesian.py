@@ -11,9 +11,9 @@ class UniformPrior(Prior):
     A uniform prior, that gives equal weight to all values.
 
     While this might seem like a good choice for an unknown prior it typically gives too
-    much weight to larger weight values and a :class:`~.Normal` prior is typically
+    much weight to larger weight values and a :class:`~.MeanFieldNormal` prior is typically
     preferable. However, it can be used to imitate nom-Bayesian behavior and is
-    equivalent to :class:`NonBayesian`, when used as prior.
+    equivalent to :class:`~.NonBayesian` used as prior.
     """
 
     distribution_parameters = ("mean",)
