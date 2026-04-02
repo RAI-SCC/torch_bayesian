@@ -316,8 +316,6 @@ class AnalyticalKullbackLeiblerLoss(Module):
         if self._track:
             self._init_log()
 
-        # Compile vectorized prior matching for performance
-        self.prior_matching_v = torch.compile(self.kl_module.forward)
 
     def track(self, mode: bool = True) -> None:
         """
@@ -430,7 +428,7 @@ class AnalyticalKullbackLeiblerLoss(Module):
         Tensor
             The prior matching KL-Divergence of :attr:`~self.model`.
         """
-        return self.prior_matching_v(*self._get_flat_params()).sum()
+        return self.kl_module.forward(*self._get_flat_params())
 
     def forward(
         self, model_output: Tensor, target: Tensor, dataset_size: Optional[int] = None
