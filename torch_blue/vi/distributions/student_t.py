@@ -1,5 +1,5 @@
 from math import log
-from typing import Optional, Tuple
+from typing import Optional
 
 import torch
 from torch import Tensor
@@ -41,10 +41,10 @@ class MeanFieldStudentT(VariationalDistribution):
         self.degrees_of_freedom = torch.tensor(degrees_of_freedom, device=device)
 
     @property
-    def _default_variational_parameters(self) -> Tuple[float, float]:
+    def _default_variational_parameters(self) -> tuple[float, float]:
         return (self.mean, self.log_scale)
 
-    def log_prob(self, sample: Tensor, parameters: Tuple[Tensor, Tensor]) -> Tensor:
+    def log_prob(self, sample: Tensor, parameters: tuple[Tensor, Tensor]) -> Tensor:
         """
         Compute the log probability of a sample.
 
@@ -82,7 +82,7 @@ class MeanFieldStudentT(VariationalDistribution):
             )
         return -(data_fitting + normalization)
 
-    def sample(self, parameters: Tuple[Tensor, Tensor]) -> Tensor:
+    def sample(self, parameters: tuple[Tensor, Tensor]) -> Tensor:
         """
         Draw sample from Student's t-distribution.
 
@@ -91,8 +91,8 @@ class MeanFieldStudentT(VariationalDistribution):
 
         Parameters
         ----------
-        parameters: Tupele[Tensor, Tensor]
-            Tuple containint a sample mean and a sample distribution log scale as
+        parameters: tuple[Tensor, Tensor]
+            tuple containing a sample mean and a sample distribution log scale as
             Tensors.
 
         Returns

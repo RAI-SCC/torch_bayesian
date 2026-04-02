@@ -1,5 +1,5 @@
 from math import log
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING
 
 import torch
 from torch import Tensor
@@ -49,7 +49,7 @@ class MeanFieldNormal(Prior, VariationalDistribution, PredictiveDistribution):
         self.eps = eps
 
     @property
-    def _default_variational_parameters(self) -> Tuple[Tensor, Tensor]:
+    def _default_variational_parameters(self) -> tuple[Tensor, Tensor]:
         return self.mean, self.log_std
 
     @property
@@ -57,7 +57,7 @@ class MeanFieldNormal(Prior, VariationalDistribution, PredictiveDistribution):
         """Standard deviation of the distribution."""
         return self.log_std.exp()
 
-    def log_prob(self, sample: Tensor, parameters: Tuple[Tensor, Tensor]) -> Tensor:
+    def log_prob(self, sample: Tensor, parameters: tuple[Tensor, Tensor]) -> Tensor:
         """
         Compute the log probability of `sample` based on a normal distribution.
 
@@ -71,7 +71,7 @@ class MeanFieldNormal(Prior, VariationalDistribution, PredictiveDistribution):
         ----------
         sample: Tensor
             The weight configuration to calculate the log probability for.
-        parameters: Tuple[Tensor, Tensor]
+        parameters: tuple[Tensor, Tensor]
             The Tensor of means and the Tensor of log standard deviations of the
             reference distribution as tuple.
 
@@ -89,7 +89,7 @@ class MeanFieldNormal(Prior, VariationalDistribution, PredictiveDistribution):
             normalization = normalization + log(2 * torch.pi)
         return -0.5 * (data_fitting + normalization)
 
-    def sample(self, parameters: Tuple[Tensor, Tensor]) -> Tensor:
+    def sample(self, parameters: tuple[Tensor, Tensor]) -> Tensor:
         """
         Sample from a Gaussian distribution.
 
@@ -138,7 +138,7 @@ class MeanFieldNormal(Prior, VariationalDistribution, PredictiveDistribution):
 
     def predictive_parameters_from_samples(
         self, samples: Tensor
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor]:
         r"""
         Calculate predictive mean and standard deviation of samples.
 

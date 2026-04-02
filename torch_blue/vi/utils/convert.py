@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Set, Tuple, Type, Union, cast
+from typing import Dict, List, Optional, Set, Type, Union, cast
 
 import torch
 from torch import nn
@@ -263,8 +263,8 @@ def _convert_module(
     parameters = module._parameters
     module._parameters = dict()
 
-    variable_shapes: Dict[str, Optional[Tuple[int, ...]]] = dict()
-    variable_types: Dict[str, Tuple[torch.device, torch.dtype]] = dict()
+    variable_shapes: Dict[str, Optional[tuple[int, ...]]] = dict()
+    variable_types: Dict[str, tuple[torch.device, torch.dtype]] = dict()
     for name, parameter in parameters.items():
         if parameter is None:
             variable_shapes[name] = None

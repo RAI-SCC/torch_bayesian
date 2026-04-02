@@ -1,6 +1,6 @@
 from itertools import product
 from math import log
-from typing import Optional, Tuple
+from typing import Optional
 
 import pytest
 import torch
@@ -22,7 +22,7 @@ class TestNormal:
     def test_prior_log_prob(
         self,
         norm_constants: bool,
-        params: Optional[Tuple[float, float, float]],
+        params: Optional[tuple[float, float, float]],
         device: torch.device,
     ) -> None:
         """Test Normal.prior_log_prob."""

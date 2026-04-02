@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple, cast
+from typing import Dict, Optional, cast
 
 import torch
 from torch import Tensor
@@ -66,7 +66,7 @@ class VILinear(VIModule):
         self.in_features = in_features
         self.out_features = out_features
 
-        variable_shapes: Dict[str, Optional[Tuple[int, ...]]] = dict(
+        variable_shapes: Dict[str, Optional[tuple[int, ...]]] = dict(
             weight=(out_features, in_features)
         )
         if bias:

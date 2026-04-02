@@ -1,5 +1,5 @@
 from math import log
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING
 
 import torch
 from torch import Tensor
@@ -57,12 +57,12 @@ class BasicQuietPrior(Prior):
         self.mean_std = torch.tensor(mean_std)
         self.eps = eps
 
-    def get_parameters(self) -> Tuple[Tensor, Tensor]:
+    def get_parameters(self) -> tuple[Tensor, Tensor]:
         r"""Return the prior parameters."""
         return self.mean_mean, self.mean_std
 
     def log_prob(
-        self, sample: Tensor, parameters: Tuple[Tensor, Tensor, Tensor]
+        self, sample: Tensor, parameters: tuple[Tensor, Tensor, Tensor]
     ) -> Tensor:
         """
         Compute the log probability of the sample.

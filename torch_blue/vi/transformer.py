@@ -1,5 +1,5 @@
 import copy
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import torch
 from torch import Tensor
@@ -93,7 +93,7 @@ class VIMultiheadAttention(VIModule):
             self.head_dim * num_heads == self.embed_dim
         ), "embed_dim must be divisible by num_heads"
 
-        variables: Dict[str, Optional[Tuple[int, ...]]] = dict(
+        variables: Dict[str, Optional[tuple[int, ...]]] = dict(
             in_proj_weight=None,
             q_proj_weight=None,
             k_proj_weight=None,
@@ -134,7 +134,7 @@ class VIMultiheadAttention(VIModule):
         key_padding_mask: Optional[Tensor] = None,
         average_attn_weights: bool = True,
         is_causal: bool = False,
-    ) -> Tuple[Tensor, Optional[Tensor]]:
+    ) -> tuple[Tensor, Optional[Tensor]]:
         """
         Compute attention outputs using query, key, and value embeddings.
 
@@ -357,7 +357,7 @@ class VITransformerEncoderLayer(VIModule):
         attn_mask: Optional[Tensor] = None,
         key_padding_mask: Optional[Tensor] = None,
         is_causal: bool = False,
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor]:
         x = self.self_attn(
             x,
             x,
@@ -505,7 +505,7 @@ class VITransformerDecoderLayer(VIModule):
         attn_mask: Optional[Tensor] = None,
         key_padding_mask: Optional[Tensor] = None,
         is_causal: bool = False,
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor]:
         x = self.self_attn(
             x,
             x,
@@ -523,7 +523,7 @@ class VITransformerDecoderLayer(VIModule):
         attn_mask: Optional[Tensor] = None,
         key_padding_mask: Optional[Tensor] = None,
         is_causal: bool = False,
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor]:
         x = self.multihead_attn(
             x,
             mem,

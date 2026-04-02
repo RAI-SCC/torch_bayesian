@@ -1,5 +1,5 @@
 from math import log, sqrt
-from typing import Dict, Tuple
+from typing import Dict
 
 import pytest
 import torch
@@ -34,7 +34,7 @@ class TestDistribution:
             distribution_parameters = tuple(params.keys())
 
             def log_prob(
-                self, sample: Tensor, parameters: Tuple[Tensor, ...]
+                self, sample: Tensor, parameters: tuple[Tensor, ...]
             ) -> Tensor:
                 return sample
 
@@ -51,7 +51,7 @@ class TestDistribution:
             distribution_parameters = ("mean", "log_std")
 
             def log_prob(
-                self, sample: Tensor, parameters: Tuple[Tensor, Tensor]
+                self, sample: Tensor, parameters: tuple[Tensor, Tensor]
             ) -> Tensor:
                 return sample
 
@@ -69,7 +69,7 @@ class TestDistribution:
             distribution_parameters = ("mean", "log_std")
 
             def log_prob(
-                self, sample: Tensor, parameters: Tuple[Tensor, Tensor]
+                self, sample: Tensor, parameters: tuple[Tensor, Tensor]
             ) -> Tensor:
                 return sample
 
@@ -88,7 +88,7 @@ class TestDistribution:
             log_std = 0.0
 
             def log_prob(
-                self, sample: Tensor, parameters: Tuple[Tensor, Tensor]
+                self, sample: Tensor, parameters: tuple[Tensor, Tensor]
             ) -> Tensor:
                 return sample
 
@@ -118,7 +118,7 @@ def test_kaiming_rescale() -> None:
         skew: float = ref["skew"]
         ff: float = ref["ff"]
 
-        def log_prob(self, sample: Tensor, parameters: Tuple[Tensor, ...]) -> Tensor:
+        def log_prob(self, sample: Tensor, parameters: tuple[Tensor, ...]) -> Tensor:
             return sample
 
     # Test vector rescale
@@ -170,9 +170,9 @@ def test_vardist_checking() -> None:
     # length matching of variational_parameters and default parameters
     class Test(VariationalDistribution):
         distribution_parameters = ("mean", "std")
-        _default_variational_parameters: Tuple[float, ...] = (0.0,)
+        _default_variational_parameters: tuple[float, ...] = (0.0,)
 
-        def log_prob(self, sample: Tensor, parameters: Tuple[Tensor, Tensor]) -> Tensor:
+        def log_prob(self, sample: Tensor, parameters: tuple[Tensor, Tensor]) -> Tensor:
             return sample
 
         def sample(self, mean: Tensor) -> Tensor:
@@ -197,7 +197,7 @@ def test_match_parameters() -> None:
         distribution_parameters = ("mean", "std")
         _default_variational_parameters = (0.0, 1.0)
 
-        def log_prob(self, sample: Tensor, parameters: Tuple[Tensor, Tensor]) -> Tensor:
+        def log_prob(self, sample: Tensor, parameters: tuple[Tensor, Tensor]) -> Tensor:
             return sample
 
         def sample(self, mean: Tensor) -> Tensor:
@@ -296,7 +296,7 @@ def test_vardist_reset_variational_parameters(device: torch.device) -> None:
         _default_variational_parameters = (0.0, 1.0, 0.0)
 
         def log_prob(
-            self, sample: Tensor, parameters: Tuple[Tensor, Tensor, Tensor]
+            self, sample: Tensor, parameters: tuple[Tensor, Tensor, Tensor]
         ) -> Tensor:
             mean, std, log_std = parameters
             return sample + mean + std
@@ -364,12 +364,12 @@ def test_predictive_checking() -> None:
     class Test(PredictiveDistribution):
         distribution_parameters = ("mean", "std")
 
-        def log_prob(self, sample: Tensor, parameters: Tuple[Tensor, Tensor]) -> Tensor:
+        def log_prob(self, sample: Tensor, parameters: tuple[Tensor, Tensor]) -> Tensor:
             return sample
 
         def predictive_parameters_from_samples(
             self, sample: Tensor
-        ) -> Tuple[Tensor, ...]:
+        ) -> tuple[Tensor, ...]:
             return sample
 
     _ = Test()
@@ -386,7 +386,7 @@ def test_log_prob_from_samples(device: torch.device) -> None:
 
         def predictive_parameters_from_samples(
             self, sample: Tensor
-        ) -> Tuple[Tensor, ...]:
+        ) -> tuple[Tensor, ...]:
             return sample.sum(dim=0)
 
     test = Test()

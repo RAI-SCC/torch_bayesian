@@ -1,6 +1,6 @@
 import math
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Dict, Tuple
+from typing import TYPE_CHECKING, Dict
 from warnings import warn
 
 from torch import Tensor
@@ -37,20 +37,14 @@ class Distribution(metaclass=PostInitCallMeta):
 
     Distributions are implemented as subclasses of this. However, not all distributions
     can function or make sense in all available roles. Furthermore, each role has
-    distinct requirements, which can be implemented independently.
+    distinct requirements, which can be implemented independently. Therefore, subclasses
+    should generally not be derived from this class, but from one or more of the
+    subclasses implementing the separate roles.
 
     Available roles are prior, variational distribution, and predictive distribution.
-    To represent this there is a mix-in interface for each of these roles:
-    :class:`~Prior`, :class:`~VariationalDistribution`, and
-    :class:`~PredictiveDistribution`. Each custom distribution must use at least one of
-    these interfaces.
-
-    To simplify detection of correct usage this class has the three attributes
-    :attr:`~self.is_prior`, :attr:`~self.is_variational_distribution`, and
-    :attr:`~self.is_predictive_distribution`, which are `False` by default. When
-    implementing custom distributions the flags for the intended usages must be set to
-    `True`. This also implements initialization time checking that provides feedback if
-    any required components for the flagged uses is missing.
+    To represent this there is an interface for each of these roles: :class:`~Prior`,
+    :class:`~VariationalDistribution`, and :class:`~PredictiveDistribution`. Each custom
+    distribution must use at least one of these interfaces.
     """
 
     def __post_init__(self) -> None:
@@ -72,13 +66,13 @@ class Distribution(metaclass=PostInitCallMeta):
 
     @property
     @abstractmethod
-    def distribution_parameters(self) -> Tuple[str, ...]:
+    def distribution_parameters(self) -> tuple[str, ...]:
         r"""
         The names of the parameters characterizing the distribution.
 
-        The first element should be the name of the primary paramater, i.e., the
+        The first element should be the name of the primary parameter, i.e., the
         parameter that is closest to a non-Bayesian weight - typically a mean or loc.
-        Any parameters that begin with "log_" will be rescaled as logarithmic parameters.
+        Any parameters that begin with "log\_" will be rescaled as logarithmic parameters.
         """
         ...
 
@@ -91,7 +85,7 @@ class Distribution(metaclass=PostInitCallMeta):
         ----------
         sample: Tensor
             A Tensor of samples for which to calculate the log probability.
-        parameters: Tensor | Tuple[Tensor, ...]
+        parameters: Tensor | tuple[Tensor, ...]
             One Tensor for each entry of :attr:`~self.distribution_parameters` in the
             same order. These must be broadcastable to the shape of `sample`. If
             additional parameters are needed for hierarchical priors they should appear
@@ -106,8 +100,8 @@ class Distribution(metaclass=PostInitCallMeta):
         ...
 
     def match_parameters(
-        self, distribution_parameters: Tuple[str, ...]
-    ) -> Tuple[Dict[str, int], Dict[str, int]]:
+        self, distribution_parameters: tuple[str, ...]
+    ) -> tuple[Dict[str, int], Dict[str, int]]:
         r"""
         Compare distribution parameters to another set of parameters.
 
@@ -116,12 +110,12 @@ class Distribution(metaclass=PostInitCallMeta):
 
         Parameters
         ----------
-        distribution_parameters : Tuple[str]
+        distribution_parameters : tuple[str, ...]
             Tuple of parameter names to compare.
 
         Returns
         -------
-        Tuple[Dict[str, int], Dict[str, int]]
+        tuple[Dict[str, int], Dict[str, int]]
             The first dictionary maps the names of the shared parameters to their index
             in :attr:`~self.variational_parameters`. The second dictionary maps the
             names of parameters exclusive to :attr:`~self.variational_parameters` to
@@ -172,15 +166,15 @@ class Prior(Distribution):
 
     Parameters
     ----------
-    _required_parameters: Tuple[str, ...], default: ()
+    _required_parameters: tuple[str, ...], default: ()
         External parameters besides a sample needed to calculate :meth:`~log_prob`.
-    _scaling_parameters: Tuple[str, ...], default: :attr:`~distribution_parameters`
+    _scaling_parameters: tuple[str, ...], default: :attr:`~distribution_parameters`
         Parameters that need to be rescaled for prior rescaling.
     """
 
     _rescaled: bool = False
-    _required_parameters: Tuple[str, ...] = ()
-    _scaling_parameters: Tuple[str, ...]
+    _required_parameters: tuple[str, ...] = ()
+    _scaling_parameters: tuple[str, ...]
 
     def __post_init__(self) -> None:
         r"""Ensure instance has required attributes to operate as prior."""
@@ -204,7 +198,7 @@ class Prior(Distribution):
 
         Returns
         -------
-        Tensor | Tuple[Tensor, ...]
+        Tensor | tuple[Tensor, ...]
             The values of the distribution parameters in the order of
             :attr:`~Distribution.distribution_parameters`.
         """
@@ -225,7 +219,7 @@ class Prior(Distribution):
         ----------
         sample: Tensor
             A Tensor of values to calculate the log probability for.
-        hyperparameters: Tensor | Tuple[Tensor, ...]
+        hyperparameters: Tensor | tuple[Tensor, ...]
             External parameters that might be needed hierarchical priors.
 
         Returns
@@ -330,10 +324,10 @@ class VariationalDistribution(Distribution):
 
     Attributes
     ----------
-    distribution_parameters : Tuple[str, ...]
+    distribution_parameters : tuple[str, ...]
         The names of the variational parameters that characterize the distribution.
         These are fit during training.
-    _default_variational_parameters : Tuple[float, ...]
+    _default_variational_parameters : tuple[float, ...]
         Default initialization values for the variational parameters. If the parameter
         is "mean", "mode" or "loc", it is initialized analogously to non-Bayesian
         weights and the default is ignored.
@@ -341,7 +335,7 @@ class VariationalDistribution(Distribution):
 
     @property
     @abstractmethod
-    def _default_variational_parameters(self) -> Tuple[float, ...]:
+    def _default_variational_parameters(self) -> tuple[float, ...]:
         r"""
         The default values of the parameters characterizing the distribution.
 
@@ -421,7 +415,7 @@ class VariationalDistribution(Distribution):
         ----------
         sample: Tensor
             A Tensor of values to calculate the log probability for.
-        parameters: Tensor | Tuple[Tensor, ...]
+        parameters: Tensor | tuple[Tensor, ...]
             The predicitve parameters in the same order as specified by
             :attr:`~Distribution.distribution_parameters`.
 
@@ -446,7 +440,7 @@ class VariationalDistribution(Distribution):
 
         Parameters
         ----------
-        parameters: Tensor | Tuple[Tensor, ...]
+        parameters: Tensor | tuple[Tensor, ...]
             A tuple of distribution parameters as specified in
             :attr:`~Distribution.distribution_parameters`.
 
@@ -485,7 +479,7 @@ class PredictiveDistribution(Distribution):
         super().__post_init__()
 
     @abstractmethod
-    def predictive_parameters_from_samples(self, sample: Tensor) -> Tuple[Tensor, ...]:
+    def predictive_parameters_from_samples(self, sample: Tensor) -> tuple[Tensor, ...]:
         r"""
         Calculate the parametric prediction from a set of samples.
 
@@ -517,8 +511,8 @@ class PredictiveDistribution(Distribution):
         reference: Tensor
             The ground truth label as Tensor of the same shape as each Tensor in
             `parameters`.
-        parameters: Tensor | Tuple[Tensor, ...]
-            The predicitve parameters in the same order as specified by
+        parameters: Tensor | tuple[Tensor, ...]
+            The predictive parameters in the same order as specified by
             :attr:`~Distribution.distribution_parameters` and returned by
             :meth:`~predictive_parameters_from_samples`.
 

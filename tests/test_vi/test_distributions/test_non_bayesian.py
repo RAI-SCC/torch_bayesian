@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import pytest
 import torch
@@ -28,7 +28,7 @@ class TestUniformPrior:
 
     @pytest.mark.parametrize("shape", shapes)
     def test_prior_log_prob(
-        self, shape: Union[int, Tuple[int, ...]], device: torch.device
+        self, shape: Union[int, tuple[int, ...]], device: torch.device
     ) -> None:
         """Test prior log probability."""
         dist = self.target()
@@ -52,7 +52,7 @@ class TestNonBayesian(TestUniformPrior):
 
     @pytest.mark.parametrize("shape", shapes)
     def test_variational_log_prob(
-        self, shape: Union[int, Tuple[int, ...]], device: torch.device
+        self, shape: Union[int, tuple[int, ...]], device: torch.device
     ) -> None:
         """Test variational log probability."""
         dist = self.target()
@@ -66,7 +66,7 @@ class TestNonBayesian(TestUniformPrior):
 
     @pytest.mark.parametrize("shape", shapes)
     def test_sample(
-        self, shape: Union[int, Tuple[int, ...]], device: torch.device
+        self, shape: Union[int, tuple[int, ...]], device: torch.device
     ) -> None:
         """Test sample()."""
         dist = self.target()

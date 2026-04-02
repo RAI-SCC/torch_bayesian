@@ -1,6 +1,6 @@
 import math
 from itertools import product
-from typing import Dict, Optional, Tuple, Type, cast
+from typing import Dict, Optional, Type, cast
 
 import pytest
 import torch
@@ -24,8 +24,8 @@ class TestVIModule:
         dist_params, default_params = request.param
 
         class TestPrior(Prior):
-            distribution_parameters: Tuple[str, ...] = dist_params
-            _scaling_parameters: Tuple[str, ...] = dist_params
+            distribution_parameters: tuple[str, ...] = dist_params
+            _scaling_parameters: tuple[str, ...] = dist_params
             mean: Tensor = torch.tensor(default_params[0])
             std: Tensor = torch.tensor(default_params[1])
 
@@ -48,15 +48,15 @@ class TestVIModule:
         var_params, default_params = request.param
 
         class TestVarDist(VariationalDistribution):
-            distribution_parameters: Tuple[str, ...] = var_params
-            _default_variational_parameters: Tuple[float, ...] = default_params
+            distribution_parameters: tuple[str, ...] = var_params
+            _default_variational_parameters: tuple[float, ...] = default_params
 
-            def sample(self, parameters: Tuple[Tensor, Tensor]) -> Tensor:
+            def sample(self, parameters: tuple[Tensor, Tensor]) -> Tensor:
                 mean, std = parameters
                 return mean + std
 
             def log_prob(
-                self, sample: Tensor, parameters: Tuple[Tensor, Tensor]
+                self, sample: Tensor, parameters: tuple[Tensor, Tensor]
             ) -> Tensor:
                 return 3 * sample
 
@@ -72,13 +72,13 @@ class TestVIModule:
     )
     def var_dict(
         self, request: pytest.FixtureRequest
-    ) -> Dict[str, Optional[Tuple[int, ...]]]:
+    ) -> Dict[str, Optional[tuple[int, ...]]]:
         """Set up variable dict for test initializations."""
         return request.param
 
     def test_dist_no_error(
         self,
-        var_dict: Dict[str, Optional[Tuple[int, ...]]],
+        var_dict: Dict[str, Optional[tuple[int, ...]]],
         dummy_prior: Type[Prior],
         dummy_vardist: Type[VariationalDistribution],
         device: torch.device,
@@ -118,7 +118,7 @@ class TestVIModule:
 
     def test_prior_init_error(
         self,
-        var_dict: Dict[str, Optional[Tuple[int, ...]]],
+        var_dict: Dict[str, Optional[tuple[int, ...]]],
         dummy_prior: Type[Prior],
         dummy_vardist: Type[VariationalDistribution],
         device: torch.device,
@@ -139,17 +139,17 @@ class TestVIModule:
 
     def test_kaiming_scaling(
         self,
-        var_dict: Dict[str, Optional[Tuple[int, ...]]],
+        var_dict: Dict[str, Optional[tuple[int, ...]]],
         dummy_prior: Type[Prior],
         dummy_vardist: Type[VariationalDistribution],
         device: torch.device,
     ) -> None:
         """Test kaiming scaling of non-mean parameters."""
         var_params = cast(
-            Tuple[str, ...], cast(object, dummy_vardist.distribution_parameters)
+            tuple[str, ...], cast(object, dummy_vardist.distribution_parameters)
         )
         default_params = cast(
-            Tuple[float, ...], dummy_vardist._default_variational_parameters
+            tuple[float, ...], dummy_vardist._default_variational_parameters
         )
         module = VIModule(var_dict, dummy_vardist(), dummy_prior(), device=device)
         fan_in = module._calculate_fan_in(var_dict)
@@ -179,7 +179,7 @@ class TestVIModule:
 
     def test_invalid_distribution_error(
         self,
-        var_dict: Dict[str, Optional[Tuple[int, ...]]],
+        var_dict: Dict[str, Optional[tuple[int, ...]]],
         dummy_prior: Type[Prior],
         dummy_vardist: Type[VariationalDistribution],
         device: torch.device,
@@ -243,7 +243,7 @@ class TestVIModule:
 
     def test_prior_rescaling(
         self,
-        var_dict: Dict[str, Optional[Tuple[int, ...]]],
+        var_dict: Dict[str, Optional[tuple[int, ...]]],
         dummy_prior: Type[Prior],
         dummy_vardist: Type[VariationalDistribution],
         device: torch.device,
@@ -265,7 +265,7 @@ class TestVIModule:
 
     def test_parameter_resetting(
         self,
-        var_dict: Dict[str, Optional[Tuple[int, ...]]],
+        var_dict: Dict[str, Optional[tuple[int, ...]]],
         dummy_prior: Type[Prior],
         dummy_vardist: Type[VariationalDistribution],
         device: torch.device,
@@ -279,7 +279,7 @@ class TestVIModule:
             if var_dict[var] is None:
                 continue
             for param in cast(
-                Tuple[str, ...], cast(object, dummy_vardist.distribution_parameters)
+                tuple[str, ...], cast(object, dummy_vardist.distribution_parameters)
             ):
                 name = module.variational_parameter_name(var, param)
                 memory[name] = (getattr(module, name).clone(), param != "mean")
@@ -291,14 +291,14 @@ class TestVIModule:
 
     def test_get_variational_parameters(
         self,
-        var_dict: Dict[str, Optional[Tuple[int, ...]]],
+        var_dict: Dict[str, Optional[tuple[int, ...]]],
         dummy_prior: Type[Prior],
         dummy_vardist: Type[VariationalDistribution],
         device: torch.device,
     ) -> None:
         """Test VIModule.get_variational_parameters."""
         var_params = cast(
-            Tuple[str, ...], cast(object, dummy_vardist.distribution_parameters)
+            tuple[str, ...], cast(object, dummy_vardist.distribution_parameters)
         )
         variables = list(var_dict.keys())
 
@@ -321,7 +321,7 @@ class TestVIModule:
 
     def test_get_log_probs(
         self,
-        var_dict: Dict[str, Optional[Tuple[int, ...]]],
+        var_dict: Dict[str, Optional[tuple[int, ...]]],
         dummy_prior: Type[Prior],
         dummy_vardist: Type[VariationalDistribution],
         device: torch.device,
@@ -344,7 +344,7 @@ class TestVIModule:
     @pytest.mark.parametrize("return_log_probs", [True, False])
     def test_sample_variable(
         self,
-        var_dict: Dict[str, Optional[Tuple[int, ...]]],
+        var_dict: Dict[str, Optional[tuple[int, ...]]],
         dummy_prior: Type[Prior],
         dummy_vardist: Type[VariationalDistribution],
         return_log_probs: bool,
@@ -375,7 +375,7 @@ class DummyModule1(VIModule):
         self.ref = torch.tensor(False, device=device) if ref is None else ref
         self._log_probs = dict(all=[])
 
-    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, x: Tensor) -> tuple[Tensor, Tensor]:
         """Forward pass."""
         assert x.shape == self.ref.shape
         self._log_probs["all"].append(get_unwrapped(torch.randn(2, device=x.device)))
@@ -401,7 +401,7 @@ class TestVIModuleShapeDependents:
     """Test sample shape dependent features of VIModule."""
 
     def test_expand_to_samples(
-        self, shape: Optional[Tuple[int, ...]], device: torch.device
+        self, shape: Optional[tuple[int, ...]], device: torch.device
     ) -> None:
         """Test _expand_to_samples."""
         n_samples = torch.randint(1, 10, [1]).item()
@@ -419,7 +419,7 @@ class TestVIModuleShapeDependents:
                 assert s.item() is False
 
     def test_no_forward_error(
-        self, shape: Optional[Tuple[int, ...]], device: torch.device
+        self, shape: Optional[tuple[int, ...]], device: torch.device
     ) -> None:
         """Test that forward throws error if not implemented."""
         module = VIModule()
@@ -435,7 +435,7 @@ class TestVIModuleShapeDependents:
     )
     def test_sampled_forward(
         self,
-        shape: Optional[Tuple[int, ...]],
+        shape: Optional[tuple[int, ...]],
         module: Type[DummyModule1],
         log_probs: bool,
         device: torch.device,

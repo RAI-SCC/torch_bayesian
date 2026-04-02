@@ -1,6 +1,6 @@
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Mapping, Optional, Union, cast
 
 import torch
 from torch import Tensor
@@ -102,7 +102,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
     Parameters
     ----------
-    variable_shapes: Optional[Mapping[str, Optional[Tuple[int, ...]]]], default = None
+    variable_shapes: Optional[Mapping[str, Optional[tuple[int, ...]]]], default = None
         Shape specifications for all random variables. Keys are turned into
         :attr:`self.random_variables` in insertion order.
     VIkwargs
@@ -126,7 +126,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
     def __init__(
         self,
-        variable_shapes: Optional[Mapping[str, Optional[Tuple[int, ...]]]] = None,
+        variable_shapes: Optional[Mapping[str, Optional[tuple[int, ...]]]] = None,
         variational_distribution: _vardist_any_t = MeanFieldNormal(),
         prior: _prior_any_t = MeanFieldNormal(),
         rescale_prior: bool = False,
@@ -209,14 +209,14 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         self.reset_variational_parameters()
 
     @property
-    def random_variables(self) -> Optional[Tuple[str, ...]]:
+    def random_variables(self) -> Optional[tuple[str, ...]]:
         """Names of the modules random variables."""
         if "variational_distribution" not in self.__dict__:
             return None
         return tuple(self.variational_distribution.keys())
 
     def _rescale_prior(
-        self, variable_shapes: Mapping[str, Optional[Tuple[int, ...]]]
+        self, variable_shapes: Mapping[str, Optional[tuple[int, ...]]]
     ) -> None:
         """
         Rescale the prior parameters based on the layer width.
@@ -225,7 +225,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
         Parameters
         ----------
-        variable_shapes: Mapping[str, Optional[Tuple[int, ...]]]
+        variable_shapes: Mapping[str, Optional[tuple[int, ...]]]
             The dictionary of random variable names and shapes as passed to __init__.
 
         Returns
@@ -403,7 +403,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
     def sampled_forward(
         self, *input_: Optional[Tensor], samples: int = 10, **kwargs: Any
-    ) -> Union[VIReturn, Tuple[VIReturn, ...]]:
+    ) -> Union[VIReturn, tuple[VIReturn, ...]]:
         """
         Forward pass of the module evaluating multiple weight samples.
 
@@ -428,7 +428,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
 
         Returns
         -------
-        Union[VIReturn, Tuple[VIReturn, ...]]
+        Union[VIReturn, tuple[VIReturn, ...]]
             One or multiple Tensors with log prob annotation
         """
         # reset log_probs in case users (or IDEs) have touched attributes
@@ -561,7 +561,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
         return super().__getattr__(name)
 
     def _calculate_fan_in(
-        self, variable_shapes: Optional[Mapping[str, Optional[Tuple[int, ...]]]] = None
+        self, variable_shapes: Optional[Mapping[str, Optional[tuple[int, ...]]]] = None
     ) -> int:
         if variable_shapes is None:
             loop = self.random_variables
@@ -570,7 +570,7 @@ class VIModule(Module, metaclass=PostInitCallMeta):
             loop = checked_dict = variable_shapes  # type:ignore[assignment]
 
         all_none = True
-        for var in cast(Tuple[str, ...], loop):
+        for var in cast(tuple[str, ...], loop):
             if checked_dict[var] is None:
                 continue
 

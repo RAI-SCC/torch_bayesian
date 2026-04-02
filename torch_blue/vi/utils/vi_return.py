@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 from torch import Tensor
 
@@ -29,7 +29,7 @@ class VIReturn(Tensor):
         super().__init__()
         self.log_probs = log_probs
 
-    def new_empty(self, size: Tuple[int, ...], **kwargs: Any) -> "VIReturn":
+    def new_empty(self, size: tuple[int, ...], **kwargs: Any) -> "VIReturn":
         """Return a VIReturn of size `size` filled with uninitialized data."""
         return self.__class__(super().new_empty(size, **kwargs), None)
 
