@@ -20,7 +20,7 @@ class UniformPrior(Prior):
     mean = None
     _scaling_parameters = ()
 
-    def log_prob(self, sample: Tensor, parameters: Tensor) -> Tensor:
+    def log_prob(self, sample: Tensor, parameters: tuple[Tensor]) -> Tensor:
         r"""
         Return 0 as dummy log probability.
 
@@ -30,9 +30,8 @@ class UniformPrior(Prior):
         ----------
         sample: Tensor
             The current weight configuration.
-        parameters: Tensor
-            The current weight values. Usually this should be the same as `sample`, but
-            this is not enforce.
+        parameters: tuple[Tensor]
+            The current parameter values.
 
         Returns
         -------
@@ -90,7 +89,7 @@ class NonBayesian(UniformPrior, VariationalDistribution, PredictiveDistribution)
         Parameters
         ----------
         parameters: tuple[Tensor]
-            The current weight values.
+            The current parameter values.
 
         Returns
         -------
@@ -118,7 +117,9 @@ class NonBayesian(UniformPrior, VariationalDistribution, PredictiveDistribution)
         """
         return samples.mean(dim=0)
 
-    def log_prob_from_parameters(self, reference: Tensor, parameters: Tensor) -> Tensor:
+    def log_prob_from_parameters(
+        self, reference: Tensor, parameters: tuple[Tensor]
+    ) -> Tensor:
         r"""
         Calculate the loss of the mean prediction with respect to reference.
 
@@ -129,9 +130,8 @@ class NonBayesian(UniformPrior, VariationalDistribution, PredictiveDistribution)
         ----------
         reference: Tensor
             The ground truth label as Tensor of the same shape as `parameters`.
-        parameters: Tensor
-            The predictive means as Tensor of shape as `reference` and as returned by
-            :meth:`~predictive_parameters_from_samples`.
+        parameters: tuple[Tensor]
+            The current parameter values.
 
         Returns
         -------

@@ -40,7 +40,7 @@ class Categorical(PredictiveDistribution):
         self.eps = eps
         self._in_logits = input_type == "logits"
 
-    def predictive_parameters_from_samples(self, samples: Tensor) -> Tensor:
+    def predictive_parameters_from_samples(self, samples: Tensor) -> tuple[Tensor]:
         """
         Calculate predictive probabilities from samples.
 
@@ -56,16 +56,16 @@ class Categorical(PredictiveDistribution):
 
         Returns
         -------
-        Tensor
+        tuple[Tensor]
             The predictive class probabilities as Tensor of shape (B, C).
         """
         if self._in_logits:
-            return F.softmax(samples + self.eps, -1).mean(dim=0)
+            return (F.softmax(samples + self.eps, -1).mean(dim=0),)
         else:
             normalized = samples / samples.sum(dim=-1, keepdim=True)
-            return normalized.mean(dim=0)
+            return (normalized.mean(dim=0),)
 
-    def log_prob(self, sample: Tensor, parameters: Tensor) -> Tensor:
+    def log_prob(self, sample: Tensor, parameters: tuple[Tensor]) -> Tensor:
         """
         Calculate the log probability of the label based on the class probabilities.
 
@@ -76,7 +76,7 @@ class Categorical(PredictiveDistribution):
         sample: Tensor
             The ground truth label as Tensor of shape (B,), where B is the batch size
             and may be one.
-        parameters: Tensor
+        parameters: tuple[Tensor]
             The predictive class probabilities as Tensor of shape (B, C) as returned by
             :meth:`~predictive_parameters_from_samples`.
 
@@ -85,8 +85,8 @@ class Categorical(PredictiveDistribution):
         Tensor
             The log probability of the label under the predicted class probabilities.
         """
-        parameters = torch.log(parameters + self.eps)
+        log_param = torch.log(parameters[0] + self.eps)
         value = sample.long().unsqueeze(-1)
-        value, log_pmf = torch.broadcast_tensors(value, parameters)
+        value, log_pmf = torch.broadcast_tensors(value, log_param)
         value = value[..., :1]
         return log_pmf.gather(-1, value).squeeze(-1)

@@ -59,7 +59,7 @@ class KullbackLeiblerModule(ABC):
 
     def __call__(
         self,
-        prior_parameters: Iterable[Union[Tensor, float]],
+        prior_parameters: Iterable[Tensor],
         variational_parameters: Iterable[Tensor],
     ) -> Tensor:
         """Distribute parameters to forward function."""

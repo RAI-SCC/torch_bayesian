@@ -72,8 +72,7 @@ class MeanFieldNormal(Prior, VariationalDistribution, PredictiveDistribution):
         sample: Tensor
             The weight configuration to calculate the log probability for.
         parameters: tuple[Tensor, Tensor]
-            The Tensor of means and the Tensor of log standard deviations of the
-            reference distribution as tuple.
+            The mean and the standard deviation of the distribution.
 
         Returns
         -------
@@ -96,8 +95,7 @@ class MeanFieldNormal(Prior, VariationalDistribution, PredictiveDistribution):
         Parameters
         ----------
         parameters: Tupel[Tensor, Tensor]
-            A tuple with a Tensor for the mean and one for the standard deviation of
-            each sample.
+            The mean and the standard deviation of the distribution.
 
         Returns
         -------

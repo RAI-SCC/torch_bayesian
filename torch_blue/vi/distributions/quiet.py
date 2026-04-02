@@ -80,9 +80,9 @@ class BasicQuietPrior(Prior):
         ----------
         sample: Tensor
             A Tensor of values to calculate the log probability for.
-        parameters: Tensor
+        parameters: tuple[Tensor, Tensor, Tensor]
             The mean of distribution means, the standard deviation of distribution
-            means, and the current best estimate for the mean of each value as a tuple.
+            means, and the current best estimate for the mean of each value.
 
         Returns
         -------

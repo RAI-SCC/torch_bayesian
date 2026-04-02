@@ -55,7 +55,7 @@ class MeanFieldStudentT(VariationalDistribution):
         ----------
         sample: Tensor
             Sample tensor.
-        parameters: Tensor
+        parameters: tuple[Tensor, Tensor]
             Distribution mean and log scale.
 
         Returns
@@ -92,8 +92,7 @@ class MeanFieldStudentT(VariationalDistribution):
         Parameters
         ----------
         parameters: tuple[Tensor, Tensor]
-            tuple containing a sample mean and a sample distribution log scale as
-            Tensors.
+            Distribution mean and log scale.
 
         Returns
         -------

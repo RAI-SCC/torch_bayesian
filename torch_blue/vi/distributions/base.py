@@ -77,7 +77,7 @@ class Distribution(metaclass=PostInitCallMeta):
         ...
 
     @abstractmethod
-    def log_prob(self, sample: Tensor, parameters: _tensor_list_t) -> Tensor:
+    def log_prob(self, sample: Tensor, parameters: tuple[Tensor, ...]) -> Tensor:
         r"""
         Calculate the log probability of a sample given the distribution parameters.
 
@@ -85,7 +85,7 @@ class Distribution(metaclass=PostInitCallMeta):
         ----------
         sample: Tensor
             A Tensor of samples for which to calculate the log probability.
-        parameters: Tensor | tuple[Tensor, ...]
+        parameters: tuple[Tensor, ...]
             One Tensor for each entry of :attr:`~self.distribution_parameters` in the
             same order. These must be broadcastable to the shape of `sample`. If
             additional parameters are needed for hierarchical priors they should appear
@@ -199,13 +199,13 @@ class Prior(Distribution):
         Returns
         -------
         Tensor | tuple[Tensor, ...]
-            The values of the distribution parameters in the order of
+            A tuple of distribution parameters in the order specified by
             :attr:`~Distribution.distribution_parameters`.
         """
         return tuple(getattr(self, name) for name in self.distribution_parameters)
 
     def prior_log_prob(
-        self, sample: Tensor, hyperparameters: _tensor_list_t = ()
+        self, sample: Tensor, hyperparameters: tuple[Tensor, ...] = ()
     ) -> Tensor:
         r"""
         Compute the log probability of sample based on the distribution parameters.
@@ -219,7 +219,7 @@ class Prior(Distribution):
         ----------
         sample: Tensor
             A Tensor of values to calculate the log probability for.
-        hyperparameters: Tensor | tuple[Tensor, ...]
+        hyperparameters: tuple[Tensor, ...]
             External parameters that might be needed hierarchical priors.
 
         Returns
@@ -399,7 +399,7 @@ class VariationalDistribution(Distribution):
                 _init_constant(param, default, fan_in, is_log)
 
     def variational_log_prob(
-        self, sample: Tensor, parameters: _tensor_list_t
+        self, sample: Tensor, parameters: tuple[Tensor, ...]
     ) -> Tensor:
         r"""
         Compute the log probability of `sample`.
@@ -415,8 +415,8 @@ class VariationalDistribution(Distribution):
         ----------
         sample: Tensor
             A Tensor of values to calculate the log probability for.
-        parameters: Tensor | tuple[Tensor, ...]
-            The predicitve parameters in the same order as specified by
+        parameters: tuple[Tensor, ...]
+            A tuple of distribution parameters in the order specified by
             :attr:`~Distribution.distribution_parameters`.
 
         Returns
@@ -428,20 +428,20 @@ class VariationalDistribution(Distribution):
         return self.log_prob(sample, parameters)
 
     @abstractmethod
-    def sample(self, parameters: _tensor_list_t) -> Tensor:
+    def sample(self, parameters: tuple[Tensor, ...]) -> Tensor:
         r"""
         Draw a differentiable sample from the distribution.
 
         This method is used to sample the weigh matrices in the forward pass.
-        It accepts atuple with one Tensor for each variational parameter in the order
+        It accepts a tuple with one Tensor for each variational parameter in the order
         specified in :attr:`~Distribution.distribution_parameters` and returns a sample
         from the distribution of the same shape. All input Tensors must have the same
         shape.
 
         Parameters
         ----------
-        parameters: Tensor | tuple[Tensor, ...]
-            A tuple of distribution parameters as specified in
+        parameters: tuple[Tensor, ...]
+            A tuple of distribution parameters in the order specified by
             :attr:`~Distribution.distribution_parameters`.
 
         Returns
@@ -495,13 +495,13 @@ class PredictiveDistribution(Distribution):
 
         Returns
         -------
-            A tuple of Tensors, one for each distribution parameter in the same order as
-            specified :attr:`~Distribution.distribution_parameters`. Shape: (\*,).
+            A tuple distribution parameters in the same order as specified by
+            :attr:`~Distribution.distribution_parameters`. Shape: (\*,).
         """
         ...
 
     def log_prob_from_parameters(
-        self, reference: Tensor, parameters: _tensor_list_t
+        self, reference: Tensor, parameters: tuple[Tensor, ...]
     ) -> Tensor:
         r"""
         Calculate the log probability of reference form the predictive parameters.
@@ -511,10 +511,9 @@ class PredictiveDistribution(Distribution):
         reference: Tensor
             The ground truth label as Tensor of the same shape as each Tensor in
             `parameters`.
-        parameters: Tensor | tuple[Tensor, ...]
-            The predictive parameters in the same order as specified by
-            :attr:`~Distribution.distribution_parameters` and returned by
-            :meth:`~predictive_parameters_from_samples`.
+        parameters: tuple[Tensor, ...]
+            A tuple of distribution parameters in the order specified by
+            :attr:`~Distribution.distribution_parameters`.
 
         Returns
         -------
