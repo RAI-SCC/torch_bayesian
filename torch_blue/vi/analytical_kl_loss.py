@@ -363,16 +363,11 @@ class AnalyticalKullbackLeiblerLoss(Module):
 
         return _kl_div_dict[prior_name + vardist_name + "Divergence"]()
 
-    def prior_matching(self) -> Tensor:
-        """
-        Calculate the prior matching KL-Divergence of :attr:`~self.model`.
+    def _get_flat_params(self) -> tuple[Tensor, ...]:
+        """Extract all parameters as tensors for vectorized operations."""
+        prior_param_lol: List[List[Tensor]] = []
+        variational_param_lol: List[List[Tensor]] = []
 
-        Returns
-        -------
-        Tensor
-            The prior matching KL-Divergence of :attr:`~self.model`.
-        """
-        total_kl = None
         for module in self.model.modules():
             if (
                 not hasattr(module, "random_variables")
@@ -383,18 +378,56 @@ class AnalyticalKullbackLeiblerLoss(Module):
                 if prior is None:
                     continue
 
-                prior_params = []
-                for param in prior.distribution_parameters:
-                    prior_params.append(getattr(prior, param))
-                variational_params = module.get_variational_parameters(var)
+                # Extract prior parameters efficiently
+                prior_params = [
+                    getattr(prior, param) for param in prior.distribution_parameters
+                ]
 
-                variable_kl = self.kl_module(prior_params, variational_params)
-                if total_kl is None:
-                    total_kl = variable_kl
-                else:
-                    total_kl = total_kl + variable_kl
+                var_params = module.get_variational_parameters(var)
+                for i, var_param in enumerate(var_params):
+                    if len(variational_param_lol) < i + 1:
+                        variational_param_lol.append([])
+                    variational_param_lol[i].append(var_param.flatten())
 
-        return total_kl
+                # Get number of elements in the last variational parameter
+                n_elements = variational_param_lol[0][-1].shape[0]
+                # Get device from the last variational parameter
+                device = variational_param_lol[0][-1].device
+                # Get dtype from the last variational parameter
+                dtype = variational_param_lol[0][-1].dtype
+
+                # Broadcast scalar parameters to match dimensions using tensor ops
+                for i, prior_param in enumerate(prior_params):
+                    if len(prior_param_lol) < i + 1:
+                        prior_param_lol.append([])
+                    prior_param_lol[i].append(
+                        torch.full(
+                            (n_elements,),
+                            prior_param if prior_param else 0.0,
+                            dtype=dtype,
+                            device=device,
+                        )
+                    )
+
+        # Concatenate all tensors at once (more efficient than extending)
+        return (
+            *(torch.cat(prior_param_list) for prior_param_list in prior_param_lol),
+            *(
+                torch.cat(variational_param_list)
+                for variational_param_list in variational_param_lol
+            ),
+        )
+
+    def prior_matching(self) -> Tensor:
+        """
+        Calculate the prior matching KL-Divergence of :attr:`~self.model`.
+
+        Returns
+        -------
+        Tensor
+            The prior matching KL-Divergence of :attr:`~self.model`.
+        """
+        return self.kl_module.forward(*self._get_flat_params())
 
     def forward(
         self, model_output: Tensor, target: Tensor, dataset_size: Optional[int] = None
