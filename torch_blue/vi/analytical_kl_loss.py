@@ -316,7 +316,6 @@ class AnalyticalKullbackLeiblerLoss(Module):
         if self._track:
             self._init_log()
 
-
     def track(self, mode: bool = True) -> None:
         """
         Enable or disable loss tracking.
