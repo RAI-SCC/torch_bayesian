@@ -1,3 +1,4 @@
+import pytest
 import torch
 
 from torch_blue.vi.distributions import Categorical
@@ -43,3 +44,22 @@ def test_categorical(device: torch.device) -> None:
     assert torch.allclose(log_prob2, target_log_prob2)
     assert log_prob1.device == device
     assert log_prob2.device == device
+
+
+def test_categorical_float_target_raises(device: torch.device) -> None:
+    """Test that Categorical raises TypeError for float targets."""
+    predictive_dist = Categorical()
+
+    batch = 3
+    categories = 5
+    probs = torch.rand((batch, categories), device=device)
+    float_target = torch.tensor([0.0, 1.0, 2.0], device=device)
+
+    with pytest.raises(TypeError, match="Categorical target must be of integer type"):
+        predictive_dist.log_prob_from_parameters(float_target, probs)
+
+    # Verify integer targets still work fine
+    int_target = torch.tensor([0, 1, 2], device=device)
+    result = predictive_dist.log_prob_from_parameters(int_target, probs)
+    assert result.shape == (batch,)
+    assert result.device == device

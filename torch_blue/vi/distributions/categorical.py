@@ -95,6 +95,11 @@ class Categorical(Distribution):
             The log probability of the label under the predicted class probabilities.
             Shape: (1,).
         """
+        if reference.is_floating_point():
+            raise TypeError(
+                f"Categorical target must be of integer type, got {reference.dtype}. "
+                "Targets should be class indices such as 0, 1, 2,... ."
+            )
         parameters = torch.log(parameters + eps)
         value = reference.long().unsqueeze(-1)
         value, log_pmf = torch.broadcast_tensors(value, parameters)
